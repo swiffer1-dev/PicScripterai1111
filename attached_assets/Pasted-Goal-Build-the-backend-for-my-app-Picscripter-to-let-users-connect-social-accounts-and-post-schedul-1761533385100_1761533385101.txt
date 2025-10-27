@@ -1,0 +1,165 @@
+Goal: Build the backend for my app Picscripter to let users connect social accounts and post/schedule captions + media through official OAuth 2.0 flows.
+
+Tech stack (use these unless impossible):
+
+Node.js + TypeScript
+
+Express (HTTP API)
+
+Prisma ORM + PostgreSQL (use Replit DB or a local Postgres; keep it swappable to Supabase)
+
+BullMQ + Redis for job scheduling (post at a future time, retries, backoff)
+
+Zod for input validation
+
+JSON Web Tokens (JWT) for Picscripter user auth/session
+
+Dotenv for secrets; never hardcode keys
+
+Platforms to support (phase 1):
+
+Instagram Graph API (Business/Creator via Facebook Page)
+
+TikTok Content Posting API
+
+X (Twitter) v2 posting (note: tier may be required—still implement)
+
+LinkedIn Posts API
+
+Pinterest API v5 (create Pins)
+
+YouTube Data API (videos.insert)
+
+Facebook Graph API (Pages publishing)
+
+OAuth requirements (critical):
+
+Implement OAuth 2.0 per platform, using the platform’s official consent screen.
+
+Use PKCE where supported; always use state to prevent CSRF.
+
+Store access + refresh tokens securely (encrypted at rest in DB).
+
+Implement automatic token refresh and rotate tokens on refresh.
+
+Provide a “Disconnect” flow to revoke tokens and delete them.
+
+API endpoints to implement (document them in README):
+
+POST /api/auth/signup, POST /api/auth/login, POST /api/auth/logout (Picscripter user auth with JWT)
+
+GET /api/connections → list connected platforms + scopes
+
+GET /api/connect/:platform → begins OAuth; returns redirect URL
+
+GET /api/callback/:platform → handles OAuth callback; saves tokens; returns success
+
+POST /api/disconnect/:platform → revokes + deletes tokens
+
+POST /api/posts → publish now
+
+body: { platform, caption, media: { type: 'image'|'video', url }, options? }
+
+POST /api/schedule → schedule post
+
+body: { platform, caption, media, scheduledAtISO, options? }
+
+GET /api/posts/:id/status → returns queued|publishing|published|failed + platform post ID if available
+
+POST /api/webhooks/:platform → receive platform callbacks (e.g., upload processing, publish confirmations)
+
+Scheduling & jobs:
+
+Use BullMQ + Redis.
+
+A worker processes queued jobs:
+
+Ensure valid token (refresh if needed)
+
+Preprocess media to platform specs (dimensions, codecs if needed)
+
+Call the platform’s publishing flow (e.g., Instagram container → publish, YouTube resumable upload, Pinterest create pin, etc.)
+
+Save external post IDs + URLs
+
+Update job status; retry with exponential backoff; idempotency using a client_post_id
+
+Database schema (Prisma models—AI should create and migrate):
+
+User — id, email, password_hash, createdAt
+
+Connection — id, userId, platform (enum), scopes, accessTokenEnc, refreshTokenEnc, tokenType, expiresAt, createdAt, updatedAt
+
+Post — id, userId, platform, caption, mediaType, mediaUrl, scheduledAt, status, externalId, externalUrl, createdAt, updatedAt
+
+JobLog — id, postId, level, message, raw (JSON), createdAt
+
+Security & compliance:
+
+HTTPS-only; CORS allowlist (env var)
+
+Validate all inputs with Zod; limit caption lengths per platform; sanitize output
+
+Use state param for OAuth; verify on callback
+
+Encrypt tokens before storing (use a KMS-like key from env); never log secrets
+
+Provide /healthz and /readyz endpoints
+
+Platform specifics (implement minimal happy paths + TODO notes):
+
+Instagram: create media container → publish; requires IG Business/Creator linked to a Page; accept image/video URLs; store resulting media ID.
+
+TikTok: initialize post → upload → publish; respect required UX metadata; store video/publish IDs.
+
+X (Twitter): create post with text; support media if feasible; note paid tier caveat in README.
+
+LinkedIn: create member post with text+image (support multi-image later).
+
+Pinterest: create a Pin on a specified board; accept board ID in options.
+
+YouTube: resumable videos.insert with title from caption (first 70 chars), description = full caption; store videoId; note quota in README.
+
+Facebook Pages: publish photo or post via Graph; store post id + link.
+
+DX (developer experience) deliverables:
+
+A README with:
+
+env var list & example .env.example
+
+OAuth app setup steps per platform (redirect URI patterns, required scopes)
+
+local run instructions (npm scripts), how to start worker, how to run migrations
+
+Postman/Insomnia collection (export) for all endpoints
+
+Seed script to create a test user
+
+Basic integration tests for /api/connect/*, /api/posts, /api/schedule (mock platform calls)
+
+Acceptance criteria:
+
+I can run: npm install && npm run dev (API) and npm run worker (queue).
+
+Hitting GET /api/connect/instagram returns a valid redirect URL (constructed from env).
+
+After completing a test OAuth callback (use mocked handlers if live creds not present), a Connection row exists with encrypted tokens.
+
+POST /api/posts with { platform:'instagram', caption:'Hello', media:{type:'image', url:'https://...'} } enqueues/publishes and returns a Post with status.
+
+POST /api/schedule with a future ISO time creates a scheduled job processed by the worker.
+
+README documents platform scopes, redirect URIs, and any paid-tier notes (esp. X, YouTube quotas).
+
+Stretch (if time permits):
+
+Rate-limit middleware per user
+
+Admin endpoint to requeue/force-publish
+
+Simple /api/me to fetch user + connections
+
+Optional: Web UI stub (login, connect buttons, post form) for quick manual testing
+
+Please generate the project now.
