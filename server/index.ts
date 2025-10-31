@@ -89,3 +89,13 @@ app.post("/post_to_fb", (req, res) => {
   const { message } = req.body;
   res.json({ success: true, echo: message });
 });
+// Temporary Facebook test route
+app.post("/post_to_fb", async (req, res) => {
+  const { message } = req.body;
+  try {
+    res.json({ success: true, echo: message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: "Something went wrong" });
+  }
+});
