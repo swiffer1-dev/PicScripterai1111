@@ -79,3 +79,13 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+// ✅ Basic route so Replit Preview works
+app.get("/", (_req, res) => {
+  res.send("✅ PicScripter Backend is running!");
+});
+
+// 🧠 Example route (we'll replace this with the real Facebook post soon)
+app.post("/post_to_fb", (req, res) => {
+  const { message } = req.body;
+  res.json({ success: true, echo: message });
+});
