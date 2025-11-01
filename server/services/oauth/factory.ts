@@ -1,6 +1,12 @@
 import { Platform } from "@shared/schema";
 import { OAuthProvider } from "./base";
 import { InstagramOAuthProvider } from "./instagram";
+import { FacebookOAuthProvider } from "./facebook";
+import { TikTokOAuthProvider } from "./tiktok";
+import { TwitterOAuthProvider } from "./twitter";
+import { LinkedInOAuthProvider } from "./linkedin";
+import { PinterestOAuthProvider } from "./pinterest";
+import { YouTubeOAuthProvider } from "./youtube";
 
 const BASE_URL = process.env.CORS_ORIGIN || "http://localhost:5000";
 
@@ -19,7 +25,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
       });
       
     case "facebook":
-      return new InstagramOAuthProvider({
+      return new FacebookOAuthProvider({
         clientId: process.env.FACEBOOK_APP_ID || "",
         clientSecret: process.env.FACEBOOK_APP_SECRET || "",
         redirectUri,
@@ -29,7 +35,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
       });
       
     case "tiktok":
-      return new InstagramOAuthProvider({
+      return new TikTokOAuthProvider({
         clientId: process.env.TIKTOK_CLIENT_KEY || "",
         clientSecret: process.env.TIKTOK_CLIENT_SECRET || "",
         redirectUri,
@@ -39,7 +45,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
       });
       
     case "twitter":
-      return new InstagramOAuthProvider({
+      return new TwitterOAuthProvider({
         clientId: process.env.TWITTER_CLIENT_ID || "",
         clientSecret: process.env.TWITTER_CLIENT_SECRET || "",
         redirectUri,
@@ -49,17 +55,17 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
       });
       
     case "linkedin":
-      return new InstagramOAuthProvider({
+      return new LinkedInOAuthProvider({
         clientId: process.env.LINKEDIN_CLIENT_ID || "",
         clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
         redirectUri,
-        scopes: ["w_member_social"],
+        scopes: ["w_member_social", "r_liteprofile", "r_emailaddress", "offline_access"],
         authUrl: "https://www.linkedin.com/oauth/v2/authorization",
         tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
       });
       
     case "pinterest":
-      return new InstagramOAuthProvider({
+      return new PinterestOAuthProvider({
         clientId: process.env.PINTEREST_APP_ID || "",
         clientSecret: process.env.PINTEREST_APP_SECRET || "",
         redirectUri,
@@ -69,7 +75,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
       });
       
     case "youtube":
-      return new InstagramOAuthProvider({
+      return new YouTubeOAuthProvider({
         clientId: process.env.YOUTUBE_CLIENT_ID || "",
         clientSecret: process.env.YOUTUBE_CLIENT_SECRET || "",
         redirectUri,

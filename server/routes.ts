@@ -6,7 +6,8 @@ import { signToken } from "./utils/jwt";
 import { encryptToken, decryptToken } from "./utils/encryption";
 import { getOAuthProvider } from "./services/oauth/factory";
 import { generatePKCE, type OAuthState } from "./services/oauth/base";
-import { publishToFacebook } from "./services/publishers/facebook";
+import { publishToPlatform } from "./services/publishers";
+import { publishQueue } from "./worker-queue";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform } from "@shared/schema";
@@ -285,43 +286,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         options: data.options || null,
       });
       
-      // Publish immediately for Facebook (as requested in user's example)
-      if (data.platform === "facebook") {
-        try {
-          const accessToken = decryptToken(connection.accessTokenEnc);
-          const result = await publishToFacebook(
-            accessToken,
-            data.caption,
-            data.media?.url,
-            data.options
-          );
-          
-          await storage.updatePost(post.id, {
-            status: "published",
-            externalId: result.id,
-            externalUrl: result.url,
-          });
-          
-          await storage.createJobLog({
-            postId: post.id,
-            level: "info",
-            message: "Published to Facebook successfully",
-            raw: result,
-          });
-        } catch (error: any) {
-          await storage.updatePost(post.id, {
-            status: "failed",
-          });
-          
-          await storage.createJobLog({
-            postId: post.id,
-            level: "error",
-            message: error.message,
-            raw: { error: error.message },
-          });
-          
-          return res.status(500).json({ error: `Failed to publish: ${error.message}` });
-        }
+      // Publish immediately to all platforms
+      try {
+        const accessToken = decryptToken(connection.accessTokenEnc);
+        const result = await publishToPlatform(
+          data.platform,
+          accessToken,
+          data.caption,
+          data.media?.url,
+          data.media?.type,
+          data.options
+        );
+        
+        await storage.updatePost(post.id, {
+          status: "published",
+          externalId: result.id,
+          externalUrl: result.url,
+        });
+        
+        await storage.createJobLog({
+          postId: post.id,
+          level: "info",
+          message: `Published to ${data.platform} successfully`,
+          raw: result,
+        });
+      } catch (error: any) {
+        await storage.updatePost(post.id, {
+          status: "failed",
+        });
+        
+        await storage.createJobLog({
+          postId: post.id,
+          level: "error",
+          message: error.message,
+          raw: { error: error.message },
+        });
+        
+        return res.status(500).json({ error: `Failed to publish: ${error.message}` });
       }
       
       const updatedPost = await storage.getPost(post.id);
@@ -370,14 +371,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         options: data.options || null,
       });
       
-      // TODO: Add to BullMQ queue with scheduled time
-      
-      await storage.createJobLog({
-        postId: post.id,
-        level: "info",
-        message: `Scheduled for ${scheduledAt.toISOString()}`,
-        raw: { scheduledAt: data.scheduledAtISO },
-      });
+      // Add to BullMQ queue with scheduled time
+      try {
+        await publishQueue.add(
+          `publish-${post.id}`,
+          {
+            postId: post.id,
+            userId: req.userId!,
+            platform: data.platform,
+            caption: data.caption,
+            mediaUrl: data.media?.url,
+            mediaType: data.media?.type,
+            options: data.options,
+          },
+          {
+            delay: scheduledAt.getTime() - Date.now(),
+            jobId: `post-${post.id}`, // Idempotency: prevent duplicate jobs
+          }
+        );
+        
+        await storage.createJobLog({
+          postId: post.id,
+          level: "info",
+          message: `Scheduled for ${scheduledAt.toISOString()}`,
+          raw: { scheduledAt: data.scheduledAtISO },
+        });
+      } catch (queueError: any) {
+        console.warn("Queue error (post saved but not queued):", queueError.message);
+        // Post is still created, just log the queue failure
+        await storage.createJobLog({
+          postId: post.id,
+          level: "warn",
+          message: `Post created but queue unavailable: ${queueError.message}`,
+          raw: { error: queueError.message },
+        });
+      }
       
       res.json(post);
     } catch (error: any) {
@@ -438,7 +466,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accessToken = decryptToken(connection.accessTokenEnc);
       
       // Publish to Facebook
-      const result = await publishToFacebook(accessToken, message);
+      const result = await publishToPlatform(
+        "facebook",
+        accessToken,
+        message
+      );
       
       // Create post record
       const post = await storage.createPost({
