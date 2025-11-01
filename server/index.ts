@@ -1,20 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import cors from "cors";
 
 const app = express();
 
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+// parse JSON first
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false }));
+
+// allow your front-end to call the API (dev-friendly)
+app.use(cors({ origin: true })); // later you can lock to a specific domain
+
+// Public test route (after body parsers; before registerRoutes/setupVite/serveStatic)
+app.post("/post_to_fb", (req, res) => {
+  const message = typeof req.body?.message === "string" ? req.body.message : "";
+  return res.json({ success: true, echo: message });
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -70,32 +78,19 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  const port = parseInt(process.env.PORT || "5000", 10);
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    },
+  );
 })();
 // ✅ Basic route so Replit Preview works
 app.get("/", (_req, res) => {
   res.send("✅ PicScripter Backend is running!");
-});
-
-// 🧠 Example route (we'll replace this with the real Facebook post soon)
-app.post("/post_to_fb", (req, res) => {
-  const { message } = req.body;
-  res.json({ success: true, echo: message });
-});
-// Temporary Facebook test route
-app.post("/post_to_fb", async (req, res) => {
-  const { message } = req.body;
-  try {
-    res.json({ success: true, echo: message });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: "Something went wrong" });
-  }
 });
