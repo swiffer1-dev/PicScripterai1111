@@ -223,17 +223,18 @@ export default function AIStudio() {
         addEmojis,
       });
 
-      // Call backend API for AI generation instead of frontend
+      // Call backend API for AI generation
       const fullImageUrls = uploadedUrls.map(path => 
         path.startsWith('http') ? path : `${window.location.origin}${path}`
       );
       
-      const response = await apiRequest("POST", "/api/ai/generate", {
+      const res = await apiRequest("POST", "/api/ai/generate", {
         imageUrls: fullImageUrls,
         prompt,
-      }) as { description: string; metadata: string };
+      });
       
-      setGeneratedContent(response.description);
+      const data = await res.json() as { description: string; metadata: string };
+      setGeneratedContent(data.description);
       
       toast({
         title: "Content generated!",
