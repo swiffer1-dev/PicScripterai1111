@@ -514,6 +514,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate AI caption from images
+  app.post("/api/ai/generate", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { imageUrls, prompt } = req.body;
+      
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ error: "No images provided" });
+      }
+      
+      const apiKey = process.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Gemini API key not configured" });
+      }
+      
+      // Import Gemini library dynamically
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Fetch images and convert to base64
+      const imageParts = await Promise.all(
+        imageUrls.map(async (url: string) => {
+          const response = await fetch(url);
+          const buffer = await response.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          
+          return {
+            inlineData: {
+              mimeType: contentType,
+              data: base64,
+            },
+          };
+        })
+      );
+      
+      const instruction = `
+        You have two tasks. First, create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach."). This will be the 'imageSummary'.
+        Second, follow the user's primary instruction to generate the main content. This will be the 'generatedContent'.
+        The user's primary instruction is: "${prompt}"
+
+        Return your response as a single, minified JSON object with two keys: "imageSummary" and "generatedContent". Do not include any other text, formatting, or markdown.
+      `;
+      
+      const geminiResponse = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: { parts: [...imageParts, { text: instruction }] },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              imageSummary: { type: Type.STRING },
+              generatedContent: { type: Type.STRING },
+            },
+            required: ['imageSummary', 'generatedContent'],
+          },
+        },
+      });
+      
+      const responseText = geminiResponse.text || '{}';
+      const cleanJsonText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
+      const resultJson = JSON.parse(cleanJsonText);
+      
+      res.json({
+        description: resultJson.generatedContent,
+        metadata: resultJson.imageSummary,
+      });
+    } catch (error: any) {
+      console.error("Error generating AI caption:", error);
+      res.status(500).json({ error: error.message || "Failed to generate caption" });
+    }
+  });
+
   // Get Pinterest boards for a user
   app.get("/api/pinterest/boards", authMiddleware, async (req: AuthRequest, res) => {
     try {

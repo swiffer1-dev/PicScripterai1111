@@ -223,8 +223,17 @@ export default function AIStudio() {
         addEmojis,
       });
 
-      const result = await generateDescription(imageFiles, prompt);
-      setGeneratedContent(result.description);
+      // Call backend API for AI generation instead of frontend
+      const fullImageUrls = uploadedUrls.map(path => 
+        path.startsWith('http') ? path : `${window.location.origin}${path}`
+      );
+      
+      const response = await apiRequest("POST", "/api/ai/generate", {
+        imageUrls: fullImageUrls,
+        prompt,
+      }) as { description: string; metadata: string };
+      
+      setGeneratedContent(response.description);
       
       toast({
         title: "Content generated!",
