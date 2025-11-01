@@ -40,9 +40,27 @@ export const generateDescription = async (
   `;
 
   try {
+    // Validate images
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    
+    for (const file of imageFiles) {
+      console.log(`Validating image: ${file.name}, type: ${file.type}, size: ${file.size}`);
+      
+      if (!supportedTypes.includes(file.type)) {
+        throw new Error(`Unsupported image format: ${file.type}. Supported formats: JPEG, PNG, WebP, HEIC, HEIF`);
+      }
+      
+      if (file.size > maxSize) {
+        throw new Error(`Image ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 20MB.`);
+      }
+    }
+    
     const imageParts = await Promise.all(
       imageFiles.map(async (file) => {
+        console.log(`Converting ${file.name} to base64...`);
         const base64Data = await fileToBase64(file);
+        console.log(`${file.name} converted successfully (${base64Data.length} bytes)`);
         return {
           inlineData: {
             mimeType: file.type,
