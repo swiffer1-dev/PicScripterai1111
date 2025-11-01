@@ -47,8 +47,8 @@ export default function Connections() {
 
   const connectMutation = useMutation({
     mutationFn: async (platform: Platform) => {
-      const response = await apiRequest("GET", `/api/connect/${platform}`, {});
-      return response;
+      const response = await apiRequest("GET", `/api/connect/${platform}`);
+      return await response.json();
     },
     onSuccess: (data) => {
       if (data.redirectUrl) {

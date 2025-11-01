@@ -35,7 +35,8 @@ export default function Login() {
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
       const endpoint = isSignup ? "/api/auth/signup" : "/api/auth/login";
-      return await apiRequest("POST", endpoint, data);
+      const response = await apiRequest("POST", endpoint, data);
+      return await response.json();
     },
     onSuccess: (data) => {
       localStorage.setItem("token", data.token);
