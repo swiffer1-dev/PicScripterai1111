@@ -1,6 +1,50 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiffEntry } from "../types/ai-studio";
 
+const resizeImage = (file: File, maxWidth: number = 1920, maxHeight: number = 1920): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calculate new dimensions
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = width * ratio;
+          height = height * ratio;
+        }
+        
+        // Create canvas and resize
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('Could not get canvas context'));
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert back to blob
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            return reject(new Error('Could not create blob from canvas'));
+          }
+          const resizedFile = new File([blob], file.name, { type: file.type });
+          console.log(`Resized ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(resizedFile.size / 1024).toFixed(0)}KB`);
+          resolve(resizedFile);
+        }, file.type, 0.85); // 85% quality
+      };
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -56,8 +100,19 @@ export const generateDescription = async (
       }
     }
     
-    const imageParts = await Promise.all(
+    // Resize large images before converting to base64
+    const resizedFiles = await Promise.all(
       imageFiles.map(async (file) => {
+        if (file.size > 1 * 1024 * 1024) { // Resize if > 1MB
+          console.log(`Resizing ${file.name}...`);
+          return await resizeImage(file);
+        }
+        return file;
+      })
+    );
+    
+    const imageParts = await Promise.all(
+      resizedFiles.map(async (file) => {
         console.log(`Converting ${file.name} to base64...`);
         const base64Data = await fileToBase64(file);
         console.log(`${file.name} converted successfully (${base64Data.length} bytes)`);

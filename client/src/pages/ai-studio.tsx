@@ -177,6 +177,19 @@ export default function AIStudio() {
     },
   });
 
+  const testApiKey = () => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    console.log("=== API KEY TEST ===");
+    console.log("API Key exists:", !!apiKey);
+    console.log("API Key length:", apiKey?.length || 0);
+    console.log("API Key first 10 chars:", apiKey?.substring(0, 10) || 'N/A');
+    toast({
+      title: "API Key Check",
+      description: apiKey ? `API Key is set (${apiKey.length} chars)` : "API Key is NOT set",
+      variant: apiKey ? "default" : "destructive",
+    });
+  };
+
   const handleGenerate = async () => {
     if (imageFiles.length === 0) {
       toast({
