@@ -192,6 +192,10 @@ export default function AIStudio() {
   };
 
   const handleGenerate = async () => {
+    console.log("=== GENERATE CAPTION CLICKED ===");
+    console.log("Image files:", imageFiles.length);
+    console.log("API Key exists:", !!import.meta.env.VITE_GEMINI_API_KEY);
+    
     if (imageFiles.length === 0) {
       toast({
         title: "No images",
@@ -202,6 +206,11 @@ export default function AIStudio() {
     }
 
     setIsGenerating(true);
+    toast({
+      title: "Starting generation...",
+      description: "Uploading images and preparing AI request",
+    });
+    
     try {
       // Upload images to object storage first
       toast({
