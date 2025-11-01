@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 **Key Pages:**
 - `/login` - Authentication (signup/login toggle)
 - `/` - Dashboard with stats overview and recent posts
+- `/ai-studio` - AI-powered caption generation using Google Gemini with real-time platform connection status
 - `/connections` - Manage OAuth connections to social platforms
 - `/create` - Create and schedule new posts
 - `/posts` - View all posts with status tracking

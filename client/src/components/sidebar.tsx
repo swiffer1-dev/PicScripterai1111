@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Link2, FileText, LogOut } from "lucide-react";
+import { Home, Link2, FileText, Sparkles, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,6 +18,7 @@ export function Sidebar() {
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
+    { href: "/ai-studio", icon: Sparkles, label: "AI Studio" },
     { href: "/connections", icon: Link2, label: "Connections" },
     { href: "/posts", icon: FileText, label: "Posts" },
   ];

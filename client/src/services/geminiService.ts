@@ -70,7 +70,8 @@ export const generateDescription = async (
     
     // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
     // Clean the string before parsing to ensure it's valid JSON.
-    const cleanJsonText = response.text.replace(/^```json\n/, '').replace(/\n```$/, '');
+    const responseText = response.text || '{}';
+    const cleanJsonText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
     const resultJson = JSON.parse(cleanJsonText);
     return {
       description: resultJson.generatedContent,
@@ -80,13 +81,10 @@ export const generateDescription = async (
   } catch (error) {
     console.error("Error generating description:", error);
     const errorMessage = error instanceof Error 
-      ? `An error occurred: ${error.message}. Please check the console for more details.`
+      ? error.message
       : "An unknown error occurred while generating the description.";
-      
-    return {
-      description: errorMessage,
-      metadata: "Error",
-    };
+    
+    throw new Error(`Failed to generate description: ${errorMessage}`);
   }
 };
 
@@ -137,20 +135,16 @@ Text to proofread:
     });
     // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
     // Clean the string before parsing to ensure it's valid JSON.
-    const cleanJsonText = response.text.replace(/^```json\n/, '').replace(/\n```$/, '');
-    const resultJson = JSON.parse(cleanJsonText);
+    const responseText2 = response.text || '{}';
+    const cleanJsonText2 = responseText2.replace(/^```json\n/, '').replace(/\n```$/, '');
+    const resultJson = JSON.parse(cleanJsonText2);
     return resultJson;
   } catch (error) {
     console.error("Error proofreading text:", error);
     const errorMessage = error instanceof Error
-      ? `An error occurred during proofreading: ${error.message}.`
+      ? error.message
       : "An unknown error occurred while proofreading the text.";
-    // Return a structured error response
-    return {
-      correctedText: text,
-      hasCorrections: false,
-      changesSummary: `Proofreading Failed: ${errorMessage}`,
-      diff: null,
-    };
+    
+    throw new Error(`Failed to proofread text: ${errorMessage}`);
   }
 };

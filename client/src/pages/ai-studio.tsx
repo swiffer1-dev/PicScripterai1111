@@ -138,6 +138,11 @@ export default function AIStudio() {
         description: "AI has created your social media caption",
       });
     } catch (error) {
+      console.error("Error generating caption:", error);
+      
+      // Clear any stale content on error
+      setGeneratedContent("");
+      
       toast({
         title: "Generation failed",
         description: error instanceof Error ? error.message : "Failed to generate content",
@@ -209,10 +214,36 @@ export default function AIStudio() {
               <div className="bg-card border border-border rounded-lg p-6">
                 <h2 className="text-lg font-semibold mb-4">Upload Images</h2>
                 <ImageUploader
-                  imageFiles={imageFiles}
+                  onImageChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setImageFiles(files);
+                    const urls = files.map(f => URL.createObjectURL(f));
+                    setPreviewUrls(urls);
+                  }}
                   previewUrls={previewUrls}
-                  onFilesChange={setImageFiles}
-                  onPreviewsChange={setPreviewUrls}
+                  isLoading={isGenerating}
+                  onClearImages={() => {
+                    setImageFiles([]);
+                    setPreviewUrls([]);
+                  }}
+                  onDeleteImage={(index) => {
+                    setImageFiles(prev => prev.filter((_, i) => i !== index));
+                    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+                  }}
+                  onReorderImages={(dragIndex, hoverIndex) => {
+                    setImageFiles(prev => {
+                      const newFiles = [...prev];
+                      const [removed] = newFiles.splice(dragIndex, 1);
+                      newFiles.splice(hoverIndex, 0, removed);
+                      return newFiles;
+                    });
+                    setPreviewUrls(prev => {
+                      const newUrls = [...prev];
+                      const [removed] = newUrls.splice(dragIndex, 1);
+                      newUrls.splice(hoverIndex, 0, removed);
+                      return newUrls;
+                    });
+                  }}
                 />
               </div>
 
@@ -220,13 +251,15 @@ export default function AIStudio() {
                 <h2 className="text-lg font-semibold">Settings</h2>
                 
                 <CategorySelector
-                  category={category}
+                  selectedCategory={category}
                   onCategoryChange={setCategory}
+                  isDisabled={isGenerating}
                 />
 
                 <LanguageSelector
-                  language={language}
+                  selectedLanguage={language}
                   onLanguageChange={setLanguage}
+                  isDisabled={isGenerating}
                 />
 
                 <StyleSettings
@@ -269,6 +302,48 @@ export default function AIStudio() {
                     </>
                   )}
                 </Button>
+              </div>
+
+              {/* Connected Platforms Status */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h2 className="text-lg font-semibold mb-4">Connected Platforms</h2>
+                
+                {loadingConnections ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(['instagram', 'facebook', 'pinterest', 'twitter', 'tiktok', 'linkedin', 'youtube'] as Platform[]).map(platform => {
+                      const isConnected = connectedPlatforms.has(platform);
+                      
+                      return (
+                        <div
+                          key={platform}
+                          className="flex items-center justify-between p-3 rounded-lg border border-border bg-card"
+                          data-testid={`connection-status-${platform}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">{platform}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isConnected ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-xs text-green-600 font-medium">Connected</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">Not connected</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

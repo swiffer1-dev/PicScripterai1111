@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Connections from "@/pages/connections";
 import CreatePost from "@/pages/create-post";
 import Posts from "@/pages/posts";
+import AIStudio from "@/pages/ai-studio";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -35,6 +36,9 @@ function Router() {
       </Route>
       <Route path="/posts">
         {() => <ProtectedRoute component={Posts} />}
+      </Route>
+      <Route path="/ai-studio">
+        {() => <ProtectedRoute component={AIStudio} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
