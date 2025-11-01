@@ -219,6 +219,11 @@ export default function AIStudio() {
       });
     } catch (error) {
       console.error("Error generating caption:", error);
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        apiKey: import.meta.env.VITE_GEMINI_API_KEY ? 'SET (length: ' + import.meta.env.VITE_GEMINI_API_KEY.length + ')' : 'NOT SET',
+      });
       
       // Clear any stale content on error
       setGeneratedContent("");
