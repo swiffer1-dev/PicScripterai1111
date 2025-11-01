@@ -129,7 +129,7 @@ export const generateDescription = async (
       text: instruction,
     };
 
-    console.log("Calling Gemini API with model: gemini-2.0-flash-exp");
+    console.log("Calling Gemini API with model: gemini-1.5-flash");
     console.log("Image parts:", imageParts.length);
     
     // Add timeout to the API call
@@ -138,7 +138,7 @@ export const generateDescription = async (
     });
     
     const apiCall = ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp', // Using faster experimental model
+      model: 'gemini-1.5-flash', // Using stable, reliable model
       contents: { parts: [...imageParts, textPart] },
       config: {
         responseMimeType: 'application/json',
