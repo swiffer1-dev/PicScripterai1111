@@ -132,7 +132,10 @@ export default function AIStudio() {
         }
         
         // For Pinterest, include the board ID
-        if (platform === 'pinterest' && pinterestBoards && pinterestBoards.length > 0) {
+        if (platform === 'pinterest') {
+          if (!pinterestBoards || pinterestBoards.length === 0) {
+            throw new Error('No Pinterest boards found. Please create a board on Pinterest first.');
+          }
           postData.options = {
             boardId: pinterestBoards[0].id,
             title: data.caption.substring(0, 100),

@@ -532,10 +532,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Pinterest API error:", response.status, errorText);
         throw new Error(`Pinterest API error: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log("Pinterest boards response:", JSON.stringify(data, null, 2));
       res.json(data.items || []);
     } catch (error: any) {
       console.error("Error fetching Pinterest boards:", error);
