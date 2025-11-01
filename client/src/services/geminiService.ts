@@ -132,8 +132,8 @@ export const generateDescription = async (
     console.log("Calling Gemini API with model: gemini-1.5-flash");
     console.log("Image parts:", imageParts.length);
     
-    // Call Gemini API directly with correct syntax
-    const response = await ai.generateContent({
+    // Call Gemini API using the models property (matching proofreadText function)
+    const response = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [...imageParts, textPart] }],
       config: {
@@ -151,7 +151,7 @@ export const generateDescription = async (
     
     console.log("Gemini API response received");
     
-    const responseText = await response.text();
+    const responseText = response.text || '{}';
     const resultJson = JSON.parse(responseText);
     
     return {
