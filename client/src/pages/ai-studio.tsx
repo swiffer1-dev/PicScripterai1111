@@ -64,6 +64,7 @@ export default function AIStudio() {
   const { toast } = useToast();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [category, setCategory] = useState<Category>(Category.Travel);
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -76,6 +77,29 @@ export default function AIStudio() {
 
   const { data: connections, isLoading: loadingConnections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      // Get presigned URL from backend
+      const response = await apiRequest("POST", "/api/upload/image") as { uploadURL: string; objectPath: string };
+      
+      // Upload file directly to object storage
+      const uploadResponse = await fetch(response.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      // Return the object path in the format /objects/<relativePath>
+      return response.objectPath;
+    },
   });
 
   const postMutation = useMutation({
@@ -91,8 +115,8 @@ export default function AIStudio() {
           caption: data.caption,
         };
         
-        // Only include media if we have a real URL (not a blob URL)
-        if (data.mediaUrl && !data.mediaUrl.startsWith('blob:')) {
+        // Include media if we have an uploaded image URL
+        if (data.mediaUrl) {
           postData.media = {
             type: "image" as const,
             url: data.mediaUrl,
@@ -122,6 +146,7 @@ export default function AIStudio() {
       setGeneratedContent('');
       setImageFiles([]);
       setPreviewUrls([]);
+      setUploadedImageUrls([]);
       setSelectedPlatforms([]);
     },
     onError: (error: Error) => {
@@ -147,6 +172,17 @@ export default function AIStudio() {
 
     setIsGenerating(true);
     try {
+      // Upload images to object storage first
+      toast({
+        title: "Uploading images...",
+        description: "Uploading your images to storage",
+      });
+      
+      const uploadPromises = imageFiles.map(file => uploadImageMutation.mutateAsync(file));
+      const uploadedUrls = await Promise.all(uploadPromises);
+      setUploadedImageUrls(uploadedUrls);
+      
+      // Generate caption
       const promptTemplate = CATEGORY_PROMPTS[category];
       const prompt = promptTemplate({
         customPrompt,
@@ -162,13 +198,14 @@ export default function AIStudio() {
       
       toast({
         title: "Content generated!",
-        description: "AI has created your social media caption",
+        description: "AI has created your social media caption and uploaded your images",
       });
     } catch (error) {
       console.error("Error generating caption:", error);
       
       // Clear any stale content on error
       setGeneratedContent("");
+      setUploadedImageUrls([]);
       
       toast({
         title: "Generation failed",
@@ -202,7 +239,7 @@ export default function AIStudio() {
     postMutation.mutate({
       caption: generatedContent,
       platforms: selectedPlatforms,
-      mediaUrl: previewUrls[0], // Use first image
+      mediaUrl: uploadedImageUrls[0], // Use first uploaded image
     });
   };
 

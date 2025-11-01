@@ -8,6 +8,7 @@ import { getOAuthProvider } from "./services/oauth/factory";
 import { generatePKCE, type OAuthState } from "./services/oauth/base";
 import { publishToPlatform } from "./services/publishers";
 import { publishQueue } from "./worker-queue";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform } from "@shared/schema";
@@ -262,12 +263,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caption: z.string().min(1),
         media: z.object({
           type: z.enum(["image", "video"]),
-          url: z.string().url(),
+          url: z.string().min(1), // Accept both absolute URLs and relative paths
         }).optional(),
         options: z.any().optional(),
       });
       
       const data = schema.parse(req.body);
+      
+      // Normalize media URL - convert relative paths to absolute URLs
+      let normalizedMediaUrl = data.media?.url;
+      if (normalizedMediaUrl && normalizedMediaUrl.startsWith('/objects/')) {
+        // Convert relative object storage path to absolute URL
+        const protocol = req.protocol;
+        const host = req.get('host');
+        normalizedMediaUrl = `${protocol}://${host}${normalizedMediaUrl}`;
+      }
       
       // Check connection exists
       const connection = await storage.getConnection(req.userId!, data.platform);
@@ -281,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         platform: data.platform,
         caption: data.caption,
         mediaType: data.media?.type,
-        mediaUrl: data.media?.url,
+        mediaUrl: normalizedMediaUrl,
         scheduledAt: undefined,
         options: data.options || null,
       });
@@ -293,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           data.platform,
           accessToken,
           data.caption,
-          data.media?.url,
+          normalizedMediaUrl,
           data.media?.type,
           data.options
         );
@@ -501,6 +511,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message,
         message: "Failed to post to Facebook",
       });
+    }
+  });
+
+  // Image upload endpoints
+  app.post("/api/upload/image", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const result = await objectStorageService.getImageUploadURL();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve uploaded images
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
     }
   });
 
