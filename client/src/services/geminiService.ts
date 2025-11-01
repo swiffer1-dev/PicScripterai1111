@@ -21,11 +21,15 @@ export const generateDescription = async (
   prompt: string
 ): Promise<{ description: string; metadata: string }> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  console.log("API Key check:", apiKey ? `SET (${apiKey.length} chars)` : 'NOT SET');
+  
   if (!apiKey) {
     throw new Error("VITE_GEMINI_API_KEY environment variable is not set.");
   }
 
+  console.log("Initializing GoogleGenAI client...");
   const ai = new GoogleGenAI({ apiKey });
+  console.log("Client initialized successfully");
   
   const instruction = `
     You have two tasks. First, create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach."). This will be the 'imageSummary'.
@@ -52,6 +56,9 @@ export const generateDescription = async (
       text: instruction,
     };
 
+    console.log("Calling Gemini API with model: gemini-2.5-flash");
+    console.log("Image parts:", imageParts.length);
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [...imageParts, textPart] },
@@ -67,6 +74,8 @@ export const generateDescription = async (
         },
       },
     });
+    
+    console.log("Gemini API response received");
     
     // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
     // Clean the string before parsing to ensure it's valid JSON.
