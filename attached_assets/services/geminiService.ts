@@ -1,0 +1,154 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import { DiffEntry } from "../types";
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        return reject(new Error('FileReader did not return a string.'));
+      }
+      const base64String = reader.result.split(',')[1];
+      resolve(base64String);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+export const generateDescription = async (
+  imageFiles: File[],
+  prompt: string
+): Promise<{ description: string; metadata: string }> => {
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable is not set.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const instruction = `
+    You have two tasks. First, create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach."). This will be the 'imageSummary'.
+    Second, follow the user's primary instruction to generate the main content. This will be the 'generatedContent'.
+    The user's primary instruction is: "${prompt}"
+
+    Return your response as a single, minified JSON object with two keys: "imageSummary" and "generatedContent". Do not include any other text, formatting, or markdown.
+  `;
+
+  try {
+    const imageParts = await Promise.all(
+      imageFiles.map(async (file) => {
+        const base64Data = await fileToBase64(file);
+        return {
+          inlineData: {
+            mimeType: file.type,
+            data: base64Data,
+          },
+        };
+      })
+    );
+    
+    const textPart = {
+      text: instruction,
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [...imageParts, textPart] },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            imageSummary: { type: Type.STRING },
+            generatedContent: { type: Type.STRING },
+          },
+          required: ['imageSummary', 'generatedContent'],
+        },
+      },
+    });
+    
+    // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
+    // Clean the string before parsing to ensure it's valid JSON.
+    const cleanJsonText = response.text.replace(/^```json\n/, '').replace(/\n```$/, '');
+    const resultJson = JSON.parse(cleanJsonText);
+    return {
+      description: resultJson.generatedContent,
+      metadata: resultJson.imageSummary,
+    };
+
+  } catch (error) {
+    console.error("Error generating description:", error);
+    const errorMessage = error instanceof Error 
+      ? `An error occurred: ${error.message}. Please check the console for more details.`
+      : "An unknown error occurred while generating the description.";
+      
+    return {
+      description: errorMessage,
+      metadata: "Error",
+    };
+  }
+};
+
+export const proofreadText = async (text: string): Promise<{ correctedText: string; hasCorrections: boolean; changesSummary: string; diff: DiffEntry[] | null; }> => {
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable is not set.");
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompt = `You are a proofreading assistant. Analyze the following text for grammar, spelling, and punctuation errors. Return your response as a single, minified JSON object with four keys:
+1. "correctedText": The full text with all corrections applied. If no errors are found, this should be the original text.
+2. "hasCorrections": A boolean value. 'true' if any corrections were made, 'false' otherwise.
+3. "changesSummary": A brief, user-friendly string summarizing the changes made (e.g., "Fixed 3 spelling mistakes and 2 punctuation errors."). If no changes were made, this string should say "No corrections needed."
+4. "diff": An array of objects representing the changes on a word-by-word basis. Each object must have two keys: "type" (string values can be 'added', 'removed', or 'unchanged') and "value" (the corresponding text segment, including spaces and punctuation). If no changes are made, the diff array should contain a single object of type 'unchanged' with the original text as its value.
+
+Do not include any other text, formatting, or markdown.
+
+Text to proofread:
+"${text}"`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            correctedText: { type: Type.STRING },
+            hasCorrections: { type: Type.BOOLEAN },
+            changesSummary: { type: Type.STRING },
+            diff: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  value: { type: Type.STRING },
+                },
+                required: ['type', 'value'],
+              }
+            }
+          },
+          required: ['correctedText', 'hasCorrections', 'changesSummary', 'diff'],
+        }
+      }
+    });
+    // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
+    // Clean the string before parsing to ensure it's valid JSON.
+    const cleanJsonText = response.text.replace(/^```json\n/, '').replace(/\n```$/, '');
+    const resultJson = JSON.parse(cleanJsonText);
+    return resultJson;
+  } catch (error) {
+    console.error("Error proofreading text:", error);
+    const errorMessage = error instanceof Error
+      ? `An error occurred during proofreading: ${error.message}.`
+      : "An unknown error occurred while proofreading the text.";
+    // Return a structured error response
+    return {
+      correctedText: text,
+      hasCorrections: false,
+      changesSummary: `Proofreading Failed: ${errorMessage}`,
+      diff: null,
+    };
+  }
+};

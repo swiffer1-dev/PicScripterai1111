@@ -44,6 +44,7 @@
     "@tanstack/react-query": "^5.60.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "adm-zip": "^0.5.16",
     "axios": "^1.13.1",
     "bcryptjs": "^3.0.2",
     "bullmq": "^5.62.2",
