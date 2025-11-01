@@ -132,12 +132,11 @@ export const generateDescription = async (
     console.log("Calling Gemini API with model: gemini-1.5-flash");
     console.log("Image parts:", imageParts.length);
     
-    // Use the correct @google/genai API
-    const model = ai.models.get('gemini-1.5-flash');
-    
-    const response = await model.generateContent({
+    // Call Gemini API directly with correct syntax
+    const response = await ai.generateContent({
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [...imageParts, textPart] }],
-      generationConfig: {
+      config: {
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
