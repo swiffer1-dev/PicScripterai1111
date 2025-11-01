@@ -7,14 +7,16 @@ const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
   lazyConnect: true,
+  retryStrategy: () => null, // Don't retry connections
+  enableReadyCheck: false,
+  enableOfflineQueue: false,
 });
 
 // Suppress connection errors in development
-connection.on("error", (err) => {
-  if (process.env.NODE_ENV === "development") {
-    console.warn("Redis connection warning (queue disabled in dev without Redis):", err.message);
-  } else {
-    console.error("Redis connection error:", err);
+connection.on("error", () => {
+  // Silently ignore Redis errors in development
+  if (process.env.NODE_ENV !== "development") {
+    console.error("Redis connection error - scheduled posts disabled");
   }
 });
 
