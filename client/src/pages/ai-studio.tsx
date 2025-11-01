@@ -84,7 +84,34 @@ export default function AIStudio() {
       platforms: Platform[];
       mediaUrl?: string;
     }) => {
-      return await apiRequest("POST", "/api/posts", data);
+      // Send one request per platform
+      const promises = data.platforms.map(platform => {
+        const postData: any = {
+          platform,
+          caption: data.caption,
+        };
+        
+        // Only include media if we have a real URL (not a blob URL)
+        if (data.mediaUrl && !data.mediaUrl.startsWith('blob:')) {
+          postData.media = {
+            type: "image" as const,
+            url: data.mediaUrl,
+          };
+        }
+        
+        return apiRequest("POST", "/api/posts", postData);
+      });
+      
+      // Wait for all requests to complete
+      const results = await Promise.allSettled(promises);
+      
+      // Check if any failed
+      const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+      if (failures.length > 0) {
+        throw new Error(`Failed to post to ${failures.length} platform(s): ${failures.map(f => f.reason.message).join(', ')}`);
+      }
+      
+      return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
