@@ -514,6 +514,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Pinterest boards for a user
+  app.get("/api/pinterest/boards", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const connection = await storage.getConnection(req.userId!, "pinterest");
+      if (!connection) {
+        return res.status(404).json({ error: "No Pinterest connection found" });
+      }
+      
+      const accessToken = decryptToken(connection.accessTokenEnc);
+      
+      // Fetch boards from Pinterest API
+      const response = await fetch("https://api.pinterest.com/v5/boards", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Pinterest API error: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      res.json(data.items || []);
+    } catch (error: any) {
+      console.error("Error fetching Pinterest boards:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Image upload endpoints
   app.post("/api/upload/image", authMiddleware, async (req: AuthRequest, res) => {
     try {

@@ -79,6 +79,14 @@ export default function AIStudio() {
     queryKey: ["/api/connections"],
   });
 
+  const connectedPlatforms = new Set(connections?.map(c => c.platform) || []);
+
+  const { data: pinterestBoards } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ["/api/pinterest/boards"],
+    enabled: connectedPlatforms.has('pinterest'),
+    retry: false,
+  });
+
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File): Promise<string> => {
       // Get presigned URL from backend
@@ -123,6 +131,14 @@ export default function AIStudio() {
           };
         }
         
+        // For Pinterest, include the board ID
+        if (platform === 'pinterest' && pinterestBoards && pinterestBoards.length > 0) {
+          postData.options = {
+            boardId: pinterestBoards[0].id,
+            title: data.caption.substring(0, 100),
+          };
+        }
+        
         return apiRequest("POST", "/api/posts", postData);
       });
       
@@ -157,8 +173,6 @@ export default function AIStudio() {
       });
     },
   });
-
-  const connectedPlatforms = new Set(connections?.map(c => c.platform) || []);
 
   const handleGenerate = async () => {
     if (imageFiles.length === 0) {
