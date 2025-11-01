@@ -90,7 +90,8 @@ export default function AIStudio() {
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File): Promise<string> => {
       // Get presigned URL from backend
-      const response = await apiRequest("POST", "/api/upload/image") as { uploadURL: string; objectPath: string };
+      const res = await apiRequest("POST", "/api/upload/image");
+      const response = await res.json() as { uploadURL: string; objectPath: string };
       
       // Upload file directly to object storage
       const uploadResponse = await fetch(response.uploadURL, {
@@ -223,18 +224,9 @@ export default function AIStudio() {
         addEmojis,
       });
 
-      // Call backend API for AI generation
-      const fullImageUrls = uploadedUrls.map(path => 
-        path.startsWith('http') ? path : `${window.location.origin}${path}`
-      );
-      
-      const res = await apiRequest("POST", "/api/ai/generate", {
-        imageUrls: fullImageUrls,
-        prompt,
-      });
-      
-      const data = await res.json() as { description: string; metadata: string };
-      setGeneratedContent(data.description);
+      // Generate caption using Gemini (already has resizing built in from geminiService)
+      const result = await generateDescription(imageFiles, prompt);
+      setGeneratedContent(result.description);
       
       toast({
         title: "Content generated!",
