@@ -132,15 +132,12 @@ export const generateDescription = async (
     console.log("Calling Gemini API with model: gemini-1.5-flash");
     console.log("Image parts:", imageParts.length);
     
-    // Add timeout to the API call
-    const timeout = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Gemini API request timed out after 60 seconds')), 60000);
-    });
+    // Use the correct @google/genai API
+    const model = ai.models.get('gemini-1.5-flash');
     
-    const apiCall = ai.models.generateContent({
-      model: 'gemini-1.5-flash', // Correct format for @google/genai package
-      contents: { parts: [...imageParts, textPart] },
-      config: {
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [...imageParts, textPart] }],
+      generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -153,15 +150,11 @@ export const generateDescription = async (
       },
     });
     
-    const response = await Promise.race([apiCall, timeout]) as any;
-    
     console.log("Gemini API response received");
     
-    // FIX: The response text from the Gemini API might be wrapped in markdown backticks.
-    // Clean the string before parsing to ensure it's valid JSON.
-    const responseText = response.text || '{}';
-    const cleanJsonText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
-    const resultJson = JSON.parse(cleanJsonText);
+    const responseText = await response.text();
+    const resultJson = JSON.parse(responseText);
+    
     return {
       description: resultJson.generatedContent,
       metadata: resultJson.imageSummary,
