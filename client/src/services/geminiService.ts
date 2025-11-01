@@ -85,14 +85,14 @@ export const generateDescription = async (
 
   try {
     // Validate images
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
     const maxSize = 20 * 1024 * 1024; // 20MB
     
     for (const file of imageFiles) {
       console.log(`Validating image: ${file.name}, type: ${file.type}, size: ${file.size}`);
       
       if (!supportedTypes.includes(file.type)) {
-        throw new Error(`Unsupported image format: ${file.type}. Supported formats: JPEG, PNG, WebP, HEIC, HEIF`);
+        throw new Error(`Unsupported image format: ${file.type}. Supported formats: JPEG, PNG, WebP, HEIC, HEIF, AVIF`);
       }
       
       if (file.size > maxSize) {
@@ -129,7 +129,7 @@ export const generateDescription = async (
       text: instruction,
     };
 
-    console.log("Calling Gemini API with model: gemini-1.5-flash");
+    console.log("Calling Gemini API with model: models/gemini-1.5-flash");
     console.log("Image parts:", imageParts.length);
     
     // Add timeout to the API call
@@ -138,7 +138,7 @@ export const generateDescription = async (
     });
     
     const apiCall = ai.models.generateContent({
-      model: 'gemini-1.5-flash', // Using stable, reliable model
+      model: 'models/gemini-1.5-flash', // Correct model path format
       contents: { parts: [...imageParts, textPart] },
       config: {
         responseMimeType: 'application/json',
