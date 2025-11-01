@@ -13,6 +13,9 @@ import CategorySelector from '../components/CategorySelector';
 import LanguageSelector from '../components/LanguageSelector';
 import type { Connection, Platform } from "@shared/schema";
 
+console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
+console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
+
 const StyleSettings: React.FC<{
   tone: Tone; onToneChange: (t: Tone) => void;
   addHashtags: boolean; onHashtagsChange: (c: boolean) => void;
