@@ -36,7 +36,7 @@ const resizeImage = (file: File, maxWidth: number = 1920, maxHeight: number = 19
           const resizedFile = new File([blob], file.name, { type: file.type });
           console.log(`Resized ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(resizedFile.size / 1024).toFixed(0)}KB`);
           resolve(resizedFile);
-        }, file.type, 0.75); // 75% quality for smaller file size
+        }, file.type, 0.65); // 65% quality for even smaller file size
       };
       img.onerror = () => reject(new Error('Could not load image'));
       img.src = e.target?.result as string;
@@ -105,7 +105,7 @@ export const generateDescription = async (
       imageFiles.map(async (file) => {
         // Always resize to ensure reasonable file sizes for API
         console.log(`Processing ${file.name} (${(file.size / 1024).toFixed(0)}KB)...`);
-        const resized = await resizeImage(file, 1280, 1280); // Smaller max dimensions
+        const resized = await resizeImage(file, 1024, 1024); // Even smaller: 1024x1024
         console.log(`Result: ${(resized.size / 1024).toFixed(0)}KB`);
         return resized;
       })
@@ -129,11 +129,16 @@ export const generateDescription = async (
       text: instruction,
     };
 
-    console.log("Calling Gemini API with model: gemini-2.5-flash");
+    console.log("Calling Gemini API with model: gemini-2.0-flash-exp");
     console.log("Image parts:", imageParts.length);
     
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    // Add timeout to the API call
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Gemini API request timed out after 60 seconds')), 60000);
+    });
+    
+    const apiCall = ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp', // Using faster experimental model
       contents: { parts: [...imageParts, textPart] },
       config: {
         responseMimeType: 'application/json',
@@ -147,6 +152,8 @@ export const generateDescription = async (
         },
       },
     });
+    
+    const response = await Promise.race([apiCall, timeout]) as any;
     
     console.log("Gemini API response received");
     
