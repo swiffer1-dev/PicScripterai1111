@@ -90,7 +90,3 @@ app.use((req, res, next) => {
     },
   );
 })();
-// ✅ Basic route so Replit Preview works
-app.get("/", (_req, res) => {
-  res.send("✅ PicScripter Backend is running!");
-});
