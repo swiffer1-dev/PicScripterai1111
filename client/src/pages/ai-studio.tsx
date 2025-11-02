@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet } from "lucide-react";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
 import { generateDescription, proofreadText } from '../services/geminiService';
@@ -85,6 +85,7 @@ export default function AIStudio() {
   const [language, setLanguage] = useState<string>('English');
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { data: connections, isLoading: loadingConnections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -538,10 +539,23 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-6 lg:p-8">
-          <div className="mb-8">
+        {/* Mobile header */}
+        <div className="lg:hidden sticky top-0 z-30 bg-background border-b border-border p-4 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(true)}
+            data-testid="button-mobile-menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-semibold">Picscripter</h1>
+        </div>
+
+        <div className="max-w-6xl mx-auto p-4 lg:p-8">
+          <div className="mb-6 lg:mb-8 hidden lg:block">
             <h1 className="text-3xl font-semibold tracking-tight">Create</h1>
             <p className="text-muted-foreground mt-1.5">
               Generate AI-powered captions and post to your connected platforms
