@@ -542,7 +542,7 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto p-6 lg:p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight">AI Studio</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Create</h1>
             <p className="text-muted-foreground mt-1.5">
               Generate AI-powered captions and post to your connected platforms
             </p>
