@@ -624,9 +624,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const accessToken = decryptToken(connection.accessTokenEnc);
       
-      // Fetch boards from Pinterest API
-      const response = await fetch("https://api.pinterest.com/v5/boards", {
+      // Fetch boards from Pinterest API with pagination
+      const response = await fetch("https://api.pinterest.com/v5/boards?page_size=100", {
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
       });
@@ -639,6 +640,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const data = await response.json();
       console.log("Pinterest boards response:", JSON.stringify(data, null, 2));
+      
+      // If no boards found, provide helpful message
+      if (!data.items || data.items.length === 0) {
+        console.log("No Pinterest boards found. User may need to create a board on Pinterest.com first.");
+      }
+      
       res.json(data.items || []);
     } catch (error: any) {
       console.error("Error fetching Pinterest boards:", error);
