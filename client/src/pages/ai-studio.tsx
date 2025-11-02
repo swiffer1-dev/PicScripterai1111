@@ -555,10 +555,11 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
                 <h2 className="text-lg font-semibold mb-4">Upload Images</h2>
                 <ImageUploader
                   onImageChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setImageFiles(files);
-                    const urls = files.map(f => URL.createObjectURL(f));
-                    setPreviewUrls(urls);
+                    const newFiles = Array.from(e.target.files || []);
+                    // Append new files to existing ones instead of replacing
+                    setImageFiles(prev => [...prev, ...newFiles]);
+                    const newUrls = newFiles.map(f => URL.createObjectURL(f));
+                    setPreviewUrls(prev => [...prev, ...newUrls]);
                   }}
                   previewUrls={previewUrls}
                   isLoading={isGenerating}
