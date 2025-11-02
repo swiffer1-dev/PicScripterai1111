@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import jsPDF from 'jspdf';
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
@@ -375,6 +376,37 @@ export default function AIStudio() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text("Generated Caption", 20, 20);
+    
+    // Add content with text wrapping
+    doc.setFontSize(12);
+    const splitText = doc.splitTextToSize(generatedContent, 170);
+    doc.text(splitText, 20, 35);
+    
+    // Save the PDF
+    doc.save('caption.pdf');
+    toast({ title: "Downloaded as PDF" });
+  };
+
+  const handleDownloadWord = () => {
+    // Create RTF format which opens in Word
+    const rtfContent = `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Arial;}}
+{\\colortbl;\\red0\\green0\\blue0;}
+\\f0\\fs24
+{\\b\\fs32 Generated Caption}\\par
+\\par
+${generatedContent.replace(/\n/g, '\\par\n')}
+}`;
+    downloadAsFile(rtfContent, 'caption.rtf', 'application/rtf');
+    toast({ title: "Downloaded as Word document" });
+  };
+
   const handleDownloadTXT = () => {
     downloadAsFile(generatedContent, 'caption.txt', 'text/plain');
     toast({ title: "Downloaded as TXT" });
@@ -622,6 +654,14 @@ export default function AIStudio() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleDownloadPDF} data-testid="download-pdf">
+                            <FileText className="mr-2 h-4 w-4" />
+                            PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleDownloadWord} data-testid="download-word">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Word Doc
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={handleDownloadTXT} data-testid="download-txt">
                             <FileText className="mr-2 h-4 w-4" />
                             Text File
