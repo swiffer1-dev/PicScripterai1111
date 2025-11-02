@@ -4,14 +4,20 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wand2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
-import { generateDescription } from '../services/geminiService';
+import { generateDescription, proofreadText } from '../services/geminiService';
 import ImageUploader from '../components/ImageUploader';
 import CategorySelector from '../components/CategorySelector';
 import LanguageSelector from '../components/LanguageSelector';
 import type { Connection, Platform } from "@shared/schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
@@ -71,6 +77,7 @@ export default function AIStudio() {
   const [category, setCategory] = useState<Category>(Category.Travel);
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProofreading, setIsProofreading] = useState(false);
   const [tone, setTone] = useState<Tone>('Casual');
   const [addHashtags, setAddHashtags] = useState(true);
   const [addEmojis, setAddEmojis] = useState(true);
@@ -309,6 +316,132 @@ export default function AIStudio() {
     );
   };
 
+  const handleProofread = async () => {
+    if (!generatedContent) return;
+    
+    setIsProofreading(true);
+    try {
+      const result = await proofreadText(generatedContent);
+      if (result.hasCorrections) {
+        setGeneratedContent(result.correctedText);
+        toast({
+          title: "Content proofread",
+          description: result.changesSummary,
+        });
+      } else {
+        toast({
+          title: "No corrections needed",
+          description: "Your content looks great!",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Proofread failed",
+        description: error instanceof Error ? error.message : "Failed to proofread content",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProofreading(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (imageFiles.length === 0) {
+      toast({
+        title: "No images",
+        description: "Please upload images first",
+        variant: "destructive",
+      });
+      return;
+    }
+    handleGenerate();
+  };
+
+  const handleCopy = () => {
+    if (!generatedContent) return;
+    navigator.clipboard.writeText(generatedContent);
+    toast({ title: "Copied to clipboard!" });
+  };
+
+  const downloadAsFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTXT = () => {
+    downloadAsFile(generatedContent, 'caption.txt', 'text/plain');
+    toast({ title: "Downloaded as TXT" });
+  };
+
+  const handleDownloadCSV = () => {
+    const csv = `"Caption"\n"${generatedContent.replace(/"/g, '""')}"`;
+    downloadAsFile(csv, 'caption.csv', 'text/csv');
+    toast({ title: "Downloaded as CSV" });
+  };
+
+  const handleDownloadHTML = () => {
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Generated Caption</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+    .content { white-space: pre-wrap; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>Generated Caption</h1>
+  <div class="content">${generatedContent}</div>
+</body>
+</html>`;
+    downloadAsFile(html, 'caption.html', 'text/html');
+    toast({ title: "Downloaded as HTML" });
+  };
+
+  const saveDraftMutation = useMutation({
+    mutationFn: async (data: { caption: string; mediaUrl?: string }) => {
+      return apiRequest("POST", "/api/posts/draft", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      toast({
+        title: "Saved as draft",
+        description: "Your content has been saved to drafts",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Save failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveDraft = () => {
+    if (!generatedContent) {
+      toast({
+        title: "No content",
+        description: "Please generate content first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    saveDraftMutation.mutate({
+      caption: generatedContent,
+      mediaUrl: uploadedImageUrls[0],
+    });
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -463,23 +596,87 @@ export default function AIStudio() {
             {/* Right Column - Output */}
             <div className="space-y-6">
               <div className="bg-card border border-border rounded-lg p-6">
-                <h2 className="text-lg font-semibold mb-4">Generated Content</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Generated Content</h2>
+                  {generatedContent && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleCopy}
+                        variant="ghost"
+                        size="icon"
+                        title="Copy to clipboard"
+                        data-testid="button-copy-icon"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Download"
+                            data-testid="button-download"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleDownloadTXT} data-testid="download-txt">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Text File
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleDownloadCSV} data-testid="download-csv">
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleDownloadHTML} data-testid="download-html">
+                            <FileText className="mr-2 h-4 w-4" />
+                            HTML
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <Button
+                        onClick={handleRegenerate}
+                        variant="ghost"
+                        size="icon"
+                        title="Regenerate"
+                        disabled={isGenerating}
+                        data-testid="button-regenerate"
+                      >
+                        <RotateCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                      </Button>
+
+                      <Button
+                        onClick={handleProofread}
+                        variant="ghost"
+                        size="icon"
+                        title="Proofread"
+                        disabled={isProofreading}
+                        data-testid="button-proofread"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        onClick={handleSaveDraft}
+                        variant="ghost"
+                        size="icon"
+                        title="Save as draft"
+                        disabled={saveDraftMutation.isPending}
+                        data-testid="button-save-draft"
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 {generatedContent ? (
                   <div className="space-y-4">
                     <div className="bg-muted/50 rounded-lg p-4 min-h-[200px]">
                       <p className="text-sm whitespace-pre-wrap">{generatedContent}</p>
                     </div>
-                    <Button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedContent);
-                        toast({ title: "Copied to clipboard!" });
-                      }}
-                      variant="outline"
-                      className="w-full"
-                      data-testid="button-copy"
-                    >
-                      Copy to Clipboard
-                    </Button>
                   </div>
                 ) : (
                   <div className="bg-muted/50 rounded-lg p-8 text-center text-muted-foreground min-h-[200px] flex items-center justify-center">

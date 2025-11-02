@@ -16,6 +16,7 @@ export const platformEnum = pgEnum("platform", [
 ]);
 
 export const postStatusEnum = pgEnum("post_status", [
+  "draft",
   "queued",
   "publishing",
   "published",
@@ -129,7 +130,6 @@ export const insertPostSchema = createInsertSchema(posts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  status: true,
   externalId: true,
   externalUrl: true,
 });

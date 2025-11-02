@@ -256,6 +256,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Post endpoints
+  app.post("/api/posts/draft", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const schema = z.object({
+        caption: z.string().min(1),
+        mediaUrl: z.string().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Create a draft post (no platform specified, just saves the content)
+      const post = await storage.createPost({
+        userId: req.userId!,
+        platform: 'instagram', // Default platform for drafts
+        caption: data.caption,
+        mediaType: data.mediaUrl ? 'image' : undefined,
+        mediaUrl: data.mediaUrl,
+        scheduledAt: undefined,
+        options: null,
+        status: 'draft' as const,
+      });
+      
+      res.json(post);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post("/api/posts", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
