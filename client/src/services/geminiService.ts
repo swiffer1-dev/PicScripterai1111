@@ -129,12 +129,12 @@ export const generateDescription = async (
       text: instruction,
     };
 
-    console.log("Calling Gemini API with model: gemini-1.5-flash");
+    console.log("Calling Gemini API");
     console.log("Image parts:", imageParts.length);
     
-    // Call Gemini API using the models property (matching proofreadText function)
+    // Call Gemini API - try gemini-2.0-flash-exp which is available in v1beta
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash-exp',
       contents: [{ role: 'user', parts: [...imageParts, textPart] }],
       config: {
         responseMimeType: 'application/json',
