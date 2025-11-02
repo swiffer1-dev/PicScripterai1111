@@ -376,21 +376,83 @@ export default function AIStudio() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(16);
-    doc.text("Generated Caption", 20, 20);
-    
-    // Add content with text wrapping
-    doc.setFontSize(12);
-    const splitText = doc.splitTextToSize(generatedContent, 170);
-    doc.text(splitText, 20, 35);
-    
-    // Save the PDF
-    doc.save('caption.pdf');
-    toast({ title: "Downloaded as PDF" });
+  const handleDownloadPDF = async () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Add centered title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      const title = "PicScripter Content Report";
+      const titleWidth = doc.getTextWidth(title);
+      doc.text(title, (pageWidth - titleWidth) / 2, 20);
+      
+      // Add metadata
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const now = new Date();
+      const dateStr = now.toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: 'numeric', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true
+      });
+      
+      let yPos = 35;
+      doc.text(`Generation Date: ${dateStr}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Target Platform: ${category}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Intended Tone: ${tone}`, 20, yPos);
+      yPos += 10;
+      
+      // Add horizontal line
+      doc.setLineWidth(0.5);
+      doc.line(20, yPos, pageWidth - 20, yPos);
+      yPos += 15;
+      
+      // Add image if available
+      if (previewUrls.length > 0) {
+        try {
+          const imgData = previewUrls[0];
+          const imgWidth = 100;
+          const imgHeight = 75;
+          const imgX = (pageWidth - imgWidth) / 2;
+          doc.addImage(imgData, 'JPEG', imgX, yPos, imgWidth, imgHeight);
+          yPos += imgHeight + 15;
+        } catch (err) {
+          console.error('Error adding image to PDF:', err);
+        }
+      }
+      
+      // Add "Generated Content" section
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text("Generated Content", 20, yPos);
+      yPos += 8;
+      
+      // Add caption content with wrapping
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      const splitText = doc.splitTextToSize(generatedContent, pageWidth - 40);
+      doc.text(splitText, 20, yPos);
+      
+      // Save the PDF
+      const timestamp = Date.now();
+      doc.save(`picscripter-content-${timestamp}.pdf`);
+      toast({ title: "Downloaded as PDF" });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({ 
+        title: "PDF generation failed", 
+        description: error instanceof Error ? error.message : "Failed to generate PDF",
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleDownloadWord = () => {
