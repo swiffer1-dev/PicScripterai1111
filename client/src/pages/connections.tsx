@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Menu } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook } from "react-icons/si";
 import type { Connection, Platform } from "@shared/schema";
+import { useState } from "react";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -40,6 +41,7 @@ const allPlatforms: Platform[] = [
 
 export default function Connections() {
   const { toast } = useToast();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { data: connections, isLoading } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -88,10 +90,23 @@ export default function Connections() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          <div className="mb-8">
+        {/* Mobile header */}
+        <div className="lg:hidden sticky top-0 z-30 bg-background border-b border-border p-4 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(true)}
+            data-testid="button-mobile-menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-semibold">Picscripter</h1>
+        </div>
+
+        <div className="max-w-7xl mx-auto p-4 lg:p-8">
+          <div className="mb-6 lg:mb-8 hidden lg:block">
             <h1 className="text-3xl font-semibold tracking-tight">Connections</h1>
             <p className="text-muted-foreground mt-1.5">Manage your social media platform connections</p>
           </div>
