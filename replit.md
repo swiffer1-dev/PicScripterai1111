@@ -38,10 +38,18 @@ Preferred communication style: Simple, everyday language.
 **Key Pages:**
 - `/login` - Authentication (signup/login toggle)
 - `/` - Dashboard with stats overview and recent posts
-- `/ai-studio` - AI-powered caption generation using Google Gemini with image upload to Replit Object Storage
+- `/ai-studio` - AI-powered content creation studio with:
+  - Multi-image upload (JPEG, PNG, WebP, AVIF, HEIC, HEIF)
+  - AI caption generation using Google Gemini API
+  - Proofread functionality to refine generated content
+  - Regenerate option to create new variations
+  - Download capabilities (TXT, CSV, HTML formats)
+  - Save as draft functionality
+  - Copy to clipboard
+  - Direct posting to connected platforms
 - `/connections` - Manage OAuth connections to social platforms
 - `/create` - Create and schedule new posts
-- `/posts` - View all posts with status tracking
+- `/posts` - View all posts with status tracking (including drafts)
 
 ### Backend Architecture
 
