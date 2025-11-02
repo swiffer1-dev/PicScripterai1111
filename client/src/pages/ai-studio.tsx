@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu } from "lucide-react";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
 import { generateDescription, proofreadText } from '../services/geminiService';
@@ -298,6 +298,36 @@ export default function AIStudio() {
       caption: generatedContent,
       platforms: selectedPlatforms,
       mediaUrl: uploadedImageUrls[0], // Use first uploaded image
+    });
+  };
+
+  const handleSmartPost = () => {
+    if (!generatedContent) {
+      toast({
+        title: "No content",
+        description: "Please generate content first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (connections && connections.length === 0) {
+      toast({
+        title: "No platforms connected",
+        description: "Please connect at least one social media account",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get all connected platforms
+    const allConnectedPlatforms = Array.from(connectedPlatforms) as Platform[];
+    
+    // Post to all connected platforms
+    postMutation.mutate({
+      caption: generatedContent,
+      platforms: allConnectedPlatforms,
+      mediaUrl: uploadedImageUrls[0],
     });
   };
 
@@ -825,6 +855,36 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
                     </div>
                   ) : connections && connections.length > 0 ? (
                     <>
+                      {/* Smart Post Button */}
+                      <Button
+                        onClick={handleSmartPost}
+                        disabled={postMutation.isPending}
+                        className="w-full mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold"
+                        size="lg"
+                        data-testid="button-smart-post"
+                      >
+                        {postMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Posting...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="mr-2 h-5 w-5" />
+                            Smart Post to All ({connectedPlatforms.size} platforms)
+                          </>
+                        )}
+                      </Button>
+
+                      <div className="relative mb-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-card px-2 text-muted-foreground">Or select manually</span>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3 mb-4">
                         {(['instagram', 'facebook', 'pinterest', 'twitter', 'tiktok', 'linkedin', 'youtube'] as Platform[]).map(platform => {
                           const isConnected = connectedPlatforms.has(platform);
