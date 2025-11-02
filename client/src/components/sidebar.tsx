@@ -1,11 +1,31 @@
 import { Link, useLocation } from "wouter";
-import { Home, Link2, FileText, Sparkles, LogOut } from "lucide-react";
+import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 export function Sidebar() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  useEffect(() => {
+    // Sync with the current theme
+    const isDark = document.documentElement.classList.contains('dark');
+    setTheme(isDark ? 'dark' : 'light');
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', newTheme);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -52,7 +72,25 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4">
+      <div className="p-4 space-y-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-3"
+          onClick={toggleTheme}
+          data-testid="button-theme-toggle"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="h-5 w-5" />
+              <span>Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon className="h-5 w-5" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </Button>
         <Button
           variant="outline"
           className="w-full justify-start gap-3"

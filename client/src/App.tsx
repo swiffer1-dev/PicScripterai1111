@@ -10,6 +10,7 @@ import CreatePost from "@/pages/create-post";
 import Posts from "@/pages/posts";
 import AIStudio from "@/pages/ai-studio";
 import NotFound from "@/pages/not-found";
+import { useEffect, useState } from "react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const token = localStorage.getItem("token");
@@ -46,6 +47,31 @@ function Router() {
 }
 
 function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  useEffect(() => {
+    // Load theme from localStorage or default to dark
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Apply theme to document
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Make theme toggle available globally
+  (window as any).toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
