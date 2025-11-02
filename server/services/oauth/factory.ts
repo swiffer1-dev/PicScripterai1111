@@ -69,7 +69,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
         clientId: process.env.PINTEREST_APP_ID || "",
         clientSecret: process.env.PINTEREST_APP_SECRET || "",
         redirectUri,
-        scopes: ["user_accounts:read", "boards:read", "boards:read_secret", "pins:read", "pins:write"],
+        scopes: ["user_accounts:read", "boards:read", "boards:read_secret", "boards:write", "pins:read", "pins:write"],
         authUrl: "https://www.pinterest.com/oauth/",
         tokenUrl: "https://api.pinterest.com/v5/oauth/token",
       });
