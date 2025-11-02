@@ -791,6 +791,19 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
                 </div>
                 {generatedContent ? (
                   <div className="space-y-4">
+                    {/* Show uploaded image(s) for easy reference on mobile */}
+                    {previewUrls.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 lg:hidden">
+                        {previewUrls.map((url, idx) => (
+                          <img
+                            key={idx}
+                            src={url}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-border"
+                          />
+                        ))}
+                      </div>
+                    )}
                     <div className="bg-muted/50 rounded-lg p-4 min-h-[200px]">
                       <p className="text-sm whitespace-pre-wrap">{generatedContent}</p>
                     </div>
