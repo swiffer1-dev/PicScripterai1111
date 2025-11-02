@@ -1,12 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
-import { Plus, ExternalLink, Menu } from "lucide-react";
+import { Plus, ExternalLink, Menu, X } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook } from "react-icons/si";
 import type { Post } from "@shared/schema";
 import { useState } from "react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -20,8 +22,30 @@ const platformIcons = {
 
 export default function Posts() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { toast } = useToast();
+  
   const { data: posts, isLoading } = useQuery<Post[]>({
     queryKey: ["/api/posts"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      return await apiRequest("DELETE", `/api/posts/${postId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      toast({
+        title: "Post deleted",
+        description: "The post has been deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const sortedPosts = posts ? [...posts].sort((a, b) => 
@@ -92,14 +116,25 @@ export default function Posts() {
                 const Icon = platformIcons[post.platform];
                 
                 return (
-                  <Card key={post.id} className="border-border shadow-sm hover:shadow-md transition-shadow" data-testid={`post-card-${post.id}`}>
+                  <Card key={post.id} className="border-border shadow-sm hover:shadow-md transition-shadow relative" data-testid={`post-card-${post.id}`}>
                     <CardContent className="p-6">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => deleteMutation.mutate(post.id)}
+                        disabled={deleteMutation.isPending}
+                        data-testid={`button-delete-post-${post.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      
                       <div className="flex items-start gap-4">
                         <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
                           <Icon className="h-6 w-6 text-primary" />
                         </div>
                         
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 pr-8">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="text-sm font-medium capitalize">{post.platform}</span>
                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${

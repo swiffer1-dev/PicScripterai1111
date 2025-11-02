@@ -35,6 +35,7 @@ export interface IStorage {
   getPost(id: string): Promise<Post | undefined>;
   createPost(post: InsertPost): Promise<Post>;
   updatePost(id: string, data: Partial<Post>): Promise<Post>;
+  deletePost(id: string): Promise<void>;
   
   // Job log operations
   createJobLog(log: InsertJobLog): Promise<JobLog>;
@@ -128,6 +129,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(posts.id, id))
       .returning();
     return updated;
+  }
+  
+  async deletePost(id: string): Promise<void> {
+    await db.delete(posts).where(eq(posts.id, id));
   }
   
   // Job log operations

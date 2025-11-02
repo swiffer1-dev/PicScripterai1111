@@ -459,6 +459,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/posts/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const post = await storage.getPost(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (post.userId !== req.userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      await storage.deletePost(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/posts/:id/status", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const post = await storage.getPost(req.params.id);
