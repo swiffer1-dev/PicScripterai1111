@@ -21,6 +21,7 @@ import {
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
+import EXIF from 'exif-js';
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
@@ -635,6 +636,148 @@ export default function AIStudio() {
     }
   };
 
+  // Helper function to fix image orientation (fixes sideways mobile photos)
+  const getOrientedImageData = async (file: File): Promise<{ data: Uint8Array; width: number; height: number }> => {
+    try {
+      // Try modern createImageBitmap API first (Chrome, Firefox)
+      if ('createImageBitmap' in window) {
+        try {
+          const imageBitmap = await createImageBitmap(file, {
+            imageOrientation: 'from-image'
+          });
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = imageBitmap.width;
+          canvas.height = imageBitmap.height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('No canvas context');
+          
+          ctx.drawImage(imageBitmap, 0, 0);
+          imageBitmap.close();
+          
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Blob creation failed')), 'image/png');
+          });
+          
+          const arrayBuffer = await blob.arrayBuffer();
+          return {
+            data: new Uint8Array(arrayBuffer),
+            width: canvas.width,
+            height: canvas.height
+          };
+        } catch (e) {
+          console.log('createImageBitmap failed, trying EXIF fallback:', e);
+        }
+      }
+      
+      // Fallback for Safari/iOS: Manual EXIF handling
+      return await new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        
+        img.onload = () => {
+          // Get EXIF orientation
+          EXIF.getData(img as any, function(this: any) {
+            const orientation = EXIF.getTag(this, 'Orientation') || 1;
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              URL.revokeObjectURL(url);
+              reject(new Error('No canvas context'));
+              return;
+            }
+            
+            let width = img.width;
+            let height = img.height;
+            
+            // Set canvas size based on orientation
+            if (orientation > 4) {
+              canvas.width = height;
+              canvas.height = width;
+            } else {
+              canvas.width = width;
+              canvas.height = height;
+            }
+            
+            // Apply transformation based on EXIF orientation
+            switch (orientation) {
+              case 2:
+                ctx.transform(-1, 0, 0, 1, width, 0);
+                break;
+              case 3:
+                ctx.transform(-1, 0, 0, -1, width, height);
+                break;
+              case 4:
+                ctx.transform(1, 0, 0, -1, 0, height);
+                break;
+              case 5:
+                ctx.transform(0, 1, 1, 0, 0, 0);
+                break;
+              case 6:
+                ctx.transform(0, 1, -1, 0, height, 0);
+                break;
+              case 7:
+                ctx.transform(0, -1, -1, 0, height, width);
+                break;
+              case 8:
+                ctx.transform(0, -1, 1, 0, 0, width);
+                break;
+              default:
+                break;
+            }
+            
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            
+            canvas.toBlob(async (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to create blob'));
+                return;
+              }
+              const arrayBuffer = await blob.arrayBuffer();
+              resolve({
+                data: new Uint8Array(arrayBuffer),
+                width: canvas.width,
+                height: canvas.height
+              });
+            }, 'image/png');
+          });
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Failed to load image'));
+        };
+        
+        img.src = url;
+      });
+    } catch (error) {
+      console.error('All orientation methods failed:', error);
+      toast({
+        title: "Image orientation warning",
+        description: "Could not fix image rotation. Image may appear sideways in download.",
+        variant: "destructive"
+      });
+      
+      // Last resort fallback: return original with estimated dimensions
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+      });
+      
+      const arrayBuffer = await file.arrayBuffer();
+      return {
+        data: new Uint8Array(arrayBuffer),
+        width: img.width,
+        height: img.height
+      };
+    }
+  };
+
   const handleDownloadWord = async () => {
     try {
       const cleanedContent = cleanTextForExport(generatedContent);
@@ -687,22 +830,33 @@ export default function AIStudio() {
       
       sections.push(new Paragraph({ text: "" })); // Spacing
       
-      // Add image if available
+      // Add image if available with proper orientation
       if (imageFiles.length > 0) {
         const imageFile = imageFiles[0];
-        const arrayBuffer = await imageFile.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
+        // Use helper to get properly oriented image data
+        const { data: imageData, width, height } = await getOrientedImageData(imageFile);
+        
+        // Scale image to fit page width (max 500px) while preserving aspect ratio
+        const maxWidth = 500;
+        let finalWidth = width;
+        let finalHeight = height;
+        
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          finalWidth = maxWidth;
+          finalHeight = Math.round(height * ratio);
+        }
         
         sections.push(
           new Paragraph({
             children: [
               new ImageRun({
-                data: uint8Array,
+                data: imageData,
                 transformation: {
-                  width: 500,
-                  height: 375,
+                  width: finalWidth,
+                  height: finalHeight,
                 },
-                type: 'png', // Specify image type
+                type: 'png',
               }),
             ],
             alignment: AlignmentType.CENTER,
@@ -783,15 +937,19 @@ export default function AIStudio() {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
       
-      // Add image if available - convert to base64
+      // Add image if available - convert to base64 with proper orientation
       let imageSection = '';
       if (imageFiles.length > 0) {
         const imageFile = imageFiles[0];
+        // Get properly oriented image data
+        const { data: imageData } = await getOrientedImageData(imageFile);
+        // Convert to base64
+        const blob = new Blob([imageData], { type: 'image/png' });
         const reader = new FileReader();
         const base64Image = await new Promise<string>((resolve, reject) => {
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
+          reader.readAsDataURL(blob);
         });
         imageSection = `<div style="text-align: center; margin: 20px 0;"><img src="${base64Image}" style="max-width: 600px; height: auto;" /></div>`;
       }
