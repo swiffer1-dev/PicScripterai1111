@@ -25,6 +25,10 @@ export const postStatusEnum = pgEnum("post_status", [
 
 export const logLevelEnum = pgEnum("log_level", ["info", "warn", "error"]);
 
+export const mediaTypeEnum = pgEnum("media_type_enum", ["image", "video"]);
+
+export const templateTypeEnum = pgEnum("template_type", ["caption", "brand_voice"]);
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -83,10 +87,60 @@ export const jobLogs = pgTable("job_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Media library table
+export const mediaLibrary = pgTable("media_library", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: mediaTypeEnum("file_type").notNull(),
+  fileSize: integer("file_size"),
+  width: integer("width"),
+  height: integer("height"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Templates table
+export const templates = pgTable("templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: templateTypeEnum("type").notNull(),
+  content: text("content").notNull(),
+  settings: jsonb("settings"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Post analytics table
+export const postAnalytics = pgTable("post_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id")
+    .notNull()
+    .references(() => posts.id, { onDelete: "cascade" }),
+  views: integer("views").default(0),
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  shares: integer("shares").default(0),
+  clicks: integer("clicks").default(0),
+  reach: integer("reach").default(0),
+  engagement: integer("engagement").default(0),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
   posts: many(posts),
+  mediaLibrary: many(mediaLibrary),
+  templates: many(templates),
 }));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({
@@ -102,11 +156,33 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [users.id],
   }),
   logs: many(jobLogs),
+  analytics: one(postAnalytics),
 }));
 
 export const jobLogsRelations = relations(jobLogs, ({ one }) => ({
   post: one(posts, {
     fields: [jobLogs.postId],
+    references: [posts.id],
+  }),
+}));
+
+export const mediaLibraryRelations = relations(mediaLibrary, ({ one }) => ({
+  user: one(users, {
+    fields: [mediaLibrary.userId],
+    references: [users.id],
+  }),
+}));
+
+export const templatesRelations = relations(templates, ({ one }) => ({
+  user: one(users, {
+    fields: [templates.userId],
+    references: [users.id],
+  }),
+}));
+
+export const postAnalyticsRelations = relations(postAnalytics, ({ one }) => ({
+  post: one(posts, {
+    fields: [postAnalytics.postId],
     references: [posts.id],
   }),
 }));
@@ -139,6 +215,23 @@ export const insertJobLogSchema = createInsertSchema(jobLogs).omit({
   createdAt: true,
 });
 
+export const insertMediaLibrarySchema = createInsertSchema(mediaLibrary).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTemplateSchema = createInsertSchema(templates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPostAnalyticsSchema = createInsertSchema(postAnalytics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -152,6 +245,17 @@ export type InsertPost = z.infer<typeof insertPostSchema>;
 export type JobLog = typeof jobLogs.$inferSelect;
 export type InsertJobLog = z.infer<typeof insertJobLogSchema>;
 
+export type MediaLibrary = typeof mediaLibrary.$inferSelect;
+export type InsertMediaLibrary = z.infer<typeof insertMediaLibrarySchema>;
+
+export type Template = typeof templates.$inferSelect;
+export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+
+export type PostAnalytics = typeof postAnalytics.$inferSelect;
+export type InsertPostAnalytics = z.infer<typeof insertPostAnalyticsSchema>;
+
 export type Platform = typeof platformEnum.enumValues[number];
 export type PostStatus = typeof postStatusEnum.enumValues[number];
 export type LogLevel = typeof logLevelEnum.enumValues[number];
+export type MediaType = typeof mediaTypeEnum.enumValues[number];
+export type TemplateType = typeof templateTypeEnum.enumValues[number];

@@ -699,6 +699,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Media Library endpoints
+  app.get("/api/media", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const media = await storage.getMediaLibrary(req.userId!);
+      res.json(media);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/media", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const media = await storage.createMedia({
+        ...req.body,
+        userId: req.userId!,
+      });
+      res.json(media);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/media/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      await storage.deleteMedia(req.params.id, req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Templates endpoints
+  app.get("/api/templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const templates = await storage.getTemplates(req.userId!);
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const template = await storage.createTemplate({
+        ...req.body,
+        userId: req.userId!,
+      });
+      res.json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      await storage.deleteTemplate(req.params.id, req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Post Analytics endpoints
+  app.get("/api/analytics", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const analytics = await storage.getPostAnalytics(req.userId!);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/analytics/summary", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary(req.userId!);
+      res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

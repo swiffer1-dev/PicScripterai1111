@@ -4,6 +4,9 @@ import {
   connections,
   posts,
   jobLogs,
+  mediaLibrary,
+  templates,
+  postAnalytics,
   type User,
   type InsertUser,
   type Connection,
@@ -12,10 +15,16 @@ import {
   type InsertPost,
   type JobLog,
   type InsertJobLog,
+  type MediaLibrary,
+  type InsertMediaLibrary,
+  type Template,
+  type InsertTemplate,
+  type PostAnalytics,
+  type InsertPostAnalytics,
   type Platform,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -40,6 +49,20 @@ export interface IStorage {
   // Job log operations
   createJobLog(log: InsertJobLog): Promise<JobLog>;
   getJobLogs(postId: string): Promise<JobLog[]>;
+  
+  // Media library operations
+  getMediaLibrary(userId: string): Promise<MediaLibrary[]>;
+  createMedia(media: InsertMediaLibrary): Promise<MediaLibrary>;
+  deleteMedia(id: string, userId: string): Promise<void>;
+  
+  // Template operations
+  getTemplates(userId: string): Promise<Template[]>;
+  createTemplate(template: InsertTemplate): Promise<Template>;
+  deleteTemplate(id: string, userId: string): Promise<void>;
+  
+  // Analytics operations
+  getPostAnalytics(userId: string): Promise<any[]>;
+  getAnalyticsSummary(userId: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -150,6 +173,94 @@ export class DatabaseStorage implements IStorage {
       .from(jobLogs)
       .where(eq(jobLogs.postId, postId))
       .orderBy(desc(jobLogs.createdAt));
+  }
+  
+  // Media library operations
+  async getMediaLibrary(userId: string): Promise<MediaLibrary[]> {
+    return await db
+      .select()
+      .from(mediaLibrary)
+      .where(eq(mediaLibrary.userId, userId))
+      .orderBy(desc(mediaLibrary.createdAt));
+  }
+  
+  async createMedia(media: InsertMediaLibrary): Promise<MediaLibrary> {
+    const [newMedia] = await db
+      .insert(mediaLibrary)
+      .values(media)
+      .returning();
+    return newMedia;
+  }
+  
+  async deleteMedia(id: string, userId: string): Promise<void> {
+    await db
+      .delete(mediaLibrary)
+      .where(and(eq(mediaLibrary.id, id), eq(mediaLibrary.userId, userId)));
+  }
+  
+  // Template operations
+  async getTemplates(userId: string): Promise<Template[]> {
+    return await db
+      .select()
+      .from(templates)
+      .where(eq(templates.userId, userId))
+      .orderBy(desc(templates.createdAt));
+  }
+  
+  async createTemplate(template: InsertTemplate): Promise<Template> {
+    const [newTemplate] = await db
+      .insert(templates)
+      .values(template)
+      .returning();
+    return newTemplate;
+  }
+  
+  async deleteTemplate(id: string, userId: string): Promise<void> {
+    await db
+      .delete(templates)
+      .where(and(eq(templates.id, id), eq(templates.userId, userId)));
+  }
+  
+  // Analytics operations
+  async getPostAnalytics(userId: string): Promise<any[]> {
+    const userPosts = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.userId, userId));
+    
+    const postIds = userPosts.map(p => p.id);
+    
+    if (postIds.length === 0) {
+      return [];
+    }
+    
+    return await db
+      .select()
+      .from(postAnalytics)
+      .where(sql`${postAnalytics.postId} = ANY(${postIds})`);
+  }
+  
+  async getAnalyticsSummary(userId: string): Promise<any> {
+    const userPosts = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.userId, userId));
+    
+    const totalPosts = userPosts.length;
+    const publishedPosts = userPosts.filter(p => p.status === 'published').length;
+    const scheduledPosts = userPosts.filter(p => p.status === 'queued').length;
+    const failedPosts = userPosts.filter(p => p.status === 'failed').length;
+    
+    return {
+      totalPosts,
+      publishedPosts,
+      scheduledPosts,
+      failedPosts,
+      byPlatform: userPosts.reduce((acc, post) => {
+        acc[post.platform] = (acc[post.platform] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+    };
   }
 }
 
