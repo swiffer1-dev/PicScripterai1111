@@ -709,17 +709,31 @@ export default function AIStudio() {
     toast({ title: "Downloaded as CSV" });
   };
 
-  const handleDownloadHTML = () => {
-    const cleanedContent = cleanTextForExport(generatedContent);
-    // Escape HTML special characters
-    const escapedContent = cleanedContent
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-    
-    const html = `<!DOCTYPE html>
+  const handleDownloadHTML = async () => {
+    try {
+      const cleanedContent = cleanTextForExport(generatedContent);
+      // Escape HTML special characters
+      const escapedContent = cleanedContent
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      
+      // Add image if available - convert to base64
+      let imageSection = '';
+      if (imageFiles.length > 0) {
+        const imageFile = imageFiles[0];
+        const reader = new FileReader();
+        const base64Image = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        imageSection = `<div style="text-align: center; margin: 20px 0;"><img src="${base64Image}" style="max-width: 600px; height: auto;" /></div>`;
+      }
+      
+      const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -731,20 +745,29 @@ export default function AIStudio() {
 </head>
 <body>
   <h1>Generated Caption</h1>
+  ${imageSection}
   <div class="content">${escapedContent}</div>
 </body>
 </html>`;
-    // Don't use downloadAsFile to avoid double-cleaning
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'caption.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: "Downloaded as HTML" });
+      // Don't use downloadAsFile to avoid double-cleaning
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'caption.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded as HTML with image" });
+    } catch (error) {
+      console.error('Error generating HTML:', error);
+      toast({ 
+        title: "HTML download failed", 
+        description: error instanceof Error ? error.message : "Failed to generate HTML",
+        variant: "destructive" 
+      });
+    }
   };
 
   const saveDraftMutation = useMutation({
