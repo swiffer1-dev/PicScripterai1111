@@ -579,89 +579,107 @@ export default function AIStudio() {
         });
         
         imageSection = `
-    <div align="center" style="margin: 20px 0;">
-      <img src="${base64Image}" width="500" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
-    </div>`;
+<p class=MsoNormal align=center style='text-align:center'>
+  <img width=500 src="${base64Image}" alt="Property Image">
+</p>
+
+<p class=MsoNormal>&nbsp;</p>`;
       }
       
       const wordContent = `
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
+xmlns="http://www.w3.org/TR/REC-html40">
+
 <head>
-  <meta charset='utf-8'>
-  <title>PicScripter Content Report</title>
-  <!--[if gte mso 9]>
-  <xml>
-    <w:WordDocument>
-      <w:View>Print</w:View>
-      <w:Zoom>100</w:Zoom>
-    </w:WordDocument>
-  </xml>
-  <![endif]-->
-  <style>
-    @page {
-      margin: 1in;
-    }
-    body {
-      font-family: 'Calibri', Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.5;
-    }
-    h1 {
-      font-size: 20pt;
-      font-weight: bold;
-      text-align: center;
-      margin-bottom: 20pt;
-      color: #2c3e50;
-    }
-    h2 {
-      font-size: 14pt;
-      font-weight: bold;
-      margin-top: 20pt;
-      margin-bottom: 10pt;
-      color: #34495e;
-    }
-    .metadata {
-      font-size: 10pt;
-      color: #7f8c8d;
-      margin-bottom: 20pt;
-      padding-bottom: 10pt;
-      border-bottom: 2pt solid #34495e;
-    }
-    .metadata p {
-      margin: 5pt 0;
-    }
-    .content {
-      font-size: 11pt;
-      white-space: pre-wrap;
-      line-height: 1.6;
-    }
-    img {
-      max-width: 100%;
-      height: auto;
-    }
-  </style>
+<meta http-equiv=Content-Type content="text/html; charset=utf-8">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 15">
+<meta name=Originator content="Microsoft Word 15">
+<title>PicScripter Content Report</title>
+<!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+        {font-family:Calibri;
+        panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+        {margin:0in;
+        font-size:11.0pt;
+        font-family:"Calibri",sans-serif;}
+h1
+        {margin-top:12.0pt;
+        margin-right:0in;
+        margin-bottom:0in;
+        margin-left:0in;
+        page-break-after:avoid;
+        font-size:20.0pt;
+        font-family:"Calibri",sans-serif;
+        color:#2E74B5;
+        font-weight:bold;
+        text-align:center;}
+h2
+        {margin-top:10.0pt;
+        margin-right:0in;
+        margin-bottom:0in;
+        margin-left:0in;
+        page-break-after:avoid;
+        font-size:14.0pt;
+        font-family:"Calibri",sans-serif;
+        color:#2E74B5;
+        font-weight:bold;}
+@page WordSection1
+        {size:8.5in 11.0in;
+        margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+        {page:WordSection1;}
+-->
+</style>
 </head>
-<body>
-  <h1>PicScripter Content Report</h1>
-  
-  <div class="metadata">
-    <p><b>Generation Date:</b> ${new Date().toLocaleString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    })}</p>
-    <p><b>Target Platform:</b> ${category}</p>
-    <p><b>Intended Tone:</b> ${tone}</p>
-  </div>
-  
-  ${imageSection}
-  
-  <h2>Generated Content</h2>
-  <div class="content">${cleanedContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</div>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=WordSection1>
+
+<h1>PicScripter Content Report</h1>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal><b>Generation Date:</b> ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  hour12: true
+})}</p>
+<p class=MsoNormal><b>Target Platform:</b> ${category}</p>
+<p class=MsoNormal><b>Intended Tone:</b> ${tone}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+${imageSection}
+
+<h2>Generated Content</h2>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal style='white-space:pre-wrap'>${cleanedContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>
+
+</div>
+
 </body>
+
 </html>`;
 
       const blob = new Blob(['\ufeff', wordContent], { 
