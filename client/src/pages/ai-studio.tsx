@@ -502,12 +502,18 @@ export default function AIStudio() {
       return;
     }
     
-    // Navigate to create/schedule page with the caption pre-filled
-    const params = new URLSearchParams({ caption: generatedContent });
-    setLocation(`/create?${params.toString()}`);
+    // Save data to session storage for the calendar page to pick up
+    sessionStorage.setItem('schedule-draft', JSON.stringify({
+      caption: generatedContent,
+      imageUrl: uploadedImageUrls[0] || null,
+      timestamp: Date.now(),
+    }));
+    
+    // Navigate to calendar page
+    setLocation('/calendar');
     toast({
-      title: "Opening scheduler",
-      description: "Your content has been loaded into the scheduler",
+      title: "Opening calendar",
+      description: "Your content is ready to schedule",
     });
   };
 

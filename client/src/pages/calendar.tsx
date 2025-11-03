@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus } from "lucide-react";
-import type { Post, Platform } from "@shared/schema";
+import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus, X } from "lucide-react";
+import type { Post, Platform, Connection } from "@shared/schema";
 import {
   SiInstagram,
   SiFacebook,
@@ -17,6 +17,15 @@ import {
   SiYoutube,
 } from "react-icons/si";
 import { Link } from "wouter";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const platformIcons: Record<Platform, any> = {
   instagram: SiInstagram,
@@ -38,15 +47,77 @@ const platformColors: Record<Platform, string> = {
   youtube: "bg-red-600",
 };
 
+const platformCharLimits: Record<Platform, number> = {
+  instagram: 2200,
+  tiktok: 2200,
+  twitter: 280,
+  linkedin: 3000,
+  pinterest: 500,
+  youtube: 5000,
+  facebook: 63206,
+};
+
 export default function Calendar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleData, setScheduleData] = useState<{
+    caption: string;
+    imageUrl: string | null;
+    platform: Platform;
+    scheduledAt: string;
+  } | null>(null);
   const { toast } = useToast();
+
+  const { data: connections } = useQuery<Connection[]>({
+    queryKey: ["/api/connections"],
+  });
 
   const { data: posts, isLoading } = useQuery<Post[]>({
     queryKey: ["/api/posts"],
   });
+
+  // Check for draft data from AI Studio
+  useEffect(() => {
+    const draftData = sessionStorage.getItem('schedule-draft');
+    if (draftData) {
+      try {
+        const parsed = JSON.parse(draftData);
+        const firstConnection = connections?.[0];
+        
+        if (firstConnection) {
+          // Calculate default schedule time (1 hour from now) in local timezone
+          const defaultTime = new Date();
+          defaultTime.setHours(defaultTime.getHours() + 1);
+          defaultTime.setMinutes(0);
+          defaultTime.setSeconds(0);
+          defaultTime.setMilliseconds(0);
+          
+          // Format for datetime-local input (YYYY-MM-DDTHH:mm) in local timezone
+          const year = defaultTime.getFullYear();
+          const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+          const day = String(defaultTime.getDate()).padStart(2, '0');
+          const hours = String(defaultTime.getHours()).padStart(2, '0');
+          const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+          const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+          
+          setScheduleData({
+            caption: parsed.caption,
+            imageUrl: parsed.imageUrl,
+            platform: firstConnection.platform,
+            scheduledAt: localDateTimeString,
+          });
+          setScheduleDialogOpen(true);
+          
+          // Clear session storage
+          sessionStorage.removeItem('schedule-draft');
+        }
+      } catch (error) {
+        console.error('Failed to parse draft data:', error);
+      }
+    }
+  }, [connections]);
 
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, scheduledAt }: { id: string; scheduledAt: Date }) => {
@@ -62,6 +133,46 @@ export default function Calendar() {
     onError: (error: Error) => {
       toast({
         title: "Failed to reschedule",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const schedulePostMutation = useMutation({
+    mutationFn: async (data: {
+      platform: Platform;
+      caption: string;
+      scheduledAt: string;
+      imageUrl: string | null;
+    }) => {
+      const payload: any = {
+        platform: data.platform,
+        caption: data.caption,
+        scheduledAtISO: data.scheduledAt,
+      };
+
+      if (data.imageUrl) {
+        payload.media = {
+          type: "image",
+          url: data.imageUrl,
+        };
+      }
+
+      return await apiRequest("POST", "/api/schedule", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      setScheduleDialogOpen(false);
+      setScheduleData(null);
+      toast({
+        title: "Post scheduled!",
+        description: "Your post has been scheduled successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to schedule",
         description: error.message,
         variant: "destructive",
       });
@@ -132,8 +243,127 @@ export default function Calendar() {
   const days = viewMode === "month" ? getDaysInMonth(currentDate) : getWeekDays(currentDate);
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const handleScheduleSubmit = () => {
+    if (!scheduleData) return;
+
+    const charLimit = platformCharLimits[scheduleData.platform];
+    if (scheduleData.caption.length > charLimit) {
+      toast({
+        title: "Caption too long",
+        description: `${scheduleData.platform} has a ${charLimit} character limit. Current: ${scheduleData.caption.length}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    schedulePostMutation.mutate(scheduleData);
+  };
+
   return (
     <div className="flex h-screen bg-background">
+      {/* Scheduling Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Schedule Post</DialogTitle>
+          </DialogHeader>
+          
+          {scheduleData && (
+            <div className="space-y-4">
+              {/* Image Preview */}
+              {scheduleData.imageUrl && (
+                <div>
+                  <Label>Image</Label>
+                  <img 
+                    src={scheduleData.imageUrl} 
+                    alt="Post preview" 
+                    className="w-full max-h-64 object-cover rounded-lg border border-border mt-2"
+                  />
+                </div>
+              )}
+
+              {/* Platform Selection */}
+              <div>
+                <Label htmlFor="platform">Platform</Label>
+                <select
+                  id="platform"
+                  value={scheduleData.platform}
+                  onChange={(e) => setScheduleData({ ...scheduleData, platform: e.target.value as Platform })}
+                  className="w-full mt-2 bg-background border border-border rounded-lg py-2 px-3"
+                  data-testid="select-platform"
+                >
+                  {connections?.map((conn) => (
+                    <option key={conn.platform} value={conn.platform}>
+                      {conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Caption */}
+              <div>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="caption">Caption</Label>
+                  <span className={`text-xs ${
+                    scheduleData.caption.length > platformCharLimits[scheduleData.platform]
+                      ? "text-destructive font-semibold"
+                      : "text-muted-foreground"
+                  }`}>
+                    {scheduleData.caption.length} / {platformCharLimits[scheduleData.platform]}
+                  </span>
+                </div>
+                <Textarea
+                  id="caption"
+                  value={scheduleData.caption}
+                  onChange={(e) => setScheduleData({ ...scheduleData, caption: e.target.value })}
+                  className="mt-2 min-h-[200px]"
+                  data-testid="input-caption"
+                />
+                {scheduleData.caption.length > platformCharLimits[scheduleData.platform] && (
+                  <p className="text-xs text-destructive mt-1">
+                    Caption exceeds {scheduleData.platform}'s character limit. Please shorten it.
+                  </p>
+                )}
+              </div>
+
+              {/* Schedule Date/Time */}
+              <div>
+                <Label htmlFor="scheduledAt">Schedule Date & Time</Label>
+                <Input
+                  id="scheduledAt"
+                  type="datetime-local"
+                  value={scheduleData.scheduledAt}
+                  onChange={(e) => setScheduleData({ ...scheduleData, scheduledAt: e.target.value })}
+                  className="mt-2"
+                  data-testid="input-schedule-time"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setScheduleDialogOpen(false);
+                    setScheduleData(null);
+                  }}
+                  data-testid="button-cancel-schedule"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleScheduleSubmit}
+                  disabled={schedulePostMutation.isPending || scheduleData.caption.length > platformCharLimits[scheduleData.platform]}
+                  data-testid="button-confirm-schedule"
+                >
+                  {schedulePostMutation.isPending ? "Scheduling..." : "Schedule Post"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       <main className="flex-1 overflow-y-auto">
         <div className="lg:hidden sticky top-0 z-30 bg-background border-b border-border p-4 flex items-center gap-3">
