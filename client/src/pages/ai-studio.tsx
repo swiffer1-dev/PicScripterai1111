@@ -568,12 +568,19 @@ export default function AIStudio() {
       
       // For Word, we'll create a richer HTML document with embedded base64 image
       let imageSection = '';
-      if (previewUrls.length > 0) {
-        // Ensure the image is properly embedded as base64
-        const imageUrl = previewUrls[0];
+      if (imageFiles.length > 0) {
+        // Convert the actual image file to base64 so it works in downloaded Word docs
+        const imageFile = imageFiles[0];
+        const reader = new FileReader();
+        const base64Image = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        
         imageSection = `
     <div align="center" style="margin: 20px 0;">
-      <img src="${imageUrl}" width="500" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
+      <img src="${base64Image}" width="500" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
     </div>`;
       }
       
