@@ -560,27 +560,73 @@ export default function AIStudio() {
   };
 
   const handleDownloadWord = () => {
-    // Create RTF format which opens in Word - clean text first, then add RTF codes
+    // Create HTML format that Word can open - includes image and text
     const cleanedContent = cleanTextForExport(generatedContent);
-    const rtfContent = `{\\rtf1\\ansi\\deff0
-{\\fonttbl{\\f0 Arial;}}
-{\\colortbl;\\red0\\green0\\blue0;}
-\\f0\\fs24
-{\\b\\fs32 Generated Caption}\\par
-\\par
-${cleanedContent.replace(/\n/g, '\\par\n')}
-}`;
-    // Don't use downloadAsFile here as it would strip RTF codes
-    const blob = new Blob([rtfContent], { type: 'application/rtf;charset=utf-8' });
+    
+    // Build HTML with image if available
+    const imageHtml = previewUrls.length > 0 
+      ? `<div style="text-align: center; margin: 20px 0;">
+          <img src="${previewUrls[0]}" style="max-width: 600px; height: auto; border: 1px solid #ccc;" />
+        </div>` 
+      : '';
+    
+    const wordHtml = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+<head>
+  <meta charset="UTF-8">
+  <title>Generated Caption</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 40px; 
+      max-width: 800px; 
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    h1 { 
+      color: #333; 
+      font-size: 24px; 
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .content { 
+      white-space: pre-wrap; 
+      font-size: 12pt;
+      color: #000;
+    }
+    .metadata {
+      font-size: 10pt;
+      color: #666;
+      margin-bottom: 20px;
+      padding: 10px;
+      border-bottom: 2px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>PicScripter Content Report</h1>
+  <div class="metadata">
+    <p><strong>Generation Date:</strong> ${new Date().toLocaleString()}</p>
+    <p><strong>Target Platform:</strong> ${category}</p>
+    <p><strong>Intended Tone:</strong> ${tone}</p>
+  </div>
+  ${imageHtml}
+  <h2>Generated Content</h2>
+  <div class="content">${cleanedContent.replace(/\n/g, '<br>')}</div>
+</body>
+</html>`;
+    
+    // Save as .doc (HTML format that Word can open)
+    const blob = new Blob([wordHtml], { type: 'application/msword;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'caption.rtf';
+    a.download = 'picscripter-caption.doc';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast({ title: "Downloaded as Word document" });
+    toast({ title: "Downloaded as Word document with image" });
   };
 
   const handleDownloadTXT = () => {
