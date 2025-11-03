@@ -50,14 +50,27 @@ export default function Posts() {
 
   const duplicateMutation = useMutation({
     mutationFn: async (post: Post) => {
-      const duplicatedPost = {
+      const duplicatedPost: {
+        platform: string;
+        caption: string;
+        status: "draft";
+        options: any;
+        media?: { type: string; url: string };
+      } = {
         platform: post.platform,
         caption: post.caption,
-        mediaType: post.mediaType,
-        mediaUrl: post.mediaUrl,
         status: "draft" as const,
         options: post.options,
       };
+      
+      // Include media if present
+      if (post.mediaType && post.mediaUrl) {
+        duplicatedPost.media = {
+          type: post.mediaType,
+          url: post.mediaUrl,
+        };
+      }
+      
       return await apiRequest("POST", "/api/posts", duplicatedPost);
     },
     onSuccess: () => {

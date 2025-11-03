@@ -293,9 +293,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           url: z.string().min(1), // Accept both absolute URLs and relative paths
         }).optional(),
         options: z.any().optional(),
+        status: z.enum(["draft", "queued", "publishing", "published", "failed"]).optional(),
       });
       
       const data = schema.parse(req.body);
+      const isDraft = data.status === "draft";
       
       // Normalize media URL - convert relative paths to absolute URLs
       let normalizedMediaUrl = data.media?.url;
@@ -306,10 +308,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         normalizedMediaUrl = `${protocol}://${host}${normalizedMediaUrl}`;
       }
       
-      // Check connection exists
-      const connection = await storage.getConnection(req.userId!, data.platform);
-      if (!connection) {
-        return res.status(400).json({ error: `No ${data.platform} connection found` });
+      // Check connection exists (skip for drafts)
+      let connection = null;
+      if (!isDraft) {
+        connection = await storage.getConnection(req.userId!, data.platform);
+        if (!connection) {
+          return res.status(400).json({ error: `No ${data.platform} connection found` });
+        }
       }
       
       // Create post
@@ -321,11 +326,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mediaUrl: normalizedMediaUrl,
         scheduledAt: undefined,
         options: data.options || null,
+        status: isDraft ? "draft" : "queued",
       });
+      
+      // Skip publishing for draft posts
+      if (isDraft) {
+        return res.json(post);
+      }
       
       // Publish immediately to all platforms
       try {
-        const accessToken = decryptToken(connection.accessTokenEnc);
+        const accessToken = decryptToken(connection!.accessTokenEnc);
         const result = await publishToPlatform(
           data.platform,
           accessToken,
