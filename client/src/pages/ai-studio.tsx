@@ -247,7 +247,9 @@ export default function AIStudio() {
 
       // Generate caption using Gemini (already has resizing built in from geminiService)
       const result = await generateDescription(imageFiles, prompt);
-      setGeneratedContent(result.description);
+      // Clean the text immediately to remove any encoding issues
+      const cleanedDescription = cleanTextForExport(result.description);
+      setGeneratedContent(cleanedDescription);
       
       toast({
         title: "Content generated!",
@@ -355,7 +357,9 @@ export default function AIStudio() {
     try {
       const result = await proofreadText(generatedContent);
       if (result.hasCorrections) {
-        setGeneratedContent(result.correctedText);
+        // Clean the proofread text too
+        const cleanedText = cleanTextForExport(result.correctedText);
+        setGeneratedContent(cleanedText);
         toast({
           title: "Content proofread",
           description: result.changesSummary,
@@ -396,13 +400,38 @@ export default function AIStudio() {
   };
 
   const cleanTextForExport = (text: string): string => {
-    // Remove RTF control characters, invisible characters, and normalize text
-    return text
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
-      .replace(/[^\x20-\x7E\n\r\t\u0080-\uFFFF]/g, '') // Keep only printable characters
-      .replace(/\{\\[^}]*\}/g, '') // Remove RTF-like codes
-      .replace(/\\[a-z]+\d*\s?/g, '') // Remove RTF commands like \rtf1, \ansi, etc.
+    if (!text) return '';
+    
+    // More aggressive cleaning - remove ALL non-standard characters
+    let cleaned = text
+      // First normalize Unicode characters
+      .normalize('NFKD')
+      // Remove all control characters and non-printable characters
+      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '')
+      // Remove zero-width spaces and other invisible characters
+      .replace(/[\u200E\u200F\u202A-\u202E]/g, '')
+      // Remove any RTF control sequences
+      .replace(/\{\\[^}]*\}/g, '')
+      .replace(/\\[a-z]+\d*\s?/gi, '')
+      // Remove any remaining backslash commands
+      .replace(/\\[^\s]/g, '')
+      // Clean up multiple spaces
+      .replace(/\s+/g, ' ')
+      // Clean up multiple newlines
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
       .trim();
+    
+    // Only keep truly printable ASCII and common punctuation/symbols
+    // This ensures compatibility across all formats
+    cleaned = cleaned.split('').filter(char => {
+      const code = char.charCodeAt(0);
+      // Allow: space (32), standard printable ASCII (33-126), newline (10), tab (9)
+      // and common extended characters (128-255) but be selective
+      return (code === 10 || code === 9 || (code >= 32 && code <= 126) || 
+              (code >= 128 && code <= 255 && /[\w\s.,!?;:'"-]/.test(char)));
+    }).join('');
+    
+    return cleaned;
   };
 
   const downloadAsFile = (content: string, filename: string, mimeType: string) => {
@@ -422,6 +451,10 @@ export default function AIStudio() {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const leftMargin = 20;
+      const rightMargin = 20;
+      const maxLineWidth = pageWidth - leftMargin - rightMargin;
       
       // Add centered title
       doc.setFontSize(18);
@@ -445,16 +478,16 @@ export default function AIStudio() {
       });
       
       let yPos = 35;
-      doc.text(`Generation Date: ${dateStr}`, 20, yPos);
+      doc.text(`Generation Date: ${dateStr}`, leftMargin, yPos);
       yPos += 7;
-      doc.text(`Target Platform: ${category}`, 20, yPos);
+      doc.text(`Target Platform: ${category}`, leftMargin, yPos);
       yPos += 7;
-      doc.text(`Intended Tone: ${tone}`, 20, yPos);
+      doc.text(`Intended Tone: ${tone}`, leftMargin, yPos);
       yPos += 10;
       
       // Add horizontal line
       doc.setLineWidth(0.5);
-      doc.line(20, yPos, pageWidth - 20, yPos);
+      doc.line(leftMargin, yPos, pageWidth - rightMargin, yPos);
       yPos += 15;
       
       // Add image if available
@@ -464,6 +497,13 @@ export default function AIStudio() {
           const imgWidth = 100;
           const imgHeight = 75;
           const imgX = (pageWidth - imgWidth) / 2;
+          
+          // Check if we need a new page for the image
+          if (yPos + imgHeight > pageHeight - 20) {
+            doc.addPage();
+            yPos = 20;
+          }
+          
           doc.addImage(imgData, 'JPEG', imgX, yPos, imgWidth, imgHeight);
           yPos += imgHeight + 15;
         } catch (err) {
@@ -474,15 +514,36 @@ export default function AIStudio() {
       // Add "Generated Content" section
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text("Generated Content", 20, yPos);
-      yPos += 8;
       
-      // Add caption content with wrapping - clean text for proper PDF encoding
+      // Check if we need a new page
+      if (yPos > pageHeight - 30) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text("Generated Content", leftMargin, yPos);
+      yPos += 10;
+      
+      // Clean and wrap caption content properly
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       const cleanedContent = cleanTextForExport(generatedContent);
-      const splitText = doc.splitTextToSize(cleanedContent, pageWidth - 40);
-      doc.text(splitText, 20, yPos);
+      
+      // Split text with proper wrapping
+      const lines = doc.splitTextToSize(cleanedContent, maxLineWidth);
+      const lineHeight = 6; // Space between lines
+      
+      // Add text with pagination
+      for (let i = 0; i < lines.length; i++) {
+        // Check if we need a new page
+        if (yPos + lineHeight > pageHeight - 20) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.text(lines[i], leftMargin, yPos);
+        yPos += lineHeight;
+      }
       
       // Save the PDF
       const timestamp = Date.now();
