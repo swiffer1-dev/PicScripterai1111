@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
@@ -77,6 +77,7 @@ const StyleSettings: React.FC<{
 export default function AIStudio() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const sessionIdRef = useRef(0); // Track session resets
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
@@ -309,6 +310,8 @@ export default function AIStudio() {
       return;
     }
 
+    // Capture current session ID
+    const currentSessionId = sessionIdRef.current;
     setIsGenerating(true);
     toast({
       title: "Starting generation...",
@@ -324,6 +327,12 @@ export default function AIStudio() {
       
       const uploadPromises = imageFiles.map(file => uploadImageMutation.mutateAsync(file));
       const uploadedUrls = await Promise.all(uploadPromises);
+      
+      // Check if session was reset during upload
+      if (sessionIdRef.current !== currentSessionId) {
+        return; // Abort - session was reset
+      }
+      
       setUploadedImageUrls(uploadedUrls);
       
       // Generate caption
@@ -340,6 +349,12 @@ export default function AIStudio() {
 
       // Generate caption using Gemini (already has resizing built in from geminiService)
       const result = await generateDescription(imageFiles, prompt);
+      
+      // Check if session was reset during generation
+      if (sessionIdRef.current !== currentSessionId) {
+        return; // Abort - session was reset
+      }
+      
       // Clean the text immediately to remove any encoding issues
       const cleanedDescription = cleanTextForExport(result.description);
       setGeneratedContent(cleanedDescription);
@@ -356,6 +371,11 @@ export default function AIStudio() {
         apiKey: import.meta.env.VITE_GEMINI_API_KEY ? 'SET (length: ' + import.meta.env.VITE_GEMINI_API_KEY.length + ')' : 'NOT SET',
       });
       
+      // Check if session was reset
+      if (sessionIdRef.current !== currentSessionId) {
+        return; // Abort - session was reset
+      }
+      
       // Clear any stale content on error
       setGeneratedContent("");
       setUploadedImageUrls([]);
@@ -366,7 +386,10 @@ export default function AIStudio() {
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
+      // Only update loading state if session hasn't been reset
+      if (sessionIdRef.current === currentSessionId) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -490,6 +513,30 @@ export default function AIStudio() {
     if (!generatedContent) return;
     navigator.clipboard.writeText(generatedContent);
     toast({ title: "Copied to clipboard!" });
+  };
+
+  const handleNewSession = () => {
+    // Clear all state
+    setImageFiles([]);
+    setPreviewUrls([]);
+    setUploadedImageUrls([]);
+    setGeneratedContent('');
+    setCustomPrompt('');
+    setPropertyAddress('');
+    setCategory(Category.Travel);
+    setTone('Casual');
+    setAddHashtags(true);
+    setAddEmojis(true);
+    setLanguage('English');
+    setSelectedPlatforms([]);
+    
+    // Clear session storage
+    sessionStorage.removeItem('ai-studio-state');
+    
+    toast({
+      title: "New session started",
+      description: "All content and settings have been cleared",
+    });
   };
 
   const handleSchedule = () => {
@@ -1086,11 +1133,23 @@ export default function AIStudio() {
         </div>
 
         <div className="max-w-6xl mx-auto p-4 lg:p-8">
-          <div className="mb-6 lg:mb-8 hidden lg:block">
-            <h1 className="text-3xl font-semibold tracking-tight">Create</h1>
-            <p className="text-muted-foreground mt-1.5">
-              Generate AI-powered captions and post to your connected platforms
-            </p>
+          <div className="mb-6 lg:mb-8 flex items-start justify-between">
+            <div className="hidden lg:block">
+              <h1 className="text-3xl font-semibold tracking-tight">Create</h1>
+              <p className="text-muted-foreground mt-1.5">
+                Generate AI-powered captions and post to your connected platforms
+              </p>
+            </div>
+            <Button
+              onClick={handleNewSession}
+              variant="outline"
+              className="gap-2"
+              data-testid="button-new-session"
+            >
+              <RotateCw className="h-4 w-4" />
+              <span className="hidden sm:inline">New Session</span>
+              <span className="sm:hidden">New</span>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
