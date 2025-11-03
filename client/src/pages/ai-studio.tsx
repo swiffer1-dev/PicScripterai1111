@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
@@ -563,137 +565,108 @@ export default function AIStudio() {
 
   const handleDownloadWord = async () => {
     try {
-      // Create DOCX using jsPDF approach - generate as HTML then convert
       const cleanedContent = cleanTextForExport(generatedContent);
       
-      // For Word, we'll create a richer HTML document with embedded base64 image
-      let imageSection = '';
+      // Build document sections
+      const sections: Paragraph[] = [];
+      
+      // Title
+      sections.push(
+        new Paragraph({
+          text: "PicScripter Content Report",
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+        })
+      );
+      
+      // Metadata
+      sections.push(new Paragraph({ text: "" })); // Spacing
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Generation Date: ", bold: true }),
+            new TextRun(new Date().toLocaleString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            })),
+          ],
+        })
+      );
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Target Platform: ", bold: true }),
+            new TextRun(category),
+          ],
+        })
+      );
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Intended Tone: ", bold: true }),
+            new TextRun(tone),
+          ],
+        })
+      );
+      
+      sections.push(new Paragraph({ text: "" })); // Spacing
+      
+      // Add image if available
       if (imageFiles.length > 0) {
-        // Convert the actual image file to base64 so it works in downloaded Word docs
         const imageFile = imageFiles[0];
-        const reader = new FileReader();
-        const base64Image = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
         
-        imageSection = `
-<p class=MsoNormal align=center style='text-align:center'>
-  <img width=500 src="${base64Image}" alt="Property Image">
-</p>
-
-<p class=MsoNormal>&nbsp;</p>`;
+        sections.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: uint8Array,
+                transformation: {
+                  width: 500,
+                  height: 375,
+                },
+                type: 'png', // Specify image type
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+          })
+        );
+        
+        sections.push(new Paragraph({ text: "" })); // Spacing
       }
       
-      const wordContent = `
-<html xmlns:v="urn:schemas-microsoft-com:vml"
-xmlns:o="urn:schemas-microsoft-com:office:office"
-xmlns:w="urn:schemas-microsoft-com:office:word"
-xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
-xmlns="http://www.w3.org/TR/REC-html40">
-
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=utf-8">
-<meta name=ProgId content=Word.Document>
-<meta name=Generator content="Microsoft Word 15">
-<meta name=Originator content="Microsoft Word 15">
-<title>PicScripter Content Report</title>
-<!--[if gte mso 9]><xml>
- <w:WordDocument>
-  <w:View>Print</w:View>
-  <w:Zoom>100</w:Zoom>
-  <w:DoNotOptimizeForBrowser/>
- </w:WordDocument>
-</xml><![endif]-->
-<style>
-<!--
- /* Font Definitions */
- @font-face
-        {font-family:Calibri;
-        panose-1:2 15 5 2 2 2 4 3 2 4;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-        {margin:0in;
-        font-size:11.0pt;
-        font-family:"Calibri",sans-serif;}
-h1
-        {margin-top:12.0pt;
-        margin-right:0in;
-        margin-bottom:0in;
-        margin-left:0in;
-        page-break-after:avoid;
-        font-size:20.0pt;
-        font-family:"Calibri",sans-serif;
-        color:#2E74B5;
-        font-weight:bold;
-        text-align:center;}
-h2
-        {margin-top:10.0pt;
-        margin-right:0in;
-        margin-bottom:0in;
-        margin-left:0in;
-        page-break-after:avoid;
-        font-size:14.0pt;
-        font-family:"Calibri",sans-serif;
-        color:#2E74B5;
-        font-weight:bold;}
-@page WordSection1
-        {size:8.5in 11.0in;
-        margin:1.0in 1.0in 1.0in 1.0in;}
-div.WordSection1
-        {page:WordSection1;}
--->
-</style>
-</head>
-
-<body lang=EN-US style='tab-interval:.5in'>
-
-<div class=WordSection1>
-
-<h1>PicScripter Content Report</h1>
-
-<p class=MsoNormal>&nbsp;</p>
-
-<p class=MsoNormal><b>Generation Date:</b> ${new Date().toLocaleString('en-US', { 
-  year: 'numeric', 
-  month: 'long', 
-  day: 'numeric',
-  hour: 'numeric',
-  minute: 'numeric',
-  hour12: true
-})}</p>
-<p class=MsoNormal><b>Target Platform:</b> ${category}</p>
-<p class=MsoNormal><b>Intended Tone:</b> ${tone}</p>
-
-<p class=MsoNormal>&nbsp;</p>
-
-${imageSection}
-
-<h2>Generated Content</h2>
-
-<p class=MsoNormal>&nbsp;</p>
-
-<p class=MsoNormal style='white-space:pre-wrap'>${cleanedContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>
-
-</div>
-
-</body>
-
-</html>`;
-
-      const blob = new Blob(['\ufeff', wordContent], { 
-        type: 'application/msword'
+      // Content heading
+      sections.push(
+        new Paragraph({
+          text: "Generated Content",
+          heading: HeadingLevel.HEADING_2,
+        })
+      );
+      
+      sections.push(new Paragraph({ text: "" })); // Spacing
+      
+      // Content - split by newlines to preserve formatting
+      const contentLines = cleanedContent.split('\n');
+      contentLines.forEach(line => {
+        sections.push(new Paragraph({ text: line }));
       });
       
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'picscripter-caption.doc';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Create document
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: sections,
+        }],
+      });
+      
+      // Generate and download
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, 'picscripter-caption.docx');
       
       toast({ title: "Downloaded as Word document with image" });
     } catch (error) {
