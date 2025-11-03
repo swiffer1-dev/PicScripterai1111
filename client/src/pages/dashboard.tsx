@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
-import { Plus, Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
+import { Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
 
@@ -42,18 +42,9 @@ export default function Dashboard() {
         </div>
 
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
-          <div className="flex justify-between items-center mb-6 lg:mb-8">
-            <div className="hidden lg:block">
-              <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1.5">Manage your social media posts</p>
-            </div>
-            <Link href="/create">
-              <Button className="gap-2" data-testid="button-create-post">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Post</span>
-                <span className="sm:hidden">Create</span>
-              </Button>
-            </Link>
+          <div className="mb-6 lg:mb-8 hidden lg:block">
+            <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground mt-1.5">Manage your social media posts</p>
           </div>
 
           {/* Stats Grid */}
