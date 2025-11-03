@@ -395,8 +395,19 @@ export default function AIStudio() {
     toast({ title: "Copied to clipboard!" });
   };
 
+  const cleanTextForExport = (text: string): string => {
+    // Remove RTF control characters, invisible characters, and normalize text
+    return text
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+      .replace(/[^\x20-\x7E\n\r\t\u0080-\uFFFF]/g, '') // Keep only printable characters
+      .replace(/\{\\[^}]*\}/g, '') // Remove RTF-like codes
+      .replace(/\\[a-z]+\d*\s?/g, '') // Remove RTF commands like \rtf1, \ansi, etc.
+      .trim();
+  };
+
   const downloadAsFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
+    const cleanContent = cleanTextForExport(content);
+    const blob = new Blob([cleanContent], { type: mimeType + ';charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -466,10 +477,11 @@ export default function AIStudio() {
       doc.text("Generated Content", 20, yPos);
       yPos += 8;
       
-      // Add caption content with wrapping
+      // Add caption content with wrapping - clean text for proper PDF encoding
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      const splitText = doc.splitTextToSize(generatedContent, pageWidth - 40);
+      const cleanedContent = cleanTextForExport(generatedContent);
+      const splitText = doc.splitTextToSize(cleanedContent, pageWidth - 40);
       doc.text(splitText, 20, yPos);
       
       // Save the PDF
@@ -487,16 +499,26 @@ export default function AIStudio() {
   };
 
   const handleDownloadWord = () => {
-    // Create RTF format which opens in Word
+    // Create RTF format which opens in Word - clean text first, then add RTF codes
+    const cleanedContent = cleanTextForExport(generatedContent);
     const rtfContent = `{\\rtf1\\ansi\\deff0
 {\\fonttbl{\\f0 Arial;}}
 {\\colortbl;\\red0\\green0\\blue0;}
 \\f0\\fs24
 {\\b\\fs32 Generated Caption}\\par
 \\par
-${generatedContent.replace(/\n/g, '\\par\n')}
+${cleanedContent.replace(/\n/g, '\\par\n')}
 }`;
-    downloadAsFile(rtfContent, 'caption.rtf', 'application/rtf');
+    // Don't use downloadAsFile here as it would strip RTF codes
+    const blob = new Blob([rtfContent], { type: 'application/rtf;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'caption.rtf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     toast({ title: "Downloaded as Word document" });
   };
 
@@ -506,12 +528,31 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
   };
 
   const handleDownloadCSV = () => {
-    const csv = `"Caption"\n"${generatedContent.replace(/"/g, '""')}"`;
-    downloadAsFile(csv, 'caption.csv', 'text/csv');
+    const cleanedContent = cleanTextForExport(generatedContent);
+    const csv = `"Caption"\n"${cleanedContent.replace(/"/g, '""')}"`;
+    // Don't use downloadAsFile to avoid double-cleaning
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'caption.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     toast({ title: "Downloaded as CSV" });
   };
 
   const handleDownloadHTML = () => {
+    const cleanedContent = cleanTextForExport(generatedContent);
+    // Escape HTML special characters
+    const escapedContent = cleanedContent
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -524,10 +565,19 @@ ${generatedContent.replace(/\n/g, '\\par\n')}
 </head>
 <body>
   <h1>Generated Caption</h1>
-  <div class="content">${generatedContent}</div>
+  <div class="content">${escapedContent}</div>
 </body>
 </html>`;
-    downloadAsFile(html, 'caption.html', 'text/html');
+    // Don't use downloadAsFile to avoid double-cleaning
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'caption.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     toast({ title: "Downloaded as HTML" });
   };
 
