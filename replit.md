@@ -37,8 +37,8 @@ Preferred communication style: Simple, everyday language.
 
 **Key Pages:**
 - `/login` - Authentication (signup/login toggle)
-- `/` - Dashboard with stats overview and recent posts
-- `/ai-studio` - AI-powered content creation studio with:
+- `/` - Dashboard with stats overview and recent posts (no Create Post button)
+- `/ai-studio` - "Create" page - AI-powered content creation studio with:
   - Multi-image upload (JPEG, PNG, WebP, AVIF, HEIC, HEIF)
   - AI caption generation using Google Gemini API
   - Proofread functionality to refine generated content
@@ -47,9 +47,14 @@ Preferred communication style: Simple, everyday language.
   - Save as draft functionality
   - Copy to clipboard
   - Direct posting to connected platforms
+  - Accessible via "Create" link in sidebar
+- `/calendar` - Content calendar with month/week views and color-coded posts by platform
 - `/connections` - Manage OAuth connections to social platforms
-- `/create` - Create and schedule new posts
-- `/posts` - View all posts with status tracking (including drafts)
+- `/create` - Create/schedule post form (also accessible via query params from Posts page quick actions)
+- `/posts` - View all posts with status tracking and quick action buttons:
+  - Duplicate - Creates instant draft copy
+  - Edit & Repost - Opens Create page with post data pre-filled
+  - Send to AI Studio - Loads caption into Create page for AI enhancement
 
 ### Backend Architecture
 

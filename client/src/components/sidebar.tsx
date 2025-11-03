@@ -42,7 +42,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
-    { href: "/ai-studio", icon: Sparkles, label: "AI Studio" },
+    { href: "/ai-studio", icon: Sparkles, label: "Create" },
     { href: "/calendar", icon: CalendarIcon, label: "Calendar" },
     { href: "/connections", icon: Link2, label: "Connections" },
     { href: "/posts", icon: FileText, label: "Posts" },
