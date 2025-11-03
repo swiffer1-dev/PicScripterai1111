@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -41,8 +41,15 @@ export default function CreatePost() {
   const { toast } = useToast();
   const [isScheduled, setIsScheduled] = useState(false);
 
+  // Get duplicate post ID from query params
+  const duplicatePostId = new URLSearchParams(window.location.search).get("duplicate");
+
   const { data: connections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
+  });
+
+  const { data: allPosts } = useQuery({
+    queryKey: ["/api/posts"],
   });
 
   const form = useForm<PostForm>({
@@ -55,6 +62,26 @@ export default function CreatePost() {
       scheduledAt: "",
     },
   });
+
+  // Load duplicate post data into form
+  useEffect(() => {
+    if (duplicatePostId && allPosts) {
+      const duplicatePost = allPosts.find((p: any) => String(p.id) === String(duplicatePostId));
+      if (duplicatePost) {
+        form.reset({
+          platform: duplicatePost.platform,
+          caption: duplicatePost.caption,
+          mediaType: duplicatePost.mediaType || "image",
+          mediaUrl: duplicatePost.mediaUrl || "",
+          scheduledAt: "",
+        });
+        toast({
+          title: "Post loaded",
+          description: "You can now edit and repost this content",
+        });
+      }
+    }
+  }, [duplicatePostId, allPosts, form, toast]);
 
   const selectedPlatform = form.watch("platform");
   const caption = form.watch("caption");

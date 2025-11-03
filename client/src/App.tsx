@@ -9,6 +9,7 @@ import Connections from "@/pages/connections";
 import CreatePost from "@/pages/create-post";
 import Posts from "@/pages/posts";
 import AIStudio from "@/pages/ai-studio";
+import Calendar from "@/pages/calendar";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 
@@ -40,6 +41,9 @@ function Router() {
       </Route>
       <Route path="/ai-studio">
         {() => <ProtectedRoute component={AIStudio} />}
+      </Route>
+      <Route path="/calendar">
+        {() => <ProtectedRoute component={Calendar} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

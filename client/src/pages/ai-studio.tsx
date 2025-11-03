@@ -95,36 +95,50 @@ export default function AIStudio() {
     queryKey: ["/api/connections"],
   });
 
-  // Restore state from sessionStorage on mount (fixes mobile app restart issue)
+  // Load caption from query parameter if provided (for "Send to AI Studio" button)
   useEffect(() => {
-    try {
-      const savedState = sessionStorage.getItem('ai-studio-state');
-      if (savedState) {
-        const state = JSON.parse(savedState);
-        // Only restore if we have meaningful content (not stale)
-        if (state.generatedContent && state.generatedContent.trim()) {
-          setGeneratedContent(state.generatedContent);
-          if (state.uploadedImageUrls) setUploadedImageUrls(state.uploadedImageUrls);
-          if (state.category) setCategory(state.category);
-          if (state.tone) setTone(state.tone);
-          if (state.language) setLanguage(state.language);
-          if (state.customPrompt) setCustomPrompt(state.customPrompt);
-          if (state.propertyAddress) setPropertyAddress(state.propertyAddress);
-          if (typeof state.addHashtags === 'boolean') setAddHashtags(state.addHashtags);
-          if (typeof state.addEmojis === 'boolean') setAddEmojis(state.addEmojis);
-          if (state.selectedPlatforms) setSelectedPlatforms(state.selectedPlatforms);
-          
-          // Show a subtle notification that content was restored
-          toast({
-            title: "Content restored",
-            description: "Your previous work has been recovered",
-          });
+    const urlParams = new URLSearchParams(window.location.search);
+    const caption = urlParams.get('caption');
+    if (caption) {
+      // URLSearchParams already decodes the value, no need to decodeURIComponent
+      setGeneratedContent(caption);
+      toast({
+        title: "Caption loaded",
+        description: "You can now edit and enhance this content with AI",
+      });
+      // Clear the query parameter from URL to prevent reloading on refresh
+      window.history.replaceState({}, '', window.location.pathname);
+    } else {
+      // Only restore from sessionStorage if we didn't just load from query params
+      try {
+        const savedState = sessionStorage.getItem('ai-studio-state');
+        if (savedState) {
+          const state = JSON.parse(savedState);
+          // Only restore if we have meaningful content (not stale)
+          if (state.generatedContent && state.generatedContent.trim()) {
+            setGeneratedContent(state.generatedContent);
+            if (state.uploadedImageUrls) setUploadedImageUrls(state.uploadedImageUrls);
+            if (state.category) setCategory(state.category);
+            if (state.tone) setTone(state.tone);
+            if (state.language) setLanguage(state.language);
+            if (state.customPrompt) setCustomPrompt(state.customPrompt);
+            if (state.propertyAddress) setPropertyAddress(state.propertyAddress);
+            if (typeof state.addHashtags === 'boolean') setAddHashtags(state.addHashtags);
+            if (typeof state.addEmojis === 'boolean') setAddEmojis(state.addEmojis);
+            if (state.selectedPlatforms) setSelectedPlatforms(state.selectedPlatforms);
+            
+            // Show a subtle notification that content was restored
+            toast({
+              title: "Content restored",
+              description: "Your previous work has been recovered",
+            });
+          }
         }
+      } catch (error) {
+        console.error('Failed to restore AI Studio state:', error);
+        // Clear corrupted state
+        sessionStorage.removeItem('ai-studio-state');
       }
-    } catch (error) {
-      console.error('Failed to restore AI Studio state:', error);
-      // Clear corrupted state
-      sessionStorage.removeItem('ai-studio-state');
     }
   }, [toast]);
 

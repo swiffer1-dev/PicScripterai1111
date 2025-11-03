@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
-import { Plus, ExternalLink, Menu, X } from "lucide-react";
+import { Plus, ExternalLink, Menu, X, Copy, Edit, Sparkles } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook } from "react-icons/si";
 import type { Post } from "@shared/schema";
 import { useState } from "react";
@@ -42,6 +42,34 @@ export default function Posts() {
     onError: (error: Error) => {
       toast({
         title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (post: Post) => {
+      const duplicatedPost = {
+        platform: post.platform,
+        caption: post.caption,
+        mediaType: post.mediaType,
+        mediaUrl: post.mediaUrl,
+        status: "draft" as const,
+        options: post.options,
+      };
+      return await apiRequest("POST", "/api/posts", duplicatedPost);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      toast({
+        title: "Post duplicated",
+        description: "A draft copy has been created",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Duplication failed",
         description: error.message,
         variant: "destructive",
       });
@@ -180,6 +208,42 @@ export default function Posts() {
                               ID: {post.externalId}
                             </p>
                           )}
+
+                          <div className="flex gap-2 mt-4 flex-wrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => duplicateMutation.mutate(post)}
+                              disabled={duplicateMutation.isPending}
+                              className="gap-1 text-xs"
+                              data-testid={`button-duplicate-${post.id}`}
+                            >
+                              <Copy className="h-3 w-3" />
+                              Duplicate
+                            </Button>
+                            <Link href={`/create?duplicate=${post.id}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs"
+                                data-testid={`button-edit-repost-${post.id}`}
+                              >
+                                <Edit className="h-3 w-3" />
+                                Edit & Repost
+                              </Button>
+                            </Link>
+                            <Link href={`/ai-studio?caption=${encodeURIComponent(post.caption)}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs"
+                                data-testid={`button-send-to-ai-${post.id}`}
+                              >
+                                <Sparkles className="h-3 w-3" />
+                                Send to AI Studio
+                              </Button>
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
