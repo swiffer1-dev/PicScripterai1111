@@ -4,7 +4,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap } from "lucide-react";
+import { useLocation } from "wouter";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap, Calendar } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
 import { generateDescription, proofreadText } from '../services/geminiService';
@@ -75,6 +76,7 @@ const StyleSettings: React.FC<{
 
 export default function AIStudio() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
@@ -488,6 +490,25 @@ export default function AIStudio() {
     if (!generatedContent) return;
     navigator.clipboard.writeText(generatedContent);
     toast({ title: "Copied to clipboard!" });
+  };
+
+  const handleSchedule = () => {
+    if (!generatedContent) {
+      toast({
+        title: "No content",
+        description: "Please generate content first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Navigate to create/schedule page with the caption pre-filled
+    const params = new URLSearchParams({ caption: generatedContent });
+    setLocation(`/create?${params.toString()}`);
+    toast({
+      title: "Opening scheduler",
+      description: "Your content has been loaded into the scheduler",
+    });
   };
 
   const cleanTextForExport = (text: string): string => {
@@ -1309,6 +1330,16 @@ export default function AIStudio() {
                         data-testid="button-save-draft"
                       >
                         <Save className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        onClick={handleSchedule}
+                        variant="ghost"
+                        size="icon"
+                        title="Schedule post"
+                        data-testid="button-schedule"
+                      >
+                        <Calendar className="h-4 w-4" />
                       </Button>
                     </div>
                   )}

@@ -41,14 +41,16 @@ export default function CreatePost() {
   const { toast } = useToast();
   const [isScheduled, setIsScheduled] = useState(false);
 
-  // Get duplicate post ID from query params
-  const duplicatePostId = new URLSearchParams(window.location.search).get("duplicate");
+  // Get query params
+  const urlParams = new URLSearchParams(window.location.search);
+  const duplicatePostId = urlParams.get("duplicate");
+  const captionParam = urlParams.get("caption");
 
   const { data: connections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
   });
 
-  const { data: allPosts } = useQuery({
+  const { data: allPosts } = useQuery<any[]>({
     queryKey: ["/api/posts"],
   });
 
@@ -63,7 +65,7 @@ export default function CreatePost() {
     },
   });
 
-  // Load duplicate post data into form
+  // Load duplicate post data into form (runs first)
   useEffect(() => {
     if (duplicatePostId && allPosts) {
       const duplicatePost = allPosts.find((p: any) => String(p.id) === String(duplicatePostId));
@@ -82,6 +84,22 @@ export default function CreatePost() {
       }
     }
   }, [duplicatePostId, allPosts, form, toast]);
+
+  // Load caption from query param (from AI Studio Schedule button)
+  // Runs after duplicate loading to avoid race condition
+  useEffect(() => {
+    if (captionParam && !duplicatePostId) {
+      form.setValue("caption", captionParam);
+      toast({
+        title: "Content loaded",
+        description: "Your AI-generated content is ready to schedule",
+      });
+      // Remove only the caption query param to prevent reload
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('caption');
+      window.history.replaceState({}, '', newUrl.pathname);
+    }
+  }, [captionParam, duplicatePostId, form, toast]);
 
   const selectedPlatform = form.watch("platform");
   const caption = form.watch("caption");
