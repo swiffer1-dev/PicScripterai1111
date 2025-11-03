@@ -86,6 +86,7 @@ export default function AIStudio() {
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [propertyAddress, setPropertyAddress] = useState<string>('');
 
   const { data: connections, isLoading: loadingConnections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -243,6 +244,7 @@ export default function AIStudio() {
         tone,
         addHashtags,
         addEmojis,
+        address: propertyAddress, // Include property address for Real Estate listings
       });
 
       // Generate caption using Gemini (already has resizing built in from geminiService)
@@ -847,6 +849,26 @@ export default function AIStudio() {
                   onCategoryChange={setCategory}
                   isDisabled={isGenerating}
                 />
+
+                {/* Real Estate Address Input */}
+                {category === Category.RealEstate && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                      Property Address
+                    </label>
+                    <input
+                      type="text"
+                      value={propertyAddress}
+                      onChange={e => setPropertyAddress(e.target.value)}
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm"
+                      placeholder="Enter property address (e.g., 123 Main St, New York, NY 10001)"
+                      data-testid="input-property-address"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      AI will include nearby schools, shopping, parks, and amenities in the description
+                    </p>
+                  </div>
+                )}
 
                 <LanguageSelector
                   selectedLanguage={language}
