@@ -134,7 +134,7 @@ export default function Dashboard() {
               ) : recentPosts.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground mb-4">No posts yet</p>
-                  <Link href="/create">
+                  <Link href="/ai-studio">
                     <Button data-testid="button-create-first-post">Create your first post</Button>
                   </Link>
                 </div>

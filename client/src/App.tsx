@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Connections from "@/pages/connections";
-import CreatePost from "@/pages/create-post";
 import Posts from "@/pages/posts";
 import AIStudio from "@/pages/ai-studio";
 import Calendar from "@/pages/calendar";
@@ -32,9 +31,6 @@ function Router() {
       </Route>
       <Route path="/connections">
         {() => <ProtectedRoute component={Connections} />}
-      </Route>
-      <Route path="/create">
-        {() => <ProtectedRoute component={CreatePost} />}
       </Route>
       <Route path="/posts">
         {() => <ProtectedRoute component={Posts} />}

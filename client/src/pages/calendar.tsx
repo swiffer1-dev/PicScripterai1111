@@ -390,15 +390,9 @@ export default function Calendar() {
 
             <div className="flex gap-2">
               <Link href="/ai-studio">
-                <Button className="gap-2" variant="outline" data-testid="button-ai-draft">
-                  <Plus className="h-4 w-4" />
-                  AI Draft
-                </Button>
-              </Link>
-              <Link href="/create">
                 <Button className="gap-2" data-testid="button-create-post">
                   <Plus className="h-4 w-4" />
-                  Schedule Post
+                  Create Post
                 </Button>
               </Link>
             </div>

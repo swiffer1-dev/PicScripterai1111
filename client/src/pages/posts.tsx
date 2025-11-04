@@ -227,7 +227,7 @@ export default function Posts() {
                               <Copy className="h-3 w-3" />
                               Duplicate
                             </Button>
-                            <Link href={`/create?duplicate=${post.id}`}>
+                            <Link href={`/ai-studio?caption=${encodeURIComponent(post.caption)}`}>
                               <Button
                                 variant="outline"
                                 size="sm"
