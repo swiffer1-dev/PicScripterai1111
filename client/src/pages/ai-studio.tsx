@@ -371,10 +371,18 @@ export default function AIStudio() {
       const cleanedDescription = cleanTextForExport(result.description);
       setGeneratedContent(cleanedDescription);
       
-      toast({
-        title: "Content generated!",
-        description: "AI has created your social media caption and uploaded your images",
-      });
+      // Notify user if buzzwords were removed
+      if (result.buzzwordsRemoved && result.buzzwordsRemoved.length > 0) {
+        toast({
+          title: "✨ Human Authenticity Engine activated!",
+          description: `Removed ${result.buzzwordsRemoved.length} AI buzzword${result.buzzwordsRemoved.length > 1 ? 's' : ''} to make your content feel more authentic`,
+        });
+      } else {
+        toast({
+          title: "Content generated!",
+          description: "AI has created your social media caption and uploaded your images",
+        });
+      }
     } catch (error) {
       console.error("Error generating caption:", error);
       console.error("Error details:", {

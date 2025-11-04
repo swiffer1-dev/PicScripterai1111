@@ -1,6 +1,70 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiffEntry } from "../types/ai-studio";
 
+const AI_BUZZWORDS: Record<string, string> = {
+  'delve': 'explore',
+  'delve into': 'explore',
+  'delving': 'exploring',
+  'utilize': 'use',
+  'utilizing': 'using',
+  'leverage': 'use',
+  'leveraging': 'using',
+  'in today\'s digital landscape': 'today',
+  'cutting-edge': 'modern',
+  'game-changer': 'transformative',
+  'game changing': 'transformative',
+  'revolutionary': 'innovative',
+  'unlock the power': 'discover',
+  'unlock': 'access',
+  'seamless': 'smooth',
+  'robust': 'strong',
+  'elevate your': 'improve your',
+  'elevate': 'improve',
+  'dive deep': 'explore',
+  'dive into': 'explore',
+  'empower': 'enable',
+  'empowering': 'enabling',
+  'synergy': 'collaboration',
+  'paradigm shift': 'major change',
+  'innovative solution': 'new approach',
+  'take it to the next level': 'improve it',
+  'at the end of the day': 'ultimately',
+  'think outside the box': 'be creative',
+  'low-hanging fruit': 'easy wins',
+  'circle back': 'return to',
+  'touch base': 'connect',
+  'groundbreaking': 'innovative',
+  'transformative': 'changing',
+  'disruptive': 'innovative'
+};
+
+const removeBuzzwords = (text: string): { cleanedText: string; replacements: string[] } => {
+  let cleanedText = text;
+  const replacements: string[] = [];
+  
+  // Sort buzzwords by length (longest first) to avoid partial replacements
+  const sortedBuzzwords = Object.entries(AI_BUZZWORDS).sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [buzzword, replacement] of sortedBuzzwords) {
+    // Case-insensitive replacement with word boundaries
+    const regex = new RegExp(`\\b${buzzword}\\b`, 'gi');
+    const matches = cleanedText.match(regex);
+    
+    if (matches) {
+      cleanedText = cleanedText.replace(regex, (match) => {
+        // Preserve capitalization
+        if (match[0] === match[0].toUpperCase()) {
+          return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+        }
+        return replacement;
+      });
+      replacements.push(buzzword);
+    }
+  }
+  
+  return { cleanedText, replacements };
+};
+
 const resizeImage = (file: File, maxWidth: number = 1920, maxHeight: number = 1920): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -63,7 +127,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 export const generateDescription = async (
   imageFiles: File[],
   prompt: string
-): Promise<{ description: string; metadata: string }> => {
+): Promise<{ description: string; metadata: string; buzzwordsRemoved?: string[] }> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   console.log("API Key check:", apiKey ? `SET (${apiKey.length} chars)` : 'NOT SET');
   
@@ -154,9 +218,13 @@ export const generateDescription = async (
     const responseText = response.text || '{}';
     const resultJson = JSON.parse(responseText);
     
+    // Apply buzzword filter
+    const { cleanedText, replacements } = removeBuzzwords(resultJson.generatedContent);
+    
     return {
-      description: resultJson.generatedContent,
+      description: cleanedText,
       metadata: resultJson.imageSummary,
+      buzzwordsRemoved: replacements.length > 0 ? replacements : undefined,
     };
 
   } catch (error) {
