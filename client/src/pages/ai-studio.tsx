@@ -123,76 +123,9 @@ export default function AIStudio() {
       });
       // Clear the query parameter from URL to prevent reloading on refresh
       window.history.replaceState({}, '', window.location.pathname);
-    } else {
-      // Only restore from sessionStorage if we didn't just load from query params
-      try {
-        const savedState = sessionStorage.getItem('ai-studio-state');
-        if (savedState) {
-          const state = JSON.parse(savedState);
-          // Only restore if we have meaningful content (not stale)
-          if (state.generatedContent && state.generatedContent.trim()) {
-            setGeneratedContent(state.generatedContent);
-            if (state.uploadedImageUrls) setUploadedImageUrls(state.uploadedImageUrls);
-            if (state.category) setCategory(state.category);
-            if (state.tone) setTone(state.tone);
-            if (state.language) setLanguage(state.language);
-            if (state.customPrompt) setCustomPrompt(state.customPrompt);
-            if (state.propertyAddress) setPropertyAddress(state.propertyAddress);
-            if (typeof state.addHashtags === 'boolean') setAddHashtags(state.addHashtags);
-            if (typeof state.addEmojis === 'boolean') setAddEmojis(state.addEmojis);
-            if (state.selectedPlatforms) setSelectedPlatforms(state.selectedPlatforms);
-            
-            // Show a subtle notification that content was restored
-            toast({
-              title: "Content restored",
-              description: "Your previous work has been recovered",
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to restore AI Studio state:', error);
-        // Clear corrupted state
-        sessionStorage.removeItem('ai-studio-state');
-      }
     }
   }, [toast]);
 
-  // Save state to sessionStorage whenever important values change
-  useEffect(() => {
-    try {
-      const state = {
-        generatedContent,
-        uploadedImageUrls,
-        category,
-        tone,
-        language,
-        customPrompt,
-        propertyAddress,
-        addHashtags,
-        addEmojis,
-        selectedPlatforms,
-        timestamp: Date.now(), // Add timestamp for staleness detection
-      };
-      
-      // Only save if we have content to preserve
-      if (generatedContent.trim()) {
-        const stateStr = JSON.stringify(state);
-        // Check size to avoid quota errors (most browsers: 5-10MB limit)
-        if (stateStr.length < 4 * 1024 * 1024) { // 4MB safety limit
-          sessionStorage.setItem('ai-studio-state', stateStr);
-        }
-      } else {
-        // Clear storage when content is intentionally removed
-        sessionStorage.removeItem('ai-studio-state');
-      }
-    } catch (error) {
-      console.error('Failed to save AI Studio state:', error);
-      // If quota exceeded, clear old state and try once more
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        sessionStorage.removeItem('ai-studio-state');
-      }
-    }
-  }, [generatedContent, uploadedImageUrls, category, tone, language, customPrompt, propertyAddress, addHashtags, addEmojis, selectedPlatforms]);
 
   const connectedPlatforms = new Set(connections?.map(c => c.platform) || []);
 
@@ -283,8 +216,6 @@ export default function AIStudio() {
       setPreviewUrls([]);
       setUploadedImageUrls([]);
       setSelectedPlatforms([]);
-      // Clear saved state after successful post
-      sessionStorage.removeItem('ai-studio-state');
     },
     onError: (error: Error) => {
       toast({
@@ -556,9 +487,6 @@ export default function AIStudio() {
     setAddEmojis(true);
     setLanguage('English');
     setSelectedPlatforms([]);
-    
-    // Clear session storage
-    sessionStorage.removeItem('ai-studio-state');
     
     toast({
       title: "New session started",
