@@ -7,7 +7,7 @@ export enum Category {
   Custom = 'Custom',
 }
 
-export type Tone = 'Professional' | 'Casual' | 'Luxury' | 'Playful' | 'Motivational';
+export type Tone = 'Authentic' | 'Conversational' | 'SEO Boosted' | 'Professional' | 'Casual' | 'Luxury' | 'Playful' | 'Motivational';
 
 export interface HistoryItem {
   id: number;

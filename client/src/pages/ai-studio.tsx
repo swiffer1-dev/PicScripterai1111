@@ -35,7 +35,7 @@ const StyleSettings: React.FC<{
   <div className="space-y-4">
     <div>
       <label htmlFor="tone-select" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
-        Tone
+        Tone - Human Authenticity Engine
       </label>
       <select
         id="tone-select"
@@ -44,10 +44,22 @@ const StyleSettings: React.FC<{
         className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm"
         data-testid="select-tone"
       >
-        {['Professional', 'Casual', 'Luxury', 'Playful', 'Motivational'].map(t => (
-          <option key={t} value={t}>{t}</option>
-        ))}
+        <optgroup label="🤖 AI-Proof Tones (Recommended)">
+          <option value="Authentic">Authentic - Real & relatable</option>
+          <option value="Conversational">Conversational - Like chatting with a friend</option>
+          <option value="SEO Boosted">SEO Boosted - Searchable & natural</option>
+        </optgroup>
+        <optgroup label="Classic Tones">
+          <option value="Professional">Professional</option>
+          <option value="Casual">Casual</option>
+          <option value="Luxury">Luxury</option>
+          <option value="Playful">Playful</option>
+          <option value="Motivational">Motivational</option>
+        </optgroup>
       </select>
+      <p className="text-xs text-muted-foreground mt-1.5">
+        ✨ Fights AI-blog feel with natural rhythm, personality cues & buzzword detection
+      </p>
     </div>
     <div className="flex items-center flex-wrap gap-x-6 gap-y-3">
       <label className="flex items-center cursor-pointer">
@@ -85,7 +97,7 @@ export default function AIStudio() {
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProofreading, setIsProofreading] = useState(false);
-  const [tone, setTone] = useState<Tone>('Casual');
+  const [tone, setTone] = useState<Tone>('Authentic');
   const [addHashtags, setAddHashtags] = useState(true);
   const [addEmojis, setAddEmojis] = useState(true);
   const [language, setLanguage] = useState<string>('English');
@@ -531,7 +543,7 @@ export default function AIStudio() {
     setCustomPrompt('');
     setPropertyAddress('');
     setCategory(Category.Travel);
-    setTone('Casual');
+    setTone('Authentic');
     setAddHashtags(true);
     setAddEmojis(true);
     setLanguage('English');

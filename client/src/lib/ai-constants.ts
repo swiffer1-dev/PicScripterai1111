@@ -2,14 +2,65 @@ export const API_BASE = "https://8905008d-18f7-4e7e-9254-0c4a70acf1e8-00-pgjqspk
 
 import { Category, PromptTemplateParams } from '../types/ai-studio';
 
+const AI_BUZZWORDS = [
+  'delve', 'utilize', 'leverage', 'in today\'s digital landscape', 'cutting-edge', 
+  'game-changer', 'revolutionary', 'unlock the power', 'seamless', 'robust',
+  'elevate your', 'dive deep', 'empower', 'synergy', 'paradigm shift',
+  'innovative solution', 'take it to the next level', 'at the end of the day',
+  'think outside the box', 'low-hanging fruit', 'circle back', 'touch base',
+  'game changing', 'groundbreaking', 'transformative', 'disruptive'
+];
+
 const generateToneInstruction = (tone: string): string => {
+  const humanAuthenticityRules = `
+
+**Human Authenticity Engine:**
+- Mix sentence lengths naturally: some short and punchy (5-10 words), others longer and descriptive (20-30 words)
+- Include light personality cues like "You'll love how this fits", "Trust me on this", "Here's the thing"
+- Write like a real person, not a corporate bot
+- STRICTLY AVOID these AI buzzwords: ${AI_BUZZWORDS.join(', ')}
+- Use natural transitions and conversational bridges
+- Vary your sentence structure to create rhythm
+`;
+
   switch (tone) {
-    case 'Professional': return "The tone should be formal, polished, and authoritative.";
-    case 'Casual': return "The tone should be relaxed, friendly, and conversational.";
-    case 'Luxury': return "The tone should be elegant, sophisticated, and aspirational.";
-    case 'Playful': return "The tone should be fun, witty, and energetic.";
-    case 'Motivational': return "The tone should be inspiring, uplifting, and encouraging.";
-    default: return "The tone should be engaging.";
+    case 'Authentic':
+      return `The tone should feel genuinely human - like a friend sharing a real experience. Be honest, relatable, and down-to-earth. ${humanAuthenticityRules}
+- Add personal touches ("I noticed...", "What struck me was...")
+- Use specific details over generic descriptions
+- Keep it real - no hype or exaggeration`;
+      
+    case 'Conversational':
+      return `Write like you're chatting with a friend over coffee. Be warm, engaging, and approachable. ${humanAuthenticityRules}
+- Use contractions (you'll, it's, we're)
+- Ask questions to engage readers
+- Include casual transitions ("So here's the deal...", "Okay, real talk...")
+- Feel free to use fragments for emphasis. Like this.`;
+      
+    case 'SEO Boosted':
+      return `Optimize for search and discovery while maintaining natural readability. ${humanAuthenticityRules}
+- Incorporate relevant keywords naturally (no keyword stuffing)
+- Use descriptive, searchable language
+- Include specific details that people search for
+- Balance SEO optimization with human readability - never sacrifice authenticity for keywords`;
+      
+    case 'Professional': 
+      return `The tone should be formal, polished, and authoritative. ${humanAuthenticityRules}`;
+      
+    case 'Casual': 
+      return `The tone should be relaxed, friendly, and conversational. ${humanAuthenticityRules}`;
+      
+    case 'Luxury': 
+      return `The tone should be elegant, sophisticated, and aspirational. ${humanAuthenticityRules}`;
+      
+    case 'Playful': 
+      return `The tone should be fun, witty, and energetic. ${humanAuthenticityRules}`;
+      
+    case 'Motivational': 
+      return `The tone should be inspiring, uplifting, and encouraging. ${humanAuthenticityRules}`;
+      
+    default: 
+      return `The tone should be engaging. ${humanAuthenticityRules}`;
   }
 };
 
