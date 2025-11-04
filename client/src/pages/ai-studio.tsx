@@ -63,26 +63,36 @@ const StyleSettings: React.FC<{
       </p>
     </div>
     <div className="flex items-center flex-wrap gap-x-6 gap-y-3">
-      <label className="flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          checked={addHashtags}
-          onChange={e => onHashtagsChange(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          data-testid="checkbox-hashtags"
-        />
-        <span className="ml-2 text-sm">Add Hashtags</span>
-      </label>
-      <label className="flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          checked={addEmojis}
-          onChange={e => onEmojisChange(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          data-testid="checkbox-emojis"
-        />
-        <span className="ml-2 text-sm">Add Emojis</span>
-      </label>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <label className="flex items-center cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={addHashtags}
+              onChange={e => onHashtagsChange(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary transition-transform group-hover:scale-110"
+              data-testid="checkbox-hashtags"
+            />
+            <span className="ml-2 text-sm">Add Hashtags</span>
+          </label>
+        </TooltipTrigger>
+        <TooltipContent>Platform-optimized hashtags for better reach</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <label className="flex items-center cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={addEmojis}
+              onChange={e => onEmojisChange(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary transition-transform group-hover:scale-110"
+              data-testid="checkbox-emojis"
+            />
+            <span className="ml-2 text-sm">Add Emojis</span>
+          </label>
+        </TooltipTrigger>
+        <TooltipContent>Platform-specific emojis (works across all platforms)</TooltipContent>
+      </Tooltip>
     </div>
   </div>
 );

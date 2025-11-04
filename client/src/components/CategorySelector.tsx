@@ -1,5 +1,6 @@
 import React from 'react';
 import { Category } from '../types/ai-studio';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CategorySelectorProps {
   selectedCategory: Category;
@@ -15,35 +16,39 @@ const FashionIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-
 const CustomIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-1.025 1.11-1.11a13.438 13.438 0 015.1 1.266c.39.183.693.535.816.968a13.438 13.438 0 01-1.266 5.1c-.085.55-.568 1.02-1.11 1.11a13.438 13.438 0 01-5.1-1.266c-.39-.183-.693-.535-.816-.968a13.438 13.438 0 011.266-5.1z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6 18.75a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm12.75 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M12.75 12.75a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 6a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>);
 
 const categoryOptions = [
-  { id: Category.Travel, label: 'Travel', icon: <TravelIcon /> },
-  { id: Category.RealEstate, label: 'Real Estate', icon: <RealEstateIcon /> },
-  { id: Category.Ecommerce, label: 'E-commerce', icon: <EcommerceIcon /> },
-  { id: Category.Food, label: 'Food', icon: <FoodIcon /> },
-  { id: Category.Fashion, label: 'Fashion', icon: <FashionIcon /> },
-  { id: Category.Custom, label: 'Custom', icon: <CustomIcon /> },
+  { id: Category.Travel, label: 'Travel', icon: <TravelIcon />, tooltip: 'Destinations, adventures, travel tips' },
+  { id: Category.RealEstate, label: 'Real Estate', icon: <RealEstateIcon />, tooltip: 'Properties, listings, market insights' },
+  { id: Category.Ecommerce, label: 'E-commerce', icon: <EcommerceIcon />, tooltip: 'Products, sales, customer stories' },
+  { id: Category.Food, label: 'Food', icon: <FoodIcon />, tooltip: 'Recipes, restaurants, culinary content' },
+  { id: Category.Fashion, label: 'Fashion', icon: <FashionIcon />, tooltip: 'Style, trends, fashion inspiration' },
+  { id: Category.Custom, label: 'Custom', icon: <CustomIcon />, tooltip: 'General purpose & custom content' },
 ];
 
 const CategorySelector: React.FC<CategorySelectorProps> = ({ selectedCategory, onCategoryChange, isDisabled }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
       {categoryOptions.map((option) => (
-        <button
-          key={option.id}
-          onClick={() => onCategoryChange(option.id)}
-          disabled={isDisabled}
-          className={`group flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-indigo-500 transform hover:-translate-y-1
-            ${selectedCategory === option.id 
-              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-400 text-white shadow-lg shadow-indigo-500/20' 
-              : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
-            }
-            ${isDisabled ? 'opacity-50 cursor-not-allowed transform-none' : ''}
-          `}
-        >
-          <div className={`transition-colors ${selectedCategory !== option.id && 'text-gray-500 dark:text-current group-hover:text-indigo-400'}`}>
-            {option.icon}
-          </div>
-          <span className="mt-2 text-xs sm:text-sm font-semibold">{option.label}</span>
-        </button>
+        <Tooltip key={option.id}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => onCategoryChange(option.id)}
+              disabled={isDisabled}
+              className={`group flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-indigo-500 transform hover:-translate-y-1
+                ${selectedCategory === option.id 
+                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-400 text-white shadow-lg shadow-indigo-500/20' 
+                  : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
+                }
+                ${isDisabled ? 'opacity-50 cursor-not-allowed transform-none' : ''}
+              `}
+            >
+              <div className={`transition-colors ${selectedCategory !== option.id && 'text-gray-500 dark:text-current group-hover:text-indigo-400'}`}>
+                {option.icon}
+              </div>
+              <span className="mt-2 text-xs sm:text-sm font-semibold">{option.label}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{option.tooltip}</TooltipContent>
+        </Tooltip>
       ))}
     </div>
   );
