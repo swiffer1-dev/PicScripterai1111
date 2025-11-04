@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap, Calendar } from "lucide-react";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap, Calendar, Sparkles } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
 import { generateDescription, proofreadText } from '../services/geminiService';
@@ -1095,16 +1096,21 @@ export default function AIStudio() {
                 Generate AI-powered captions and post to your connected platforms
               </p>
             </div>
-            <Button
-              onClick={handleNewSession}
-              variant="outline"
-              className="gap-2"
-              data-testid="button-new-session"
-            >
-              <RotateCw className="h-4 w-4" />
-              <span className="hidden sm:inline">New Session</span>
-              <span className="sm:hidden">New</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleNewSession}
+                  variant="outline"
+                  className="gap-2 transition-all hover:scale-105"
+                  data-testid="button-new-session"
+                >
+                  <RotateCw className="h-4 w-4" />
+                  <span className="hidden sm:inline">New Session</span>
+                  <span className="sm:hidden">New</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Clear all content and start fresh</TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1204,24 +1210,31 @@ export default function AIStudio() {
                   />
                 </div>
 
-                <Button
-                  onClick={handleGenerate}
-                  disabled={isGenerating || imageFiles.length === 0}
-                  className="w-full"
-                  data-testid="button-generate"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="mr-2 h-4 w-4" />
-                      Generate Caption
-                    </>
-                  )}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={isGenerating || imageFiles.length === 0}
+                      className="w-full transition-all hover:scale-[1.02]"
+                      data-testid="button-generate"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <span className="animate-pulse">Analyzing images & generating content...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="mr-2 h-4 w-4" />
+                          Generate Caption
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>AI-powered caption generation with Human Authenticity Engine</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
               {/* Connected Platforms Status */}
@@ -1274,27 +1287,37 @@ export default function AIStudio() {
                   <h2 className="text-lg font-semibold">Generated Content</h2>
                   {generatedContent && (
                     <div className="flex items-center gap-2">
-                      <Button
-                        onClick={handleCopy}
-                        variant="ghost"
-                        size="icon"
-                        title="Copy to clipboard"
-                        data-testid="button-copy-icon"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <Button
+                            onClick={handleCopy}
                             variant="ghost"
                             size="icon"
-                            title="Download"
-                            data-testid="button-download"
+                            className="transition-all hover:scale-110"
+                            data-testid="button-copy-icon"
                           >
-                            <Download className="h-4 w-4" />
+                            <Copy className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy to clipboard</TooltipContent>
+                      </Tooltip>
+                      
+                      <DropdownMenu>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="transition-all hover:scale-110"
+                                data-testid="button-download"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent>Download in multiple formats</TooltipContent>
+                        </Tooltip>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={handleDownloadPDF} data-testid="download-pdf">
                             <FileText className="mr-2 h-4 w-4" />
@@ -1319,48 +1342,80 @@ export default function AIStudio() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      <Button
-                        onClick={handleRegenerate}
-                        variant="ghost"
-                        size="icon"
-                        title="Regenerate"
-                        disabled={isGenerating}
-                        data-testid="button-regenerate"
-                      >
-                        <RotateCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleRegenerate}
+                            variant="ghost"
+                            size="icon"
+                            className="transition-all hover:scale-110"
+                            disabled={isGenerating}
+                            data-testid="button-regenerate"
+                          >
+                            <RotateCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Generate new variation</TooltipContent>
+                      </Tooltip>
 
-                      <Button
-                        onClick={handleProofread}
-                        variant="ghost"
-                        size="icon"
-                        title="Proofread"
-                        disabled={isProofreading}
-                        data-testid="button-proofread"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleProofread}
+                            variant="ghost"
+                            size="icon"
+                            className="transition-all hover:scale-110"
+                            disabled={isProofreading}
+                            data-testid="button-proofread"
+                          >
+                            {isProofreading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Edit3 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {isProofreading ? "Proofreading grammar & spelling..." : "Check grammar & spelling"}
+                        </TooltipContent>
+                      </Tooltip>
 
-                      <Button
-                        onClick={handleSaveDraft}
-                        variant="ghost"
-                        size="icon"
-                        title="Save as draft"
-                        disabled={saveDraftMutation.isPending}
-                        data-testid="button-save-draft"
-                      >
-                        <Save className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleSaveDraft}
+                            variant="ghost"
+                            size="icon"
+                            className="transition-all hover:scale-110"
+                            disabled={saveDraftMutation.isPending}
+                            data-testid="button-save-draft"
+                          >
+                            {saveDraftMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {saveDraftMutation.isPending ? "Saving draft..." : "Save as draft"}
+                        </TooltipContent>
+                      </Tooltip>
 
-                      <Button
-                        onClick={handleSchedule}
-                        variant="ghost"
-                        size="icon"
-                        title="Schedule post"
-                        data-testid="button-schedule"
-                      >
-                        <Calendar className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleSchedule}
+                            variant="ghost"
+                            size="icon"
+                            className="transition-all hover:scale-110"
+                            data-testid="button-schedule"
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Schedule to calendar</TooltipContent>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
@@ -1401,25 +1456,32 @@ export default function AIStudio() {
                   ) : connections && connections.length > 0 ? (
                     <>
                       {/* Smart Post Button */}
-                      <Button
-                        onClick={handleSmartPost}
-                        disabled={postMutation.isPending}
-                        className="w-full mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold"
-                        size="lg"
-                        data-testid="button-smart-post"
-                      >
-                        {postMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Posting...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="mr-2 h-5 w-5" />
-                            Smart Post to All ({connectedPlatforms.size} platforms)
-                          </>
-                        )}
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleSmartPost}
+                            disabled={postMutation.isPending}
+                            className="w-full mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold transition-all hover:scale-[1.02]"
+                            size="lg"
+                            data-testid="button-smart-post"
+                          >
+                            {postMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                <span className="animate-pulse">Posting to all platforms...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="mr-2 h-5 w-5" />
+                                Smart Post to All ({connectedPlatforms.size} platforms)
+                              </>
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Instantly post to all connected platforms</p>
+                        </TooltipContent>
+                      </Tooltip>
 
                       <div className="relative mb-4">
                         <div className="absolute inset-0 flex items-center">
