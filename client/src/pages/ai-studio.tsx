@@ -516,6 +516,13 @@ export default function AIStudio() {
   };
 
   const handleNewSession = () => {
+    // Increment session ID to cancel any in-flight operations
+    sessionIdRef.current += 1;
+    
+    // Force stop loading states
+    setIsGenerating(false);
+    setIsProofreading(false);
+    
     // Clear all state
     setImageFiles([]);
     setPreviewUrls([]);

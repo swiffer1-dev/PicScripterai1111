@@ -111,18 +111,11 @@ export default function Posts() {
         </div>
 
         <div className="max-w-4xl mx-auto p-4 lg:p-8">
-          <div className="flex justify-between items-center mb-6 lg:mb-8">
+          <div className="mb-6 lg:mb-8">
             <div className="hidden lg:block">
               <h1 className="text-3xl font-semibold tracking-tight">Posts</h1>
               <p className="text-muted-foreground mt-1.5">View and manage all your posts</p>
             </div>
-            <Link href="/create">
-              <Button className="gap-2" data-testid="button-create-post">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Post</span>
-                <span className="sm:hidden">Create</span>
-              </Button>
-            </Link>
           </div>
 
           {isLoading ? (
@@ -145,10 +138,10 @@ export default function Posts() {
           ) : sortedPosts.length === 0 ? (
             <Card className="border-border shadow-sm">
               <CardContent className="p-12 text-center">
-                <p className="text-muted-foreground mb-4">No posts yet</p>
-                <Link href="/create">
-                  <Button data-testid="button-create-first-post">Create your first post</Button>
-                </Link>
+                <p className="text-muted-foreground">No posts yet</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Create content using the Create page in the sidebar
+                </p>
               </CardContent>
             </Card>
           ) : (
