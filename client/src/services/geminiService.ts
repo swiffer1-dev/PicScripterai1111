@@ -148,15 +148,15 @@ export const generateDescription = async (
   `;
 
   try {
-    // Validate images - Gemini API supports these formats
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'];
+    // Validate images - Gemini API supports these formats (AVIF is NOT supported by Google Gemini API)
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     const maxSize = 20 * 1024 * 1024; // 20MB
     
     for (const file of imageFiles) {
       console.log(`Validating image: ${file.name}, type: ${file.type}, size: ${file.size}`);
       
       if (!supportedTypes.includes(file.type)) {
-        throw new Error(`Unsupported image format: ${file.type}. Supported formats: JPEG, PNG, WebP, AVIF, HEIC, HEIF`);
+        throw new Error(`Unsupported image format: ${file.type}. Supported formats: JPEG, PNG, WebP, HEIC, HEIF (AVIF not supported)`);
       }
       
       if (file.size > maxSize) {

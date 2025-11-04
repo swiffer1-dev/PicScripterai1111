@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
 - `/login` - Authentication (signup/login toggle)
 - `/` - Dashboard with stats overview and recent posts (no Create Post button)
 - `/ai-studio` - "Create" page - AI-powered content creation studio with:
-  - Multi-image upload (JPEG, PNG, WebP, AVIF, HEIC, HEIF)
+  - Multi-image upload (JPEG, PNG, WebP, HEIC, HEIF)
   - AI caption generation using Google Gemini API
   - **Human Authenticity Engine** - Fights "AI-blog" feel with:
     - 3 AI-proof tone options: Authentic, Conversational, SEO Boosted
