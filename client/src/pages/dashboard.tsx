@@ -42,7 +42,7 @@ export default function Dashboard() {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-10 w-auto object-contain"
+            className="h-12 w-auto object-contain"
             data-testid="img-logo-mobile-dashboard"
           />
         </div>

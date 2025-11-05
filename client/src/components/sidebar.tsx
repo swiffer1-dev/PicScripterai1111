@@ -69,7 +69,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-8 w-auto object-contain"
+            className="h-12 w-auto object-contain"
             data-testid="img-logo-sidebar"
           />
           {onClose && (
