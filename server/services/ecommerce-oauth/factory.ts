@@ -19,8 +19,8 @@ export function getEcommerceOAuthProvider(
       }
       return new ShopifyOAuthProvider(
         {
-          clientId: process.env.SHOPIFY_API_KEY || "",
-          clientSecret: process.env.SHOPIFY_API_SECRET || "",
+          clientId: process.env.SHOPIFY_CLIENT_ID || "",
+          clientSecret: process.env.SHOPIFY_CLIENT_SECRET || "",
           redirectUri,
           scopes: ["read_products", "read_orders", "read_inventory"],
           authUrl: "", // Not used - constructed in provider
@@ -31,8 +31,8 @@ export function getEcommerceOAuthProvider(
 
     case "etsy":
       return new EtsyOAuthProvider({
-        clientId: process.env.ETSY_API_KEY || "",
-        clientSecret: process.env.ETSY_SHARED_SECRET || "",
+        clientId: process.env.ETSY_CLIENT_ID || "",
+        clientSecret: process.env.ETSY_CLIENT_SECRET || "",
         redirectUri,
         scopes: ["transactions_r", "listings_r", "shops_r"],
         authUrl: "https://www.etsy.com/oauth/connect",
