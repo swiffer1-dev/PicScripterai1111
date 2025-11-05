@@ -29,6 +29,16 @@ import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_176231552164
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
 
+const platformCharLimits: Record<Platform, number> = {
+  instagram: 2200,
+  tiktok: 2200,
+  twitter: 280,
+  linkedin: 3000,
+  pinterest: 500,
+  youtube: 5000,
+  facebook: 63206,
+};
+
 const StyleSettings: React.FC<{
   tone: Tone; onToneChange: (t: Tone) => void;
   addHashtags: boolean; onHashtagsChange: (c: boolean) => void;
@@ -421,6 +431,25 @@ export default function AIStudio() {
       return;
     }
 
+    // Check character limits for selected platforms
+    const captionLength = generatedContent.length;
+    const platformsExceedingLimit = selectedPlatforms.filter(
+      platform => captionLength > platformCharLimits[platform]
+    );
+
+    if (platformsExceedingLimit.length > 0) {
+      const platformNames = platformsExceedingLimit
+        .map(p => `${p.charAt(0).toUpperCase() + p.slice(1)} (${platformCharLimits[p]} max)`)
+        .join(', ');
+      
+      toast({
+        title: "Caption too long",
+        description: `Your caption (${captionLength} characters) exceeds the limit for: ${platformNames}. Please shorten it or deselect those platforms.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     postMutation.mutate({
       caption: generatedContent,
       platforms: selectedPlatforms,
@@ -449,6 +478,46 @@ export default function AIStudio() {
 
     // Get all connected platforms
     const allConnectedPlatforms = Array.from(connectedPlatforms) as Platform[];
+    
+    // Check character limits for all connected platforms
+    const captionLength = generatedContent.length;
+    const platformsExceedingLimit = allConnectedPlatforms.filter(
+      platform => captionLength > platformCharLimits[platform]
+    );
+
+    if (platformsExceedingLimit.length > 0) {
+      const platformNames = platformsExceedingLimit
+        .map(p => `${p.charAt(0).toUpperCase() + p.slice(1)} (${platformCharLimits[p]} max)`)
+        .join(', ');
+      
+      toast({
+        title: "Caption too long for some platforms",
+        description: `Your caption (${captionLength} characters) exceeds the limit for: ${platformNames}. Content will be automatically truncated for these platforms.`,
+        variant: "default",
+      });
+      
+      // Filter out platforms that exceed the limit for Smart Post
+      const validPlatforms = allConnectedPlatforms.filter(
+        platform => captionLength <= platformCharLimits[platform]
+      );
+      
+      if (validPlatforms.length === 0) {
+        toast({
+          title: "Caption too long",
+          description: "Your caption exceeds the character limit for all connected platforms. Please shorten it.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Post only to platforms within limit
+      postMutation.mutate({
+        caption: generatedContent,
+        platforms: validPlatforms,
+        mediaUrl: uploadedImageUrls[0],
+      });
+      return;
+    }
     
     // Post to all connected platforms
     postMutation.mutate({
@@ -1500,6 +1569,44 @@ export default function AIStudio() {
                     )}
                     <div className="bg-muted/50 rounded-lg p-4 min-h-[200px]">
                       <p className="text-sm whitespace-pre-wrap">{generatedContent}</p>
+                    </div>
+                    
+                    {/* Character Counter */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-muted-foreground">Character Count</span>
+                        <span className="font-mono font-semibold">{generatedContent.length}</span>
+                      </div>
+                      
+                      {/* Platform Limits */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {(['twitter', 'pinterest', 'instagram', 'tiktok', 'linkedin', 'youtube'] as Platform[]).map(platform => {
+                          const limit = platformCharLimits[platform];
+                          const isOver = generatedContent.length > limit;
+                          const isConnected = connectedPlatforms.has(platform);
+                          
+                          return (
+                            <div
+                              key={platform}
+                              className={`flex items-center justify-between px-2 py-1 rounded ${
+                                !isConnected 
+                                  ? 'bg-muted/30 text-muted-foreground/50'
+                                  : isOver 
+                                    ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400' 
+                                    : 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400'
+                              }`}
+                            >
+                              <span className="capitalize font-medium">{platform}</span>
+                              <span className="font-mono">
+                                {isOver ? `${limit - generatedContent.length}` : `${limit - generatedContent.length}`}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground italic">
+                        ✓ Green = within limit, Red = exceeds limit, Grayed = not connected
+                      </p>
                     </div>
                   </div>
                 ) : (

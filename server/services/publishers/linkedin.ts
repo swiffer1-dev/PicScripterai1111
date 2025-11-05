@@ -28,7 +28,7 @@ export async function publishToLinkedIn(
       specificContent: {
         "com.linkedin.ugc.ShareContent": {
           shareCommentary: {
-            text: caption,
+            text: caption.substring(0, 3000), // LinkedIn limit
           },
           shareMediaCategory: mediaUrl ? "IMAGE" : "NONE",
         },

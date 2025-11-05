@@ -14,15 +14,16 @@ export async function publishToFacebook(
   
   try {
     let endpoint = `https://graph.facebook.com/v18.0/${pageId}/feed`;
+    const truncatedCaption = caption.substring(0, 63206); // Facebook limit
     const data: any = {
-      message: caption,
+      message: truncatedCaption,
       access_token: accessToken,
     };
     
     if (mediaUrl) {
       endpoint = `https://graph.facebook.com/v18.0/${pageId}/photos`;
       data.url = mediaUrl;
-      data.caption = caption;
+      data.caption = truncatedCaption;
     }
     
     const response = await axios.post(endpoint, data);

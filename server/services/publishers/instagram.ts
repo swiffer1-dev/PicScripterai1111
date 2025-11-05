@@ -21,7 +21,7 @@ export async function publishToInstagram(
     // Step 1: Create media container
     const containerEndpoint = `https://graph.facebook.com/v18.0/${igUserId}/media`;
     const containerData: any = {
-      caption,
+      caption: caption.substring(0, 2200), // Instagram limit
       access_token: accessToken,
     };
     

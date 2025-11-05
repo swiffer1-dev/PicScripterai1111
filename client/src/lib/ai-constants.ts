@@ -68,7 +68,7 @@ const generatePlatformSpecificInstructions = (platform: string | undefined, addH
   let instructions = '';
   switch (platform) {
     case 'Instagram':
-      instructions = "End with an engaging question.";
+      instructions = "CRITICAL: Keep total length under 2200 characters. End with an engaging question.";
       if (addHashtags) instructions += " Suggest 3-5 relevant hashtags.";
       if (addEmojis) instructions += " Use emojis naturally throughout to add personality and visual appeal.";
       break;
@@ -78,21 +78,21 @@ const generatePlatformSpecificInstructions = (platform: string | undefined, addH
       if (addEmojis) instructions += " Add 2-3 emojis to make the post more engaging.";
       break;
     case 'X (Twitter)':
-      instructions = "Keep the post extremely concise and punchy, under 280 characters. A strong statement or question is effective.";
-      if (addHashtags) instructions += " Use 1-2 relevant hashtags.";
+      instructions = "CRITICAL: MAXIMUM 280 characters total (including hashtags and emojis). Keep the post extremely concise and punchy. A strong statement or question is effective.";
+      if (addHashtags) instructions += " Use 1-2 short hashtags.";
       if (addEmojis) instructions += " Include 1-2 emojis to enhance the message.";
       break;
     case 'TikTok':
-      instructions = "Craft a very short, catchy caption suitable for a TikTok video. The tone should be fun, informal, and trendy. Encourage viewer engagement.";
+      instructions = "CRITICAL: Keep total length under 2200 characters. Craft a very short, catchy caption suitable for a TikTok video. The tone should be fun, informal, and trendy. Encourage viewer engagement.";
       if (addHashtags) instructions += " Include 3-5 popular and relevant hashtags to maximize visibility.";
       if (addEmojis) instructions += " Use fun emojis to match the energetic TikTok vibe.";
       break;
     case 'Pinterest':
-      instructions = "Write a descriptive, keyword-rich 'pin' description. Focus on what the image shows and what it inspires, making it highly searchable.";
+      instructions = "CRITICAL: MAXIMUM 500 characters total (including all text). Write a concise, keyword-rich 'pin' description. Focus on what the image shows and what it inspires, making it highly searchable. Be brief and impactful.";
       if (addEmojis) instructions += " Add 1-2 relevant emojis to make the pin more eye-catching.";
       break;
     case 'LinkedIn':
-      instructions = "Adopt a professional and polished tone. Focus on unique selling propositions, business aspects, or brand storytelling.";
+      instructions = "CRITICAL: Keep total length under 3000 characters. Adopt a professional and polished tone. Focus on unique selling propositions, business aspects, or brand storytelling.";
       if (addEmojis) instructions += " Use emojis very sparingly, if at all - maintain professional tone.";
       break;
     default:
