@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap, Calendar, Sparkles } from "lucide-react";
+import { Loader2, Wand2, CheckCircle, AlertCircle, Copy, Download, RotateCw, Edit3, Save, FileText, FileSpreadsheet, Menu, Zap, Calendar, Sparkles, Store } from "lucide-react";
 import { Category, Tone } from '../types/ai-studio';
 import { CATEGORY_PROMPTS } from '../lib/ai-constants';
 import { generateDescription, proofreadText } from '../services/geminiService';
@@ -128,6 +128,10 @@ export default function AIStudio() {
 
   const { data: connections, isLoading: loadingConnections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
+  });
+
+  const { data: ecommerceConnections } = useQuery<any[]>({
+    queryKey: ["/api/ecommerce/connections"],
   });
 
   // Load caption from query parameter if provided (for "Send to Create" button)
@@ -1491,6 +1495,33 @@ export default function AIStudio() {
                 <div className="bg-card border border-border rounded-lg p-6">
                   <h2 className="text-lg font-semibold mb-4">Post to Platforms</h2>
                   
+                  {/* E-commerce Platforms Section */}
+                  {ecommerceConnections && ecommerceConnections.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                        <Store className="h-4 w-4" />
+                        Connected Stores (Product Data Available)
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {ecommerceConnections.map((conn: any) => (
+                          <div
+                            key={conn.id}
+                            className="p-3 rounded-lg border border-border bg-muted/30"
+                            data-testid={`ecommerce-${conn.platform}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium capitalize">{conn.platform}</span>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            </div>
+                            {conn.storeName && (
+                              <p className="text-xs text-muted-foreground mt-1 truncate">{conn.storeName}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {loadingConnections ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin" />
