@@ -15,6 +15,12 @@ export const platformEnum = pgEnum("platform", [
   "facebook",
 ]);
 
+export const ecommercePlatformEnum = pgEnum("ecommerce_platform", [
+  "shopify",
+  "etsy",
+  "squarespace",
+]);
+
 export const postStatusEnum = pgEnum("post_status", [
   "draft",
   "queued",
@@ -51,6 +57,48 @@ export const connections = pgTable("connections", {
   expiresAt: timestamp("expires_at"),
   accountId: text("account_id"),
   accountHandle: text("account_handle"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// E-commerce connections table - stores OAuth tokens for e-commerce platforms
+export const ecommerceConnections = pgTable("ecommerce_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  platform: ecommercePlatformEnum("platform").notNull(),
+  scopes: text("scopes").array().notNull(),
+  accessTokenEnc: text("access_token_enc").notNull(),
+  refreshTokenEnc: text("refresh_token_enc"),
+  tokenType: text("token_type").notNull().default("Bearer"),
+  expiresAt: timestamp("expires_at"),
+  storeId: text("store_id"),
+  storeName: text("store_name"),
+  storeUrl: text("store_url"),
+  syncCursor: text("sync_cursor"),
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Products table - caches product listings from connected e-commerce stores
+export const products = pgTable("products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ecommerceConnectionId: varchar("ecommerce_connection_id")
+    .notNull()
+    .references(() => ecommerceConnections.id, { onDelete: "cascade" }),
+  externalId: text("external_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  price: text("price"),
+  currency: text("currency"),
+  imageUrl: text("image_url"),
+  productUrl: text("product_url"),
+  sku: text("sku"),
+  inventory: integer("inventory"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -138,6 +186,7 @@ export const postAnalytics = pgTable("post_analytics", {
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
+  ecommerceConnections: many(ecommerceConnections),
   posts: many(posts),
   mediaLibrary: many(mediaLibrary),
   templates: many(templates),
@@ -147,6 +196,21 @@ export const connectionsRelations = relations(connections, ({ one }) => ({
   user: one(users, {
     fields: [connections.userId],
     references: [users.id],
+  }),
+}));
+
+export const ecommerceConnectionsRelations = relations(ecommerceConnections, ({ one, many }) => ({
+  user: one(users, {
+    fields: [ecommerceConnections.userId],
+    references: [users.id],
+  }),
+  products: many(products),
+}));
+
+export const productsRelations = relations(products, ({ one }) => ({
+  ecommerceConnection: one(ecommerceConnections, {
+    fields: [products.ecommerceConnectionId],
+    references: [ecommerceConnections.id],
   }),
 }));
 
@@ -202,6 +266,18 @@ export const insertConnectionSchema = createInsertSchema(connections).omit({
   updatedAt: true,
 });
 
+export const insertEcommerceConnectionSchema = createInsertSchema(ecommerceConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertPostSchema = createInsertSchema(posts).omit({
   id: true,
   createdAt: true,
@@ -239,6 +315,12 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Connection = typeof connections.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 
+export type EcommerceConnection = typeof ecommerceConnections.$inferSelect;
+export type InsertEcommerceConnection = z.infer<typeof insertEcommerceConnectionSchema>;
+
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+
 export type Post = typeof posts.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 
@@ -255,6 +337,7 @@ export type PostAnalytics = typeof postAnalytics.$inferSelect;
 export type InsertPostAnalytics = z.infer<typeof insertPostAnalyticsSchema>;
 
 export type Platform = typeof platformEnum.enumValues[number];
+export type EcommercePlatform = typeof ecommercePlatformEnum.enumValues[number];
 export type PostStatus = typeof postStatusEnum.enumValues[number];
 export type LogLevel = typeof logLevelEnum.enumValues[number];
 export type MediaType = typeof mediaTypeEnum.enumValues[number];
