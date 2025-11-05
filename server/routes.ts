@@ -20,13 +20,10 @@ import { publishToPlatform } from "./services/publishers";
 import { publishQueue } from "./worker-queue";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { trackEvent } from "./utils/analytics";
+import { oauthStateStore } from "./utils/oauth-state-store";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatform } from "@shared/schema";
-
-// In-memory state store for OAuth flows (in production, use Redis)
-const oauthStates = new Map<string, OAuthState>();
-const ecommerceOauthStates = new Map<string, EcommerceOAuthState>();
 
 // Metrics tracking
 const metrics = {
@@ -63,9 +60,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/readyz", async (req, res) => {
     try {
-      // Check database connection
-      await storage.getUser("test");
-      res.json({ status: "ready" });
+      // Check database connection by attempting to get any user (will work even if no users exist)
+      // This validates the database connection is working
+      await storage.getUserByEmail("healthcheck@test.local").catch(() => null);
+      
+      // Check Redis if configured
+      const redisHealthy = await oauthStateStore.checkHealth();
+      const redisConfigured = !!process.env.REDIS_URL;
+      
+      if (redisConfigured && !redisHealthy) {
+        return res.status(503).json({ 
+          status: "degraded", 
+          database: "ok",
+          redis: "unavailable",
+          warning: "OAuth and scheduled posts may not work correctly"
+        });
+      }
+      
+      res.json({ 
+        status: "ready",
+        database: "ok",
+        redis: redisConfigured ? "ok" : "not_configured"
+      });
     } catch (error) {
       res.status(503).json({ status: "not ready", error: "Database connection failed" });
     }
@@ -228,8 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stateToken = Buffer.from(JSON.stringify(state)).toString("base64url");
       
       // Store state (expires in 10 minutes)
-      oauthStates.set(stateToken, state);
-      setTimeout(() => oauthStates.delete(stateToken), 10 * 60 * 1000);
+      await oauthStateStore.set(stateToken, state, 600);
       
       // Get OAuth provider
       const provider = getOAuthProvider(platform);
@@ -253,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify state
-      const state = oauthStates.get(stateToken as string);
+      const state = await oauthStateStore.get(stateToken as string) as OAuthState | null;
       if (!state) {
         return res.status(400).json({ error: "Invalid or expired state" });
       }
@@ -264,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete state
-      oauthStates.delete(stateToken as string);
+      await oauthStateStore.delete(stateToken as string);
       
       // Get OAuth provider
       const provider = getOAuthProvider(platform);
@@ -843,8 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stateToken = Buffer.from(JSON.stringify(state)).toString("base64url");
       
       // Store state (expires in 10 minutes)
-      ecommerceOauthStates.set(stateToken, state);
-      setTimeout(() => ecommerceOauthStates.delete(stateToken), 10 * 60 * 1000);
+      await oauthStateStore.set(stateToken, state, 600);
       
       // Get OAuth provider
       const provider = getEcommerceOAuthProvider(platform, shopDomain as string | undefined);
@@ -868,7 +882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify state
-      const state = ecommerceOauthStates.get(stateToken as string);
+      const state = await oauthStateStore.get(stateToken as string) as EcommerceOAuthState | null;
       if (!state) {
         return res.status(400).json({ error: "Invalid or expired state" });
       }
@@ -879,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete state
-      ecommerceOauthStates.delete(stateToken as string);
+      await oauthStateStore.delete(stateToken as string);
       
       // Get OAuth provider
       const shopDomain = (state as any).shopDomain;
