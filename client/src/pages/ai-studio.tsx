@@ -344,8 +344,12 @@ export default function AIStudio() {
       
       // Track caption_generated event
       try {
-        await apiRequest('/api/analytics/track', {
+        await fetch('/api/analytics/track', {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
           body: JSON.stringify({
             eventType: 'caption_generated',
             eventName: 'Caption generated',
