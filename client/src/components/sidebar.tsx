@@ -3,6 +3,7 @@ import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as Cale
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import logoImage from "@assets/3b7202e2-9203-4af9-8c28-e5e0face0c49_1762309431850.png";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -65,7 +66,12 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       
       <aside className={`fixed lg:sticky top-0 h-screen w-64 border-r border-border bg-sidebar flex flex-col z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">Picscripterai</h2>
+          <img 
+            src={logoImage} 
+            alt="Picscripterai" 
+            className="h-7 w-auto"
+            data-testid="img-logo-sidebar"
+          />
           {onClose && (
             <Button
               variant="ghost"

@@ -9,6 +9,7 @@ import { Loader2, ExternalLink, Menu, Store, RefreshCw } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook, SiShopify, SiEtsy, SiSquarespace } from "react-icons/si";
 import type { Connection, Platform, EcommerceConnection, EcommercePlatform } from "@shared/schema";
 import { useState } from "react";
+import logoImage from "@assets/3b7202e2-9203-4af9-8c28-e5e0face0c49_1762309431850.png";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -187,7 +188,12 @@ export default function Connections() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Picscripterai</h1>
+          <img 
+            src={logoImage} 
+            alt="Picscripterai" 
+            className="h-6 w-auto"
+            data-testid="img-logo-mobile-connections"
+          />
         </div>
 
         <div className="max-w-7xl mx-auto p-4 lg:p-8">

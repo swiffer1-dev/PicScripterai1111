@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import logoImage from "@assets/3b7202e2-9203-4af9-8c28-e5e0face0c49_1762309431850.png";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -62,10 +63,15 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-border shadow-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-semibold tracking-tight text-center">
-            Picscripterai
-          </CardTitle>
+        <CardHeader className="space-y-4">
+          <div className="flex justify-center">
+            <img 
+              src={logoImage} 
+              alt="Picscripterai" 
+              className="h-12 w-auto"
+              data-testid="img-logo-login"
+            />
+          </div>
           <CardDescription className="text-center text-base">
             {isSignup ? "Create your account to get started" : "Sign in to manage your social media posts"}
           </CardDescription>
