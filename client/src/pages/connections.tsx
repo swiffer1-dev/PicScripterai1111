@@ -442,81 +442,24 @@ export default function Connections() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {platform === "shopify" ? (
-                              <>
-                                <div className="space-y-3 rounded-md border border-border/50 p-3 bg-muted/20">
-                                  <div className="space-y-1.5">
-                                    <p className="text-xs font-medium">Quick Setup (2 minutes):</p>
-                                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                                      <li>Go to Shopify Admin → Settings → Apps</li>
-                                      <li>Click "Develop apps" → Create an app</li>
-                                      <li>Configure scopes: check "read_products"</li>
-                                      <li>Install app & copy the access token</li>
-                                    </ol>
-                                  </div>
-                                </div>
-                                <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-2">
-                                  <Input
-                                    type="text"
-                                    placeholder="Store name (e.g., yourstore)"
-                                    value={shopDomain}
-                                    onChange={(e) => setShopDomain(e.target.value)}
-                                    data-testid="input-shop-domain"
-                                    className="text-sm"
-                                    autoComplete="off"
-                                    data-form-type="other"
-                                  />
-                                  <Input
-                                    type="text"
-                                    placeholder="Paste your access token here"
-                                    value={shopifyAccessToken}
-                                    onChange={(e) => setShopifyAccessToken(e.target.value)}
-                                    data-testid="input-shopify-token"
-                                    className="text-sm font-mono"
-                                    autoComplete="off"
-                                    data-form-type="other"
-                                    data-lpignore="true"
-                                  />
-                                  <Button
-                                    className="w-full"
-                                    onClick={() => shopifyTokenConnectMutation.mutate({ accessToken: shopifyAccessToken, shopDomain })}
-                                    disabled={shopifyTokenConnectMutation.isPending || !shopDomain || !shopifyAccessToken}
-                                    data-testid="button-connect-shopify-token"
-                                  >
-                                    {shopifyTokenConnectMutation.isPending ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Connecting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ShoppingBag className="mr-2 h-4 w-4" />
-                                        Connect Store
-                                      </>
-                                    )}
-                                  </Button>
-                                </form>
-                              </>
-                            ) : (
-                              <Button
-                                className="w-full"
-                                onClick={() => ecommerceConnectMutation.mutate({ platform })}
-                                disabled={ecommerceConnectMutation.isPending}
-                                data-testid={`button-connect-ecommerce-${platform}`}
-                              >
-                                {ecommerceConnectMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Connecting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    Connect
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                            <Button
+                              className="w-full"
+                              onClick={() => ecommerceConnectMutation.mutate({ platform })}
+                              disabled={ecommerceConnectMutation.isPending}
+                              data-testid={`button-connect-ecommerce-${platform}`}
+                            >
+                              {ecommerceConnectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                <>
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Connect
+                                </>
+                              )}
+                            </Button>
                           </div>
                         )}
                       </CardContent>
