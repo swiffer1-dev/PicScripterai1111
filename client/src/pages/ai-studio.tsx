@@ -342,6 +342,20 @@ export default function AIStudio() {
       const cleanedDescription = cleanTextForExport(result.description);
       setGeneratedContent(cleanedDescription);
       
+      // Track caption_generated event
+      try {
+        await apiRequest('/api/analytics/track', {
+          method: 'POST',
+          body: JSON.stringify({
+            eventType: 'caption_generated',
+            eventName: 'Caption generated',
+            properties: { category, tone, language },
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to track analytics:', error);
+      }
+      
       // Notify user if buzzwords were removed
       if (result.buzzwordsRemoved && result.buzzwordsRemoved.length > 0) {
         toast({
