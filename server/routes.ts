@@ -613,6 +613,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Draft endpoints
+  app.get("/api/drafts", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const drafts = await storage.getDrafts(req.userId!);
+      res.json(drafts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/drafts", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const draftData = {
+        userId: req.userId!,
+        caption: req.body.caption,
+        mediaUrls: req.body.mediaUrls || [],
+        mediaType: req.body.mediaType || null,
+        settings: req.body.settings || null,
+      };
+      
+      const draft = await storage.createDraft(draftData);
+      
+      await trackEvent(
+        req.userId!,
+        "post_created",
+        "Draft saved",
+        { draftId: draft.id }
+      );
+      
+      res.json(draft);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/drafts/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const draft = await storage.getDraft(req.params.id);
+      
+      if (!draft || draft.userId !== req.userId!) {
+        return res.status(404).json({ error: "Draft not found" });
+      }
+      
+      await storage.deleteDraft(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/posts/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const post = await storage.getPost(req.params.id);

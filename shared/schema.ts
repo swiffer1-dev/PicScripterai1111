@@ -226,6 +226,20 @@ export const jobs = pgTable("jobs", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Drafts table - stores AI-generated content before posting
+export const drafts = pgTable("drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  caption: text("caption").notNull(),
+  mediaUrls: text("media_urls").array().default(sql`ARRAY[]::text[]`),
+  mediaType: mediaTypeEnum("media_type"),
+  settings: jsonb("settings"), // Stores category, tone, language, hashtags, emojis, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Analytics events table - tracks user actions and events
 export const analyticsEvents = pgTable("analytics_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -244,6 +258,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
   ecommerceConnections: many(ecommerceConnections),
   posts: many(posts),
+  drafts: many(drafts),
   mediaLibrary: many(mediaLibrary),
   templates: many(templates),
   jobs: many(jobs),
@@ -317,6 +332,13 @@ export const jobsRelations = relations(jobs, ({ one }) => ({
   post: one(posts, {
     fields: [jobs.postId],
     references: [posts.id],
+  }),
+}));
+
+export const draftsRelations = relations(drafts, ({ one }) => ({
+  user: one(users, {
+    fields: [drafts.userId],
+    references: [users.id],
   }),
 }));
 
@@ -395,6 +417,12 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   createdAt: true,
 });
 
+export const insertDraftSchema = createInsertSchema(drafts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -428,6 +456,9 @@ export type InsertJob = z.infer<typeof insertJobSchema>;
 
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
+export type Draft = typeof drafts.$inferSelect;
+export type InsertDraft = z.infer<typeof insertDraftSchema>;
 
 export type Platform = typeof platformEnum.enumValues[number];
 export type EcommercePlatform = typeof ecommercePlatformEnum.enumValues[number];

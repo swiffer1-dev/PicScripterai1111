@@ -5,6 +5,7 @@ import {
   ecommerceConnections,
   products,
   posts,
+  drafts,
   jobLogs,
   mediaLibrary,
   templates,
@@ -20,6 +21,8 @@ import {
   type InsertProduct,
   type Post,
   type InsertPost,
+  type Draft,
+  type InsertDraft,
   type JobLog,
   type InsertJobLog,
   type MediaLibrary,
@@ -69,6 +72,13 @@ export interface IStorage {
   createPost(post: InsertPost): Promise<Post>;
   updatePost(id: string, data: Partial<Post>): Promise<Post>;
   deletePost(id: string): Promise<void>;
+  
+  // Draft operations
+  getDrafts(userId: string): Promise<Draft[]>;
+  getDraft(id: string): Promise<Draft | undefined>;
+  createDraft(draft: InsertDraft): Promise<Draft>;
+  updateDraft(id: string, data: Partial<Draft>): Promise<Draft>;
+  deleteDraft(id: string): Promise<void>;
   
   // Job log operations
   createJobLog(log: InsertJobLog): Promise<JobLog>;
@@ -254,6 +264,41 @@ export class DatabaseStorage implements IStorage {
   
   async deletePost(id: string): Promise<void> {
     await db.delete(posts).where(eq(posts.id, id));
+  }
+  
+  // Draft operations
+  async getDrafts(userId: string): Promise<Draft[]> {
+    return await db
+      .select()
+      .from(drafts)
+      .where(eq(drafts.userId, userId))
+      .orderBy(desc(drafts.createdAt));
+  }
+  
+  async getDraft(id: string): Promise<Draft | undefined> {
+    const [draft] = await db.select().from(drafts).where(eq(drafts.id, id));
+    return draft || undefined;
+  }
+  
+  async createDraft(draft: InsertDraft): Promise<Draft> {
+    const [newDraft] = await db
+      .insert(drafts)
+      .values(draft)
+      .returning();
+    return newDraft;
+  }
+  
+  async updateDraft(id: string, data: Partial<Draft>): Promise<Draft> {
+    const [updated] = await db
+      .update(drafts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(drafts.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteDraft(id: string): Promise<void> {
+    await db.delete(drafts).where(eq(drafts.id, id));
   }
   
   // Job log operations
