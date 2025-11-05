@@ -113,7 +113,18 @@ export default function Connections() {
 
   const ecommerceConnectMutation = useMutation({
     mutationFn: async ({ platform, shopDomain }: { platform: EcommercePlatform; shopDomain?: string }) => {
-      const params = shopDomain ? `?shopDomain=${encodeURIComponent(shopDomain)}` : "";
+      // Normalize Shopify domain
+      let normalizedDomain = shopDomain;
+      if (platform === "shopify" && shopDomain) {
+        // Remove any protocol prefixes
+        normalizedDomain = shopDomain.replace(/^https?:\/\//, "");
+        // Add .myshopify.com if not already present
+        if (!normalizedDomain.includes(".myshopify.com")) {
+          normalizedDomain = `${normalizedDomain}.myshopify.com`;
+        }
+      }
+      
+      const params = normalizedDomain ? `?shopDomain=${encodeURIComponent(normalizedDomain)}` : "";
       const response = await apiRequest("GET", `/api/ecommerce/connect/${platform}${params}`);
       return await response.json();
     },
