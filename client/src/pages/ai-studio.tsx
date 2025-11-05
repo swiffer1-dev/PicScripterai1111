@@ -557,11 +557,9 @@ export default function AIStudio() {
   const cleanTextForExport = (text: string): string => {
     if (!text) return '';
     
-    // More aggressive cleaning - remove ALL non-standard characters
+    // Light cleaning - PRESERVE EMOJIS and Unicode characters!
     let cleaned = text
-      // First normalize Unicode characters
-      .normalize('NFKD')
-      // Remove all control characters and non-printable characters
+      // Remove only harmful control characters (NOT emojis!)
       .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '')
       // Remove zero-width spaces and other invisible characters
       .replace(/[\u200E\u200F\u202A-\u202E]/g, '')
@@ -570,21 +568,15 @@ export default function AIStudio() {
       .replace(/\\[a-z]+\d*\s?/gi, '')
       // Remove any remaining backslash commands
       .replace(/\\[^\s]/g, '')
-      // Clean up multiple spaces
-      .replace(/\s+/g, ' ')
-      // Clean up multiple newlines
-      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      // Clean up multiple spaces (but preserve single spaces)
+      .replace(/ {2,}/g, ' ')
+      // Clean up excessive newlines (3+ becomes 2)
+      .replace(/\n\s*\n\s*\n+/g, '\n\n')
       .trim();
     
-    // Only keep truly printable ASCII and common punctuation/symbols
-    // This ensures compatibility across all formats
-    cleaned = cleaned.split('').filter(char => {
-      const code = char.charCodeAt(0);
-      // Allow: space (32), standard printable ASCII (33-126), newline (10), tab (9)
-      // and common extended characters (128-255) but be selective
-      return (code === 10 || code === 9 || (code >= 32 && code <= 126) || 
-              (code >= 128 && code <= 255 && /[\w\s.,!?;:'"-]/.test(char)));
-    }).join('');
+    // DO NOT filter characters! The old code stripped all emojis because
+    // emojis have Unicode code points above 255 (e.g., 😊 is U+1F60A = 128522)
+    // We want to keep emojis, accented characters, and all valid Unicode
     
     return cleaned;
   };
