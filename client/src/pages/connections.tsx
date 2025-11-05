@@ -444,8 +444,18 @@ export default function Connections() {
                           <div className="space-y-3">
                             {platform === "shopify" ? (
                               <>
+                                <div className="space-y-3 rounded-md border border-border/50 p-3 bg-muted/20">
+                                  <div className="space-y-1.5">
+                                    <p className="text-xs font-medium">Quick Setup (2 minutes):</p>
+                                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                                      <li>Go to Shopify Admin → Settings → Apps</li>
+                                      <li>Click "Develop apps" → Create an app</li>
+                                      <li>Configure scopes: check "read_products"</li>
+                                      <li>Install app & copy the access token</li>
+                                    </ol>
+                                  </div>
+                                </div>
                                 <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-2">
-                                  <p className="text-xs text-muted-foreground">Connect using access token:</p>
                                   <Input
                                     type="text"
                                     placeholder="Store name (e.g., yourstore)"
@@ -458,7 +468,7 @@ export default function Connections() {
                                   />
                                   <Input
                                     type="text"
-                                    placeholder="Admin API access token (paste here)"
+                                    placeholder="Paste your access token here"
                                     value={shopifyAccessToken}
                                     onChange={(e) => setShopifyAccessToken(e.target.value)}
                                     data-testid="input-shopify-token"
@@ -479,37 +489,13 @@ export default function Connections() {
                                         Connecting...
                                       </>
                                     ) : (
-                                      "Connect with Token"
+                                      <>
+                                        <ShoppingBag className="mr-2 h-4 w-4" />
+                                        Connect Store
+                                      </>
                                     )}
                                   </Button>
                                 </form>
-                                <div className="relative">
-                                  <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
-                                  </div>
-                                  <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-background px-2 text-muted-foreground">or</span>
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  className="w-full"
-                                  onClick={() => ecommerceConnectMutation.mutate({ platform, shopDomain })}
-                                  disabled={ecommerceConnectMutation.isPending || !shopDomain}
-                                  data-testid="button-connect-ecommerce-shopify"
-                                >
-                                  {ecommerceConnectMutation.isPending ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Connecting...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ExternalLink className="mr-2 h-4 w-4" />
-                                      Connect with OAuth
-                                    </>
-                                  )}
-                                </Button>
                               </>
                             ) : (
                               <Button
