@@ -191,7 +191,7 @@ export default function Connections() {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-7 w-auto object-contain"
+            className="h-8 w-auto object-contain"
             data-testid="img-logo-mobile-connections"
           />
         </div>
