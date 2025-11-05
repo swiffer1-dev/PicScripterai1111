@@ -2,283 +2,115 @@
 
 ## Overview
 
-Picscripterai is a full-stack social media management application that enables users to connect multiple social media accounts and e-commerce platforms via OAuth 2.0. Users can schedule/publish content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, and Facebook) and pull product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace) to generate AI-powered promotional content.
-
-The application provides secure authentication, encrypted token storage, automatic token refresh, job-based scheduling with retry logic, platform-specific publishing flows, and e-commerce product synchronization. It's designed as a productivity tool with a focus on efficiency, clarity, reliable multi-platform content distribution, and seamless integration between e-commerce product catalogs and social media marketing.
-
-**Recent Updates (Nov 5, 2025):**
-- Added comprehensive monitoring with `/healthz`, `/readyz`, and `/metrics` endpoints
-- Centralized environment variable validation using Zod (fails fast on missing required vars)
-- Implemented multi-tier rate limiting to prevent abuse:
-  - General API: 100 requests per 15 minutes
-  - Authentication: 10 attempts per 15 minutes (IP-based, skips successful logins)
-  - AI Generation: 50 requests per hour (per user)
-  - Post Creation: 30 posts per hour (per user)
-  - OAuth Connections: 10 attempts per 15 minutes
-- Added metrics tracking for auth, posts, AI, and connections
-- Secured `/metrics` endpoint with optional METRICS_TOKEN header
-- Added Helmet security headers and CORS protection:
-  - CORS locked to CORS_ORIGIN environment variable
-  - Helmet provides: X-Content-Type-Options, HSTS, X-Frame-Options, etc.
-  - Content-Security-Policy (CSP) enabled in production only (allows self + data: for images)
-  - CSP disabled in development to support Vite hot module reload
-- Added Pino HTTP logging with request tracking:
-  - Auto-generated requestId (UUID) for every request
-  - Structured JSON logging with method, URL, status, responseTime
-  - Auth headers/cookies redacted for security
-  - Pretty-printed logs in development, JSON in production
-- Implemented centralized Express error handler:
-  - Returns {code, message, requestId} for all errors
-  - Stack traces shown in development, hidden in production
-  - All errors logged with full context
-- Added presigned upload functionality:
-  - POST /api/uploads/presign endpoint for direct-to-cloud uploads
-  - MIME type validation (images, videos, documents)
-  - File size validation (10MB maximum)
-  - Client uploads directly to Google Cloud Storage
-  - Server stores only public URLs (no local disk usage)
+Picscripterai is a full-stack social media management application designed to connect multiple social media and e-commerce platforms. It enables users to schedule and publish AI-powered promotional content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, Facebook) and synchronize product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace). The platform aims to be a productivity tool focused on efficient, reliable multi-platform content distribution and seamless integration between e-commerce catalogs and social media marketing.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-
-## Database Schema & Migrations
-
-**Migration Setup (Nov 5, 2025):**
-- Drizzle ORM with PostgreSQL and migration support
-- Pre-generated migration files in `migrations/` directory
-- Initial migration: `0000_chief_sabra.sql` with all 11 tables
-- Migration commands available via npx:
-  - `npx drizzle-kit generate` - Generate migrations from schema changes
-  - `npx drizzle-kit migrate` - Apply migrations to database
-- **Note**: Package.json needs manual script additions (see MIGRATION_SETUP.md)
-
-**Database Tables:**
-- **users** - User accounts with email/password
-- **connections** - OAuth tokens for social platforms
-  - Unique index: `(user_id, platform)` prevents duplicate connections
-- **ecommerce_connections** - OAuth tokens for e-commerce platforms
-- **posts** - Scheduled/published social media content
-- **jobs** - BullMQ job tracking for async operations
-- **analytics_events** - User activity and event tracking
-- **products** - Cached e-commerce product listings
-- **job_logs** - Detailed publishing attempt logs
-- **media_library** - Uploaded media files and metadata
-- **templates** - Saved caption and brand voice templates
-- **post_analytics** - Social engagement metrics
 
 ## System Architecture
 
 ### Frontend Architecture
 
 **Technology Stack:**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server
-- Wouter for lightweight client-side routing
-- TanStack Query (React Query) for server state management and data fetching
-- shadcn/ui component library built on Radix UI primitives
-- Tailwind CSS for utility-first styling with custom design system
+- React 18 with TypeScript
+- Vite
+- Wouter for routing
+- TanStack Query for server state management
+- shadcn/ui (Radix UI) and Tailwind CSS for UI
+- React-hook-form with Zod for form management
 
 **Design Philosophy:**
-- Follows a productivity tool aesthetic inspired by Linear and Notion
-- Uses Inter font for UI elements, monospace fonts for technical data
-- Implements a sidebar navigation pattern with fixed left panel (16rem width)
-- Custom color system with CSS variables for theming support
-- Component-driven architecture with reusable UI primitives
+- Productivity tool aesthetic (inspired by Linear and Notion)
+- Inter font for UI, monospace for technical data
+- Sidebar navigation with a fixed left panel
+- Custom color system with CSS variables for theming
 
-**State Management:**
-- React Query handles all server state (connections, posts, user data)
-- Local storage for JWT token persistence
-- Form state managed by react-hook-form with Zod validation
-- No global state management library needed due to server-first approach
-
-**Key Pages:**
-- `/login` - Authentication (signup/login toggle)
-- `/` - Dashboard with stats overview and recent posts (no Create Post button)
-- `/ai-studio` - "Create" page - AI-powered content creation studio with:
-  - Multi-image upload (JPEG, PNG, WebP, HEIC, HEIF)
-  - AI caption generation using Google Gemini API (plain text mode to preserve emojis)
-  - **Human Authenticity Engine** - Fights "AI-blog" feel with:
-    - 3 AI-proof tone options: Authentic, Conversational, SEO Boosted
-    - Natural rhythm instructions (mix of short/long sentences)
-    - Light personality cues ("You'll love how this fits", "Trust me on this")
-    - Automatic buzzword detection & removal (37 AI buzzwords)
-    - User notification when buzzwords are removed
-  - Emoji generation toggle with platform-specific instructions
-  - Text cleaning preserves all Unicode characters (emojis, accents, etc.)
-  - Proofread functionality to refine generated content
-  - Regenerate option to create new variations
-  - Download capabilities (TXT, CSV, HTML formats)
-  - Save as draft functionality
-  - Copy to clipboard
-  - Direct posting to connected platforms
-  - Accessible via "Create" link in sidebar
-- `/calendar` - Content calendar with month/week views and color-coded posts by platform
-- `/connections` - Manage OAuth connections to social media and e-commerce platforms with:
-  - Social Media section with 7 platform connections
-  - E-commerce section with 3 platform connections (Shopify, Etsy, Squarespace)
-  - Product sync functionality for e-commerce platforms
-  - Platform-specific setup (e.g., Shopify requires shop domain input)
-- `/create` - Create/schedule post form (also accessible via query params from Posts page quick actions)
-- `/posts` - View all posts with status tracking and quick action buttons:
-  - Duplicate - Creates instant draft copy
-  - Edit & Repost - Opens Create page with post data pre-filled
-  - Send to Create - Loads caption into Create page for AI enhancement
+**Key Features:**
+- **AI Studio:** AI-powered content creation with multi-image upload, AI caption generation (Google Gemini), "Human Authenticity Engine" to refine tone and remove buzzwords, emoji generation, proofreading, regeneration, and direct posting.
+- **Content Calendar:** Month/week views with color-coded posts by platform.
+- **Connections Management:** OAuth-based connection management for social media and e-commerce platforms, including product sync functionality.
+- **Post Management:** View all posts with status tracking, quick actions (duplicate, edit & repost, send to AI Studio).
 
 ### Backend Architecture
 
 **Technology Stack:**
 - Node.js with TypeScript and ES modules
-- Express for HTTP API server
-- Drizzle ORM for type-safe database operations
-- Neon serverless PostgreSQL with WebSocket support
-- BullMQ + Redis for job queue and scheduling
-- JWT (jsonwebtoken) for user authentication
-- bcryptjs for password hashing
+- Express for HTTP API
+- Drizzle ORM for PostgreSQL (Neon Serverless)
+- BullMQ + Redis for job queuing
+- JWT for authentication, bcryptjs for password hashing
 - Axios for external API calls
 
 **Authentication & Security:**
-- JWT-based session management with 7-day token expiration
-- bcrypt password hashing (10 rounds) for user credentials
+- JWT-based sessions (7-day expiration)
+- bcrypt password hashing (10 rounds)
 - AES-256-GCM encryption for OAuth tokens at rest
-- PKCE support for OAuth flows where applicable
-- CSRF protection via state parameter in OAuth flows
-- Environment-based secrets management (JWT_SECRET, ENCRYPTION_KEY)
+- PKCE support for OAuth flows
+- CSRF protection via OAuth state parameter
+- Centralized environment variable validation using Zod
+- Multi-tier rate limiting for general API, authentication, AI generation, post creation, and OAuth connections.
+- Helmet security headers and CORS protection.
+- Pino HTTP logging with request tracking.
+- Centralized Express error handling.
 
 **API Structure:**
-- RESTful endpoints under `/api` prefix
+- RESTful endpoints under `/api`
 - Authentication middleware for protected routes
 - Health check endpoints (`/healthz`, `/readyz`)
-- OAuth callback handlers per platform (`/api/callback/:platform`)
-- CORS enabled for development flexibility
+- OAuth callback handlers
+- Presigned upload functionality for direct-to-cloud media uploads (Google Cloud Storage).
+- Analytics event tracking endpoint (`/api/analytics/track`) and summary (`/api/analytics/summary`).
 
 **OAuth Integration:**
-- Factory pattern for platform-specific OAuth providers
-- Base provider class with common OAuth operations
-- Platform-specific implementations for 7 social networks
-- Automatic token refresh logic with 5-minute expiration buffer
-- Encrypted storage of access and refresh tokens
-- Support for both standard OAuth 2.0 and PKCE flows
+- Factory pattern for platform-specific OAuth providers.
+- Automatic token refresh logic.
+- Encrypted storage of access and refresh tokens.
 
 **Job Queue Architecture:**
-- BullMQ workers for asynchronous post publishing
-- Redis-backed queue with exponential backoff retry (3 attempts, 5s base delay)
-- Job data includes post metadata, platform, credentials
-- Comprehensive job logging (info/warn/error levels)
-- Automatic cleanup of completed jobs (100 retained) and failed jobs (500 retained)
-- Status tracking: queued → publishing → published/failed
+- BullMQ workers for asynchronous post publishing.
+- Redis-backed queue with exponential backoff retry.
+- Comprehensive job logging.
+- Status tracking for publishing jobs.
 
 **Publishing Flow:**
-- Platform-specific publisher modules with standardized interface
-- Each publisher handles platform API requirements (media upload, formatting, etc.)
-- Token validation and refresh before publishing
-- Error handling with descriptive messages
-- Post status updates in database throughout lifecycle
+- Platform-specific publisher modules handling API requirements.
+- Token validation and refresh before publishing.
+- Error handling with descriptive messages.
 
 **Database Schema:**
-- `users` - User accounts with email/password
-- `connections` - OAuth tokens and metadata for social media platforms
-- `ecommerce_connections` - OAuth tokens and metadata for e-commerce platforms (separate from social)
-- `products` - Cached product data from e-commerce platforms (title, description, price, images, etc.)
-- `posts` - Scheduled/published content with status tracking
-- `job_logs` - Detailed logging of publish attempts
-- Enums for platform, ecommerce_platform, post_status, log_level
-- Cascade deletes for data integrity (deleting e-commerce connection removes associated products)
-- Timestamps for audit trails
+- Drizzle ORM with PostgreSQL.
+- Tables for users, connections (social and e-commerce), posts, jobs, analytics events, products, job logs, media library, templates, and post analytics.
+- Enums for platform types, post status, and log levels.
+- Cascade deletes for data integrity.
 
-### External Dependencies
+## External Dependencies
 
 **Database:**
-- Neon Serverless PostgreSQL (configurable via DATABASE_URL)
-- Connection pooling via @neondatabase/serverless
-- WebSocket support for serverless environments
-- Drizzle ORM for migrations and queries
+- Neon Serverless PostgreSQL with Drizzle ORM.
 
 **Queue System:**
-- Redis (configurable via REDIS_URL, defaults to localhost:6379)
-- BullMQ for robust job processing
-- ioredis client with lazy connection
-- Graceful degradation in development without Redis
+- Redis with BullMQ for job processing.
 
 **Social Media Platform APIs:**
-1. **Instagram** - Graph API via Facebook Business Pages
-   - OAuth scopes: instagram_basic, instagram_content_publish
-   - Two-step publish: create container → publish container
-   
-2. **TikTok** - Content Posting API v2
-   - PKCE-enabled OAuth flow
-   - Video upload with privacy controls
-   
-3. **Twitter/X** - API v2 with OAuth 2.0
-   - Basic authentication for text tweets
-   - Media requires elevated access tier
-   
-4. **LinkedIn** - Posts API
-   - Professional network posting
-   - Image/text content support
-   
-5. **Pinterest** - API v5
-   - Pin creation with board targeting
-   - Basic authentication via client credentials
-   
-6. **YouTube** - Data API v3
-   - Resumable upload protocol for videos
-   - Quota limits apply
-   
-7. **Facebook** - Graph API Pages endpoints
-   - Page post publishing
-   - Long-lived token exchange support
+1.  **Instagram:** Graph API (Facebook Business Pages).
+2.  **TikTok:** Content Posting API v2 (PKCE-enabled OAuth).
+3.  **Twitter/X:** API v2 (OAuth 2.0).
+4.  **LinkedIn:** Posts API.
+5.  **Pinterest:** API v5.
+6.  **YouTube:** Data API v3 (Resumable Uploads).
+7.  **Facebook:** Graph API (Pages endpoints).
 
 **E-commerce Platform APIs:**
-1. **Shopify** - Admin API with OAuth 2.0
-   - Requires shop domain (e.g., yourstore.myshopify.com)
-   - OAuth scopes: read_products, read_product_listings
-   - Permanent access tokens (no refresh needed)
-   - Product API endpoint for listing sync
-   
-2. **Etsy** - OpenAPI v3 with PKCE OAuth
-   - PKCE-required OAuth flow for enhanced security
-   - Short-lived tokens (1 hour) with refresh token support
-   - User API for shop information
-   - Listings API for active products with image support
-   
-3. **Squarespace** - Commerce API with OAuth 2.0
-   - Very short-lived tokens (30 minutes) with refresh support
-   - Requires user approval for API access
-   - Website authorization endpoint for site info
-   - Products API with variant and pricing data
+1.  **Shopify:** Admin API (OAuth 2.0, permanent tokens, requires shop domain).
+2.  **Etsy:** OpenAPI v3 (PKCE OAuth, short-lived tokens with refresh).
+3.  **Squarespace:** Commerce API (OAuth 2.0, very short-lived tokens with refresh).
 
 **E-commerce Integration Architecture:**
-- Separate database tables (ecommerce_connections, products) from social media
-- E-commerce platforms are data sources, not posting destinations
-- Product sync fetches listings from platform APIs and caches in database
-- Cached products reduce API rate limit concerns and enable offline use
-- Products include: title, description, price, currency, images, SKU, inventory, tags
-- OAuth provider factory pattern with base class and platform-specific implementations
-- Each provider implements: exchangeCodeForTokens, refreshTokens, getStoreInfo, getProducts
-- Products associated with connection via foreign key with cascade delete
-
-**API Routes for E-commerce:**
-- `GET /api/ecommerce/connections` - Get user's e-commerce connections
-- `GET /api/ecommerce/connect/:platform` - Initiate OAuth flow (accepts ?shopDomain for Shopify)
-- `GET /api/ecommerce/callback/:platform` - OAuth callback handler
-- `DELETE /api/ecommerce/connections/:id` - Remove e-commerce connection
-- `GET /api/ecommerce/products/:connectionId` - Get cached products for connection
-- `POST /api/ecommerce/products/sync/:connectionId` - Sync products from platform API
+- Separate database tables for e-commerce connections and cached products.
+- Product sync fetches and caches listings from platform APIs.
+- OAuth provider factory for e-commerce platforms, handling token exchange, refresh, store info, and product retrieval.
 
 **Environment Configuration:**
-- Social media client IDs and secrets for 7 OAuth providers
-- E-commerce client IDs and secrets for 3 platforms (SHOPIFY_, ETSY_, SQUARESPACE_ prefixes)
-- ENCRYPTION_KEY for token encryption (SHA-256 hashed to 32 bytes)
-- JWT_SECRET for session tokens (auto-generated in dev, required in prod)
-- DATABASE_URL for PostgreSQL connection
-- REDIS_URL for queue backend (optional in dev)
-- CORS_ORIGIN for OAuth redirect URIs
-- NODE_ENV for environment detection
-
-**Build & Deployment:**
-- Vite for frontend bundling
-- esbuild for backend compilation
-- Development mode with HMR and error overlay
-- Production build outputs to dist/ directory
-- Replit-specific plugins for development experience
+- Client IDs and secrets for all social media and e-commerce platforms.
+- `ENCRYPTION_KEY`, `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`.

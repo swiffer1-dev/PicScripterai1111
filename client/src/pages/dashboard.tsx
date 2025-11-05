@@ -24,10 +24,32 @@ export default function Dashboard() {
 
   const { data: analytics7Day } = useQuery<Record<string, number>>({
     queryKey: ["/api/analytics/summary", { days: 7 }],
+    queryFn: async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/analytics/summary?days=7", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
   });
 
   const { data: analytics30Day } = useQuery<Record<string, number>>({
     queryKey: ["/api/analytics/summary", { days: 30 }],
+    queryFn: async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/analytics/summary?days=30", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
   });
 
   const currentAnalytics = analyticsDays === 7 ? analytics7Day : analytics30Day;
