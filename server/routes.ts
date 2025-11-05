@@ -11,6 +11,7 @@ import {
 } from "./middleware/rateLimiter";
 import { signToken } from "./utils/jwt";
 import { encryptToken, decryptToken } from "./utils/encryption";
+import { getSafeRedirectUri } from "./utils/redirect-validator";
 import { getOAuthProvider } from "./services/oauth/factory";
 import { generatePKCE, type OAuthState } from "./services/oauth/base";
 import { getEcommerceOAuthProvider } from "./services/ecommerce-oauth/factory";
@@ -311,11 +312,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics.connections.byPlatform.set(platform, (metrics.connections.byPlatform.get(platform) || 0) + 1);
       }
       
-      // Redirect to frontend
-      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?success=true`);
+      // Redirect to frontend using validated redirect URI
+      const successRedirect = getSafeRedirectUri(undefined, "/connections?success=true");
+      res.redirect(successRedirect);
     } catch (error: any) {
       console.error("OAuth callback error:", error);
-      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?error=${encodeURIComponent(error.message)}`);
+      const errorRedirect = getSafeRedirectUri(undefined, `/connections?error=${encodeURIComponent(error.message)}`);
+      res.redirect(errorRedirect);
     }
   });
 
@@ -930,10 +933,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?success=true&type=ecommerce`);
+      const successRedirect = getSafeRedirectUri(undefined, "/connections?success=true&type=ecommerce");
+      res.redirect(successRedirect);
     } catch (error: any) {
       console.error("E-commerce OAuth callback error:", error);
-      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?error=${encodeURIComponent(error.message)}`);
+      const errorRedirect = getSafeRedirectUri(undefined, `/connections?error=${encodeURIComponent(error.message)}`);
+      res.redirect(errorRedirect);
     }
   });
 
