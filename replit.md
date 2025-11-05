@@ -17,6 +17,11 @@ The application provides secure authentication, encrypted token storage, automat
   - OAuth Connections: 10 attempts per 15 minutes
 - Added metrics tracking for auth, posts, AI, and connections
 - Secured `/metrics` endpoint with optional METRICS_TOKEN header
+- Added Helmet security headers and CORS protection:
+  - CORS locked to CORS_ORIGIN environment variable
+  - Helmet provides: X-Content-Type-Options, HSTS, X-Frame-Options, etc.
+  - Content-Security-Policy (CSP) enabled in production only (allows self + data: for images)
+  - CSP disabled in development to support Vite hot module reload
 
 ## User Preferences
 

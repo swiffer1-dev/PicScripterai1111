@@ -2,12 +2,42 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
+import helmet from "helmet";
 import { validateEnv } from "./config/env";
 
 // Validate environment variables on startup
 validateEnv();
 
 const app = express();
+
+// Security headers with Helmet
+// Production headers include: X-Content-Type-Options, CSP, HSTS, X-Frame-Options, etc.
+// CSP is disabled in development to allow Vite HMR (hot module reload)
+app.use(
+  helmet({
+    contentSecurityPolicy:
+      process.env.NODE_ENV === "production"
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              imgSrc: ["'self'", "data:"], // Allow data: URIs for inline images
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for styled components
+              connectSrc: ["'self'"],
+            },
+          }
+        : false, // Disable CSP in development for hot reload
+  })
+);
+
+// CORS - locked to CORS_ORIGIN environment variable
+const corsOrigin = process.env.CORS_ORIGIN;
+app.use(
+  cors({
+    origin: corsOrigin || false, // Block requests if CORS_ORIGIN not set
+    credentials: true,
+  })
+);
 
 // parse JSON first
 app.use(
@@ -18,9 +48,6 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: false }));
-
-// allow your front-end to call the API (dev-friendly)
-app.use(cors({ origin: true })); // later you can lock to a specific domain
 
 // Public test route (after body parsers; before registerRoutes/setupVite/serveStatic)
 app.post("/post_to_fb", (req, res) => {
