@@ -212,12 +212,7 @@ export const generateDescription = async (
       contents: [{ role: 'user', parts: [...imageParts, textPart] }],
     });
     
-    console.log("Gemini API response received");
-    
     const responseText = response.text || '';
-    console.log("🔍 FULL RESPONSE FROM GEMINI:");
-    console.log(responseText);
-    console.log("🔍 Response length:", responseText.length);
     
     // Parse the response manually
     const summaryMatch = responseText.match(/IMAGE_SUMMARY:\s*(.+?)(?=\n\nGENERATED_CONTENT:)/);
@@ -226,24 +221,14 @@ export const generateDescription = async (
     const imageSummary = summaryMatch ? summaryMatch[1].trim() : 'Image description';
     const generatedContent = contentMatch ? contentMatch[1].trim() : responseText;
     
-    console.log("📝 Parsed imageSummary:", imageSummary);
-    console.log("📝 Parsed generatedContent (BEFORE buzzword filter):", generatedContent);
-    
     // Apply buzzword filter
     const { cleanedText, replacements } = removeBuzzwords(generatedContent);
     
-    console.log("📝 After buzzword filter:", cleanedText);
-    console.log("📝 Buzzwords removed:", replacements);
-    
-    const finalResult = {
+    return {
       description: cleanedText,
       metadata: imageSummary,
       buzzwordsRemoved: replacements.length > 0 ? replacements : undefined,
     };
-    
-    console.log("📝 FINAL RESULT BEING RETURNED:", finalResult);
-    
-    return finalResult;
 
   } catch (error) {
     console.error("Error generating description:", error);

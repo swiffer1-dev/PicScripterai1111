@@ -40,13 +40,15 @@ Preferred communication style: Simple, everyday language.
 - `/` - Dashboard with stats overview and recent posts (no Create Post button)
 - `/ai-studio` - "Create" page - AI-powered content creation studio with:
   - Multi-image upload (JPEG, PNG, WebP, HEIC, HEIF)
-  - AI caption generation using Google Gemini API
+  - AI caption generation using Google Gemini API (plain text mode to preserve emojis)
   - **Human Authenticity Engine** - Fights "AI-blog" feel with:
     - 3 AI-proof tone options: Authentic, Conversational, SEO Boosted
     - Natural rhythm instructions (mix of short/long sentences)
     - Light personality cues ("You'll love how this fits", "Trust me on this")
     - Automatic buzzword detection & removal (37 AI buzzwords)
     - User notification when buzzwords are removed
+  - Emoji generation toggle with platform-specific instructions
+  - Text cleaning preserves all Unicode characters (emojis, accents, etc.)
   - Proofread functionality to refine generated content
   - Regenerate option to create new variations
   - Download capabilities (TXT, CSV, HTML formats)
