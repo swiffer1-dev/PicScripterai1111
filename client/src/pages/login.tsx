@@ -61,48 +61,54 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-border shadow-lg">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: 'linear-gradient(135deg, #0a1628 0%, #0d2847 50%, #0f3a5f 100%)'
+      }}
+    >
+      <Card className="w-full max-w-md border-slate-600 shadow-2xl backdrop-blur-sm bg-black/40">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
             <img 
               src={logoImage} 
               alt="Picscripterai" 
-              className="h-16 w-auto object-contain mix-blend-lighten dark:mix-blend-lighten"
-              style={{ filter: 'brightness(1.2) contrast(1.1)' }}
+              className="h-20 w-auto object-contain"
               data-testid="img-logo-login"
             />
           </div>
-          <CardDescription className="text-center text-base">
+          <CardDescription className="text-center text-base text-slate-200">
             {isSignup ? "Create your account to get started" : "Sign in to manage your social media posts"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-slate-100">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@example.com"
+                className="bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-400"
                 data-testid="input-email"
                 {...form.register("email")}
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.email.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-slate-100">Password</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                className="bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-400"
                 data-testid="input-password"
                 {...form.register("password")}
               />
               {form.formState.errors.password && (
-                <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.password.message}</p>
               )}
             </div>
             <Button
@@ -126,7 +132,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => setIsSignup(!isSignup)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-slate-300 hover:text-white transition-colors"
             data-testid="button-toggle-mode"
           >
             {isSignup ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
