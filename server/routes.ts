@@ -21,6 +21,7 @@ import { publishQueue } from "./worker-queue";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { trackEvent } from "./utils/analytics";
 import { oauthStateStore } from "./utils/oauth-state-store";
+import { isPlatformConfigured, getConfigurationError } from "./utils/platform-config-validator";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatform } from "@shared/schema";
@@ -230,6 +231,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/connect/:platform", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
+      
+      // Check if platform is configured
+      if (!isPlatformConfigured(platform)) {
+        const error = getConfigurationError(platform);
+        return res.status(400).json({ error });
+      }
       
       // Generate PKCE challenge
       const { code_verifier, code_challenge } = await generatePKCE();
@@ -838,6 +845,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const platform = req.params.platform as EcommercePlatform;
       const { shopDomain } = req.query; // For Shopify
+      
+      // Check if platform is configured
+      if (!isPlatformConfigured(platform)) {
+        const error = getConfigurationError(platform);
+        return res.status(400).json({ error });
+      }
       
       // Generate PKCE challenge
       const { code_verifier, code_challenge } = await generatePKCE();

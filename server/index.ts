@@ -4,12 +4,16 @@ import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
 import helmet from "helmet";
 import { validateEnv } from "./config/env";
+import { validatePlatformConfigurations } from "./utils/platform-config-validator";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import { randomUUID } from "crypto";
 
 // Validate environment variables on startup
 validateEnv();
+
+// Validate and log platform configurations
+validatePlatformConfigurations();
 
 const app = express();
 
