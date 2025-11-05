@@ -206,6 +206,30 @@ export default function AIStudio() {
     },
   });
 
+  const saveDraftMutation = useMutation({
+    mutationFn: async (data: {
+      caption: string;
+      mediaUrls: string[];
+      settings: any;
+    }) => {
+      return apiRequest("POST", "/api/drafts", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/drafts"] });
+      toast({
+        title: "Draft saved!",
+        description: "Your content has been saved as a draft",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to save draft",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const postMutation = useMutation({
     mutationFn: async (data: {
       caption: string;
@@ -1153,26 +1177,6 @@ export default function AIStudio() {
     }
   };
 
-  const saveDraftMutation = useMutation({
-    mutationFn: async (data: { caption: string; mediaUrl?: string }) => {
-      return apiRequest("POST", "/api/posts/draft", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      toast({
-        title: "Saved as draft",
-        description: "Your content has been saved to drafts",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Save failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleSaveDraft = () => {
     if (!generatedContent) {
       toast({
@@ -1185,7 +1189,16 @@ export default function AIStudio() {
 
     saveDraftMutation.mutate({
       caption: generatedContent,
-      mediaUrl: uploadedImageUrls[0],
+      mediaUrls: uploadedImageUrls,
+      settings: {
+        category,
+        tone,
+        language,
+        addHashtags,
+        addEmojis,
+        customPrompt,
+        propertyAddress,
+      },
     });
   };
 
