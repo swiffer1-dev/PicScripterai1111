@@ -940,6 +940,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Token-based Shopify connection (simple method)
+  app.post("/api/ecommerce/connect/shopify/token", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { accessToken, shopDomain } = req.body;
+      
+      if (!accessToken || !shopDomain) {
+        return res.status(400).json({ error: "Missing access token or shop domain" });
+      }
+      
+      // Normalize shop domain
+      let normalizedDomain = shopDomain.replace(/^https?:\/\//, "");
+      if (!normalizedDomain.includes(".myshopify.com")) {
+        normalizedDomain = `${normalizedDomain}.myshopify.com`;
+      }
+      
+      // Test the token by fetching store info
+      try {
+        const shopResponse = await fetch(`https://${normalizedDomain}/admin/api/2025-01/shop.json`, {
+          headers: {
+            "X-Shopify-Access-Token": accessToken,
+          },
+        });
+        
+        if (!shopResponse.ok) {
+          throw new Error("Invalid access token or shop domain");
+        }
+        
+        const shopData = await shopResponse.json();
+        const shop = shopData.shop;
+        
+        // Encrypt token
+        const accessTokenEnc = encryptToken(accessToken);
+        
+        // Check if connection already exists
+        const existingConnections = await storage.getEcommerceConnections(req.userId!);
+        const existing = existingConnections.find(c => 
+          c.platform === "shopify" && c.storeId === shop.id.toString()
+        );
+        
+        if (existing) {
+          // Update existing connection
+          await storage.updateEcommerceConnection(existing.id, {
+            accessTokenEnc,
+            storeName: shop.name,
+            storeUrl: shop.domain,
+          });
+          
+          res.json({ 
+            success: true, 
+            connectionId: existing.id,
+            message: "Shopify connection updated successfully" 
+          });
+        } else {
+          // Create new connection
+          const connection = await storage.createEcommerceConnection({
+            userId: req.userId!,
+            platform: "shopify",
+            scopes: ["read_products", "read_orders", "read_inventory"],
+            accessTokenEnc,
+            tokenType: "Bearer",
+            storeId: shop.id.toString(),
+            storeName: shop.name,
+            storeUrl: shop.domain,
+          });
+          
+          res.json({ 
+            success: true, 
+            connectionId: connection.id,
+            message: "Shopify connected successfully" 
+          });
+        }
+      } catch (error: any) {
+        throw new Error("Failed to connect to Shopify. Check your access token and shop domain.");
+      }
+    } catch (error: any) {
+      console.error("Shopify token connection error:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Image upload endpoints
   app.post("/api/upload/image", authMiddleware, async (req: AuthRequest, res) => {
     try {
