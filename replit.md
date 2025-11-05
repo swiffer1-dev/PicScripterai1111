@@ -91,6 +91,28 @@ Preferred communication style: Simple, everyday language.
 - Enums for platform types, post status, and log levels.
 - Cascade deletes for data integrity.
 
+## Process Architecture
+
+Picscripterai uses a dual-process architecture:
+
+**Web Process:**
+- Express API server + Vite frontend
+- Serves on port 5000
+- Handles HTTP requests, authentication, OAuth flows
+- Stateless design for horizontal scaling
+
+**Worker Process:**
+- BullMQ job processor
+- Handles async post publishing tasks
+- Automatic token refresh
+- Single instance recommended (BullMQ handles internal concurrency)
+
+**Process Management:**
+- **Development**: Separate terminals or PM2
+- **Production**: PM2 (VPS/EC2), Procfile (Render/Fly)
+- **Health Checks**: `/healthz` (liveness), `/readyz` (readiness)
+- **Metrics**: `/metrics` endpoint (protected by METRICS_TOKEN)
+
 ## External Dependencies
 
 **Database:**
@@ -98,6 +120,11 @@ Preferred communication style: Simple, everyday language.
 
 **Queue System:**
 - Redis with BullMQ for job processing.
+
+**Deployment Configurations:**
+- `ecosystem.config.js`: PM2 configuration for web + worker processes
+- `Procfile`: Process definition for Render/Fly/Heroku
+- Health endpoints for load balancer checks
 
 **Social Media Platform APIs:**
 1.  **Instagram:** Graph API (Facebook Business Pages).

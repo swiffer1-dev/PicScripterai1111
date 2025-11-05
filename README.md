@@ -180,7 +180,9 @@ worker: NODE_ENV=production node dist/worker.js
 - Create a **Background Worker** service for the worker process
 - Use the same build command for both services
 - Set environment variables identically for both services
-- Add PostgreSQL and Redis add-ons
+- **Add PostgreSQL and Redis add-ons** (required dependencies):
+  - PostgreSQL: Database for user data, posts, connections
+  - Redis: Queue system for background job processing
 
 **6. Health Check Endpoints:**
 - **Liveness**: `GET /healthz`
@@ -293,6 +295,9 @@ pm2 stop all
 
 # Delete all processes
 pm2 delete all
+
+# Scale web process to 4 instances (for multi-core servers)
+pm2 scale web 4
 ```
 
 ## Health Checks & Monitoring
