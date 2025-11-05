@@ -63,6 +63,7 @@ export default function Connections() {
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [shopDomain, setShopDomain] = useState("");
+  const [shopifyAccessToken, setShopifyAccessToken] = useState("");
   
   const { data: connections, isLoading } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -156,6 +157,33 @@ export default function Connections() {
     onError: (error: Error) => {
       toast({
         title: "Disconnect failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const shopifyTokenConnectMutation = useMutation({
+    mutationFn: async ({ accessToken, shopDomain }: { accessToken: string; shopDomain: string }) => {
+      const response = await apiRequest("POST", "/api/ecommerce/connect/shopify/token", {
+        accessToken,
+        shopDomain,
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ecommerce/connections"] });
+      toast({
+        title: "Connected!",
+        description: data.message || "Shopify store connected successfully",
+      });
+      // Clear inputs
+      setShopifyAccessToken("");
+      setShopDomain("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Connection failed",
         description: error.message,
         variant: "destructive",
       });
@@ -414,32 +442,89 @@ export default function Connections() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {platform === "shopify" && (
-                              <Input
-                                placeholder="yourstore.myshopify.com"
-                                value={shopDomain}
-                                onChange={(e) => setShopDomain(e.target.value)}
-                                data-testid="input-shop-domain"
-                              />
+                            {platform === "shopify" ? (
+                              <>
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground">Connect using access token:</p>
+                                  <Input
+                                    placeholder="Store name (e.g., yourstore)"
+                                    value={shopDomain}
+                                    onChange={(e) => setShopDomain(e.target.value)}
+                                    data-testid="input-shop-domain"
+                                    className="text-sm"
+                                  />
+                                  <Input
+                                    type="password"
+                                    placeholder="Admin API access token"
+                                    value={shopifyAccessToken}
+                                    onChange={(e) => setShopifyAccessToken(e.target.value)}
+                                    data-testid="input-shopify-token"
+                                    className="text-sm"
+                                  />
+                                  <Button
+                                    className="w-full"
+                                    onClick={() => shopifyTokenConnectMutation.mutate({ accessToken: shopifyAccessToken, shopDomain })}
+                                    disabled={shopifyTokenConnectMutation.isPending || !shopDomain || !shopifyAccessToken}
+                                    data-testid="button-connect-shopify-token"
+                                  >
+                                    {shopifyTokenConnectMutation.isPending ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Connecting...
+                                      </>
+                                    ) : (
+                                      "Connect with Token"
+                                    )}
+                                  </Button>
+                                </div>
+                                <div className="relative">
+                                  <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                  </div>
+                                  <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => ecommerceConnectMutation.mutate({ platform, shopDomain })}
+                                  disabled={ecommerceConnectMutation.isPending || !shopDomain}
+                                  data-testid="button-connect-ecommerce-shopify"
+                                >
+                                  {ecommerceConnectMutation.isPending ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Connecting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                      Connect with OAuth
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                className="w-full"
+                                onClick={() => ecommerceConnectMutation.mutate({ platform })}
+                                disabled={ecommerceConnectMutation.isPending}
+                                data-testid={`button-connect-ecommerce-${platform}`}
+                              >
+                                {ecommerceConnectMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Connecting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    Connect
+                                  </>
+                                )}
+                              </Button>
                             )}
-                            <Button
-                              className="w-full"
-                              onClick={() => ecommerceConnectMutation.mutate({ platform, shopDomain: platform === "shopify" ? shopDomain : undefined })}
-                              disabled={ecommerceConnectMutation.isPending || (platform === "shopify" && !shopDomain)}
-                              data-testid={`button-connect-ecommerce-${platform}`}
-                            >
-                              {ecommerceConnectMutation.isPending ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Connecting...
-                                </>
-                              ) : (
-                                <>
-                                  <ExternalLink className="mr-2 h-4 w-4" />
-                                  Connect
-                                </>
-                              )}
-                            </Button>
                           </div>
                         )}
                       </CardContent>
