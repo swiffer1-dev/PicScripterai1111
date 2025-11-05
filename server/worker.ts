@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import { storage } from "./storage";
 import { publishToPlatform } from "./services/publishers";
 import { ensureValidToken } from "./utils/token-refresh";
+import { trackEvent } from "./utils/analytics";
 import type { PublishJobData } from "./worker-queue";
 
 // Redis connection
@@ -63,6 +64,14 @@ const worker = new Worker<PublishJobData>(
         raw: result,
       });
       
+      // Track post_published event
+      await trackEvent(
+        userId,
+        "post_published",
+        "Post published",
+        { platform, postId, externalId: result.id }
+      );
+      
       return result;
     } catch (error: any) {
       await storage.createJobLog({
@@ -77,6 +86,14 @@ const worker = new Worker<PublishJobData>(
         await storage.updatePost(postId, {
           status: "failed",
         });
+        
+        // Track publish_failed event
+        await trackEvent(
+          userId,
+          "publish_failed",
+          "Post publish failed",
+          { platform, postId, error: error.message }
+        );
       }
       
       throw error; // Re-throw to let BullMQ handle retries

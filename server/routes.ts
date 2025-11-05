@@ -18,6 +18,7 @@ import { type EcommerceOAuthState } from "./services/ecommerce-oauth/base";
 import { publishToPlatform } from "./services/publishers";
 import { publishQueue } from "./worker-queue";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { trackEvent } from "./utils/analytics";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatform } from "@shared/schema";
@@ -539,6 +540,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Scheduled for ${scheduledAt.toISOString()}`,
           raw: { scheduledAt: data.scheduledAtISO },
         });
+        
+        // Track post_scheduled event
+        await trackEvent(
+          req.userId!,
+          "post_scheduled",
+          "Post scheduled",
+          { platform: data.platform, postId: post.id }
+        );
       } catch (queueError: any) {
         console.warn("Queue error (post saved but not queued):", queueError.message);
         // Post is still created, just log the queue failure
@@ -1250,10 +1259,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/summary", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const summary = await storage.getAnalyticsSummary(req.userId!);
+      const days = req.query.days ? parseInt(req.query.days as string) : 30;
+      const events = await storage.getAnalyticsEvents(req.userId!, days);
+      
+      const summary: Record<string, number> = {
+        caption_generated: 0,
+        post_scheduled: 0,
+        post_published: 0,
+        publish_failed: 0,
+      };
+      
+      events.forEach(event => {
+        if (event.eventType in summary) {
+          summary[event.eventType]++;
+        }
+      });
+      
       res.json(summary);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/analytics/track", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const schema = z.object({
+        eventType: z.enum(["caption_generated", "post_scheduled", "post_published", "publish_failed"]),
+        eventName: z.string(),
+        properties: z.record(z.any()).optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      await trackEvent(
+        req.userId!,
+        data.eventType,
+        data.eventName,
+        data.properties,
+        undefined,
+        req.ip,
+        req.get("user-agent")
+      );
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 
