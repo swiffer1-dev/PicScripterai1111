@@ -444,27 +444,27 @@ export default function Connections() {
                           <div className="space-y-3">
                             {platform === "shopify" ? (
                               <>
-                                <div className="space-y-2">
+                                <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-2">
                                   <p className="text-xs text-muted-foreground">Connect using access token:</p>
                                   <Input
-                                    name="shopify-store-domain"
+                                    type="text"
                                     placeholder="Store name (e.g., yourstore)"
                                     value={shopDomain}
                                     onChange={(e) => setShopDomain(e.target.value)}
                                     data-testid="input-shop-domain"
                                     className="text-sm"
-                                    autoComplete="section-shopify url"
-                                    inputMode="url"
+                                    autoComplete="off"
+                                    data-form-type="other"
                                   />
                                   <Input
-                                    type="password"
-                                    name="shopify-access-token"
-                                    placeholder="Admin API access token"
+                                    type="text"
+                                    placeholder="Admin API access token (paste here)"
                                     value={shopifyAccessToken}
                                     onChange={(e) => setShopifyAccessToken(e.target.value)}
                                     data-testid="input-shopify-token"
-                                    className="text-sm"
+                                    className="text-sm font-mono"
                                     autoComplete="off"
+                                    data-form-type="other"
                                     data-lpignore="true"
                                   />
                                   <Button
@@ -482,7 +482,7 @@ export default function Connections() {
                                       "Connect with Token"
                                     )}
                                   </Button>
-                                </div>
+                                </form>
                                 <div className="relative">
                                   <div className="absolute inset-0 flex items-center">
                                     <span className="w-full border-t" />
