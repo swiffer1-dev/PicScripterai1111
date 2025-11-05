@@ -442,10 +442,20 @@ export default function Connections() {
                           </div>
                         ) : (
                           <div className="space-y-3">
+                            {platform === "shopify" && (
+                              <Input
+                                type="text"
+                                placeholder="Store name (e.g., yourstore)"
+                                value={shopDomain}
+                                onChange={(e) => setShopDomain(e.target.value)}
+                                data-testid="input-shop-domain"
+                                className="text-sm"
+                              />
+                            )}
                             <Button
                               className="w-full"
-                              onClick={() => ecommerceConnectMutation.mutate({ platform })}
-                              disabled={ecommerceConnectMutation.isPending}
+                              onClick={() => ecommerceConnectMutation.mutate({ platform, shopDomain: platform === "shopify" ? shopDomain : undefined })}
+                              disabled={ecommerceConnectMutation.isPending || (platform === "shopify" && !shopDomain)}
                               data-testid={`button-connect-ecommerce-${platform}`}
                             >
                               {ecommerceConnectMutation.isPending ? (
