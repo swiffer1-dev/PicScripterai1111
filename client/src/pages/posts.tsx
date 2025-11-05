@@ -111,7 +111,7 @@ export default function Posts() {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-8 w-auto object-contain"
+            className="h-10 w-auto object-contain"
             data-testid="img-logo-mobile-posts"
           />
         </div>

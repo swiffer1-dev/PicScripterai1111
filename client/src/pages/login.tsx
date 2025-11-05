@@ -68,7 +68,7 @@ export default function Login() {
             <img 
               src={logoImage} 
               alt="Picscripterai" 
-              className="h-24 w-auto object-contain"
+              className="h-32 w-auto object-contain"
               data-testid="img-logo-login"
             />
           </div>
