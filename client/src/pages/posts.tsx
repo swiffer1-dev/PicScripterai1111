@@ -9,7 +9,7 @@ import type { Post } from "@shared/schema";
 import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
+import logoImage from "@assets/generated_images/Clean_gradient_logo_no_pattern_787327cb.png";
 
 const platformIcons = {
   instagram: SiInstagram,

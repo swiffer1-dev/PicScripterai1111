@@ -24,7 +24,7 @@ import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import EXIF from 'exif-js';
-import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
+import logoImage from "@assets/generated_images/Clean_gradient_logo_no_pattern_787327cb.png";
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
 console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
