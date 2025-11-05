@@ -159,6 +159,22 @@ export default function Calendar() {
         };
       }
 
+      // Add Pinterest-specific options
+      if (data.platform === "pinterest") {
+        // Fetch Pinterest boards
+        const boards = await apiRequest("GET", "/api/pinterest/boards") as unknown as any[];
+        
+        if (!boards || boards.length === 0) {
+          throw new Error("No Pinterest boards found. Please create a board on Pinterest first.");
+        }
+        
+        payload.options = {
+          boardId: boards[0].id,
+          title: data.caption.substring(0, 100),
+          link: "https://www.pinterest.com",
+        };
+      }
+
       return await apiRequest("POST", "/api/schedule", payload);
     },
     onSuccess: () => {
