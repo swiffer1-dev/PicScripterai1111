@@ -2,6 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authMiddleware, type AuthRequest } from "./middleware/auth";
+import { 
+  authRateLimiter, 
+  generalRateLimiter, 
+  aiGenerationRateLimiter,
+  postCreationRateLimiter,
+  oauthRateLimiter
+} from "./middleware/rateLimiter";
 import { signToken } from "./utils/jwt";
 import { encryptToken, decryptToken } from "./utils/encryption";
 import { getOAuthProvider } from "./services/oauth/factory";
@@ -19,6 +26,33 @@ import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatfo
 const oauthStates = new Map<string, OAuthState>();
 const ecommerceOauthStates = new Map<string, EcommerceOAuthState>();
 
+// Metrics tracking
+const metrics = {
+  requests: {
+    total: 0,
+    byEndpoint: new Map<string, number>(),
+    byStatus: new Map<number, number>(),
+  },
+  auth: {
+    signups: 0,
+    logins: 0,
+    failures: 0,
+  },
+  posts: {
+    created: 0,
+    published: 0,
+    failed: 0,
+  },
+  ai: {
+    generations: 0,
+    errors: 0,
+  },
+  connections: {
+    total: 0,
+    byPlatform: new Map<string, number>(),
+  },
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoints
   app.get("/healthz", (req, res) => {
@@ -35,8 +69,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Metrics endpoint (protected - requires auth or secret token)
+  app.get("/metrics", (req, res) => {
+    // Check for metrics secret token or require authentication
+    const metricsToken = req.headers['x-metrics-token'];
+    const validToken = process.env.METRICS_TOKEN;
+    
+    // Allow access if token matches or if no token is set (development)
+    if (validToken && metricsToken !== validToken) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    
+    res.json({
+      requests: {
+        total: metrics.requests.total,
+        byEndpoint: Object.fromEntries(metrics.requests.byEndpoint),
+        byStatus: Object.fromEntries(metrics.requests.byStatus),
+      },
+      auth: metrics.auth,
+      posts: metrics.posts,
+      ai: metrics.ai,
+      connections: {
+        total: metrics.connections.total,
+        byPlatform: Object.fromEntries(metrics.connections.byPlatform),
+      },
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+    });
+  });
+
+  // Metrics middleware - track all requests
+  app.use((req, res, next) => {
+    metrics.requests.total++;
+    const endpoint = `${req.method} ${req.path}`;
+    metrics.requests.byEndpoint.set(endpoint, (metrics.requests.byEndpoint.get(endpoint) || 0) + 1);
+    
+    const originalSend = res.send;
+    res.send = function(data) {
+      metrics.requests.byStatus.set(res.statusCode, (metrics.requests.byStatus.get(res.statusCode) || 0) + 1);
+      return originalSend.call(this, data);
+    };
+    
+    next();
+  });
+
+  // Apply general rate limiting to all API routes
+  app.use("/api", generalRateLimiter);
+
   // Auth endpoints
-  app.post("/api/auth/signup", async (req, res) => {
+  app.post("/api/auth/signup", authRateLimiter, async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
@@ -49,22 +130,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const passwordHash = await bcrypt.hash(validatedData.password, 10);
       
-      // Create user
+      // Create user (manually construct insert object with passwordHash)
       const user = await storage.createUser({
         email: validatedData.email,
         passwordHash,
-      });
+      } as any);
       
       // Generate JWT
       const token = signToken({ userId: user.id, email: user.email });
       
+      metrics.auth.signups++;
+      
       res.json({ token, user: { id: user.id, email: user.email } });
     } catch (error: any) {
+      metrics.auth.failures++;
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       
@@ -87,8 +171,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate JWT
       const token = signToken({ userId: user.id, email: user.email });
       
+      metrics.auth.logins++;
+      
       res.json({ token, user: { id: user.id, email: user.email } });
     } catch (error: any) {
+      metrics.auth.failures++;
       res.status(400).json({ error: error.message });
     }
   });
@@ -122,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/connect/:platform", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/connect/:platform", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
       
@@ -218,6 +305,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tokenType: tokens.tokenType,
           expiresAt,
         });
+        
+        metrics.connections.total++;
+        metrics.connections.byPlatform.set(platform, (metrics.connections.byPlatform.get(platform) || 0) + 1);
       }
       
       // Redirect to frontend
@@ -269,6 +359,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = schema.parse(req.body);
       
       // Create a draft post (no platform specified, just saves the content)
+      metrics.posts.created++;
+      
       const post = await storage.createPost({
         userId: req.userId!,
         platform: 'instagram', // Default platform for drafts
@@ -286,7 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/posts", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/posts", authMiddleware, postCreationRateLimiter, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
         platform: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
@@ -548,8 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         platform: "facebook",
         caption: message,
         status: "published",
-        externalId: result.id,
-        externalUrl: result.url,
+        clientPostId: result.id,
       });
       
       await storage.createJobLog({
@@ -575,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate AI caption from images
-  app.post("/api/ai/generate", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/ai/generate", authMiddleware, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
     try {
       const { imageUrls, prompt } = req.body;
       
@@ -637,11 +728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cleanJsonText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
       const resultJson = JSON.parse(cleanJsonText);
       
+      metrics.ai.generations++;
+      
       res.json({
         description: resultJson.generatedContent,
         metadata: resultJson.imageSummary,
       });
     } catch (error: any) {
+      metrics.ai.errors++;
       console.error("Error generating AI caption:", error);
       res.status(500).json({ error: error.message || "Failed to generate caption" });
     }
@@ -713,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/ecommerce/connect/:platform", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/ecommerce/connect/:platform", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as EcommercePlatform;
       const { shopDomain } = req.query; // For Shopify
@@ -941,7 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Token-based Shopify connection (simple method)
-  app.post("/api/ecommerce/connect/shopify/token", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/ecommerce/connect/shopify/token", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const { accessToken, shopDomain } = req.body;
       

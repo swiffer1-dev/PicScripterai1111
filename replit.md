@@ -6,6 +6,18 @@ Picscripterai is a full-stack social media management application that enables u
 
 The application provides secure authentication, encrypted token storage, automatic token refresh, job-based scheduling with retry logic, platform-specific publishing flows, and e-commerce product synchronization. It's designed as a productivity tool with a focus on efficiency, clarity, reliable multi-platform content distribution, and seamless integration between e-commerce product catalogs and social media marketing.
 
+**Recent Updates (Nov 5, 2025):**
+- Added comprehensive monitoring with `/healthz`, `/readyz`, and `/metrics` endpoints
+- Centralized environment variable validation using Zod (fails fast on missing required vars)
+- Implemented multi-tier rate limiting to prevent abuse:
+  - General API: 100 requests per 15 minutes
+  - Authentication: 10 attempts per 15 minutes (IP-based, skips successful logins)
+  - AI Generation: 50 requests per hour (per user)
+  - Post Creation: 30 posts per hour (per user)
+  - OAuth Connections: 10 attempts per 15 minutes
+- Added metrics tracking for auth, posts, AI, and connections
+- Secured `/metrics` endpoint with optional METRICS_TOKEN header
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
