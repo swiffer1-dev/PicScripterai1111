@@ -9,6 +9,7 @@ import {
   mediaLibrary,
   templates,
   postAnalytics,
+  analyticsEvents,
   type User,
   type InsertUser,
   type Connection,
@@ -27,6 +28,8 @@ import {
   type InsertTemplate,
   type PostAnalytics,
   type InsertPostAnalytics,
+  type AnalyticsEvent,
+  type InsertAnalyticsEvent,
   type Platform,
   type EcommercePlatform,
 } from "@shared/schema";
@@ -84,6 +87,8 @@ export interface IStorage {
   // Analytics operations
   getPostAnalytics(userId: string): Promise<any[]>;
   getAnalyticsSummary(userId: string): Promise<any>;
+  createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
+  getAnalyticsEvents(userId: string, days?: number): Promise<AnalyticsEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -354,6 +359,30 @@ export class DatabaseStorage implements IStorage {
         return acc;
       }, {} as Record<string, number>),
     };
+  }
+
+  async createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const [analyticsEvent] = await db
+      .insert(analyticsEvents)
+      .values(event)
+      .returning();
+    return analyticsEvent;
+  }
+
+  async getAnalyticsEvents(userId: string, days: number = 30): Promise<AnalyticsEvent[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    return await db
+      .select()
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.userId, userId),
+          sql`${analyticsEvents.createdAt} >= ${startDate}`
+        )
+      )
+      .orderBy(desc(analyticsEvents.createdAt));
   }
 }
 

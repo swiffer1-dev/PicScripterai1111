@@ -44,6 +44,9 @@ export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
   "connection_added",
   "ai_generation",
   "export_download",
+  "caption_generated",
+  "post_scheduled",
+  "publish_failed",
 ]);
 
 // Users table
