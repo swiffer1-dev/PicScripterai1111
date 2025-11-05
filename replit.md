@@ -27,8 +27,8 @@ Preferred communication style: Simple, everyday language.
 - Custom color system with CSS variables for theming
 
 **Key Features:**
-- **AI Studio:** AI-powered content creation with multi-image upload, AI caption generation (Google Gemini), "Human Authenticity Engine" to refine tone and remove buzzwords, emoji generation, proofreading, regeneration, and direct posting.
-- **Content Calendar:** Month/week views with color-coded posts by platform.
+- **AI Studio:** AI-powered content creation with multi-image upload, AI caption generation (Google Gemini), "Human Authenticity Engine" to refine tone and remove buzzwords, emoji generation, proofreading, regeneration, and direct posting. Includes real-time character counter showing which platforms are within/over limits, with frontend validation preventing posts that exceed platform limits.
+- **Content Calendar:** Month/week views with color-coded posts by platform. Includes character limit validation for scheduled posts.
 - **Connections Management:** OAuth-based connection management for social media and e-commerce platforms, including product sync functionality.
 - **Post Management:** View all posts with status tracking, quick actions (duplicate, edit & repost, send to AI Studio).
 
