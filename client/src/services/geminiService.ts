@@ -215,6 +215,9 @@ export const generateDescription = async (
     console.log("Gemini API response received");
     
     const responseText = response.text || '';
+    console.log("🔍 FULL RESPONSE FROM GEMINI:");
+    console.log(responseText);
+    console.log("🔍 Response length:", responseText.length);
     
     // Parse the response manually
     const summaryMatch = responseText.match(/IMAGE_SUMMARY:\s*(.+?)(?=\n\nGENERATED_CONTENT:)/);
@@ -222,6 +225,9 @@ export const generateDescription = async (
     
     const imageSummary = summaryMatch ? summaryMatch[1].trim() : 'Image description';
     const generatedContent = contentMatch ? contentMatch[1].trim() : responseText;
+    
+    console.log("📝 Parsed imageSummary:", imageSummary);
+    console.log("📝 Parsed generatedContent:", generatedContent);
     
     // Apply buzzword filter
     const { cleanedText, replacements } = removeBuzzwords(generatedContent);
