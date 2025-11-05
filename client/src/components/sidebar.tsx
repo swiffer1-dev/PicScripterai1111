@@ -3,7 +3,7 @@ import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as Cale
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
-import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
+import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 interface SidebarProps {
   isOpen?: boolean;

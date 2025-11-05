@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
+import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),

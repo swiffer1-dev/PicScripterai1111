@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
-import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
+import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
