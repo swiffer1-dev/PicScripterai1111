@@ -48,24 +48,39 @@ export function decryptToken(encryptedToken: string): string {
     iv = Buffer.from(parts[1], "hex");
     authTag = Buffer.from(parts[2], "hex");
     encrypted = parts[3];
+    
+    const key = getEncryptionKey(keyVersion);
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    
+    return decrypted;
   } else if (parts.length === 3) {
-    // Old format: iv:authTag:encryptedData (default to v1)
-    keyVersion = CURRENT_KEY_VERSION;
+    // Old format: iv:authTag:encryptedData
+    // Always use base ENCRYPTION_KEY (v1) regardless of CURRENT_KEY_VERSION
+    // This ensures backward compatibility during key rotation
+    const key = process.env.ENCRYPTION_KEY;
+    if (!key) {
+      throw new Error("ENCRYPTION_KEY environment variable is not set");
+    }
+    const keyBuffer = crypto.createHash("sha256").update(key).digest();
+    
     iv = Buffer.from(parts[0], "hex");
     authTag = Buffer.from(parts[1], "hex");
     encrypted = parts[2];
+    
+    const decipher = crypto.createDecipheriv(ALGORITHM, keyBuffer, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    
+    return decrypted;
   } else {
     throw new Error("Invalid encrypted token format");
   }
-  
-  const key = getEncryptionKey(keyVersion);
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  
-  let decrypted = decipher.update(encrypted, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  
-  return decrypted;
 }
 
 export function getTokenKeyVersion(encryptedToken: string): string {

@@ -45,9 +45,16 @@ Preferred communication style: Simple, everyday language.
 **Authentication & Security:**
 - JWT-based sessions (7-day expiration)
 - bcrypt password hashing (10 rounds)
-- AES-256-GCM encryption for OAuth tokens at rest
-- PKCE support for OAuth flows
-- CSRF protection via OAuth state parameter
+- AES-256-GCM encryption for OAuth tokens at rest with versioned key support
+  - Format: version:iv:authTag:encryptedData
+  - Backward compatible with old format (3-part)
+  - Supports key rotation via ENCRYPTION_KEY_V2 env var
+- PKCE support for all OAuth flows (S256 challenge method)
+- CSRF protection via OAuth state parameter (10-minute expiration)
+- OAuth redirect URI allowlist validation (OAUTH_REDIRECT_ALLOWLIST env var)
+- Automatic token refresh with graceful failure handling
+  - TokenRefreshError class categorizes failures
+  - Distinguishes user action required vs. temporary errors
 - Centralized environment variable validation using Zod
 - Multi-tier rate limiting for general API, authentication, AI generation, post creation, and OAuth connections.
 - Helmet security headers and CORS protection.
