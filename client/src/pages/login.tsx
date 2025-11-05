@@ -68,7 +68,8 @@ export default function Login() {
             <img 
               src={logoImage} 
               alt="Picscripterai" 
-              className="h-12 w-auto"
+              className="h-16 w-auto object-contain mix-blend-lighten dark:mix-blend-lighten"
+              style={{ filter: 'brightness(1.2) contrast(1.1)' }}
               data-testid="img-logo-login"
             />
           </div>

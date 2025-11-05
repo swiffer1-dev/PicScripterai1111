@@ -69,7 +69,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-7 w-auto"
+            className="h-10 w-auto object-contain mix-blend-lighten dark:mix-blend-lighten"
+            style={{ filter: 'brightness(1.2) contrast(1.1)' }}
             data-testid="img-logo-sidebar"
           />
           {onClose && (
