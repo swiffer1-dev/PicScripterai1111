@@ -17,7 +17,7 @@ import { generatePKCE, type OAuthState } from "./services/oauth/base";
 import { getEcommerceOAuthProvider } from "./services/ecommerce-oauth/factory";
 import { type EcommerceOAuthState } from "./services/ecommerce-oauth/base";
 import { publishToPlatform } from "./services/publishers";
-import { publishQueue } from "./worker-queue";
+import { publishQueue, isQueueAvailable, getQueueStatus } from "./worker-queue";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { trackEvent } from "./utils/analytics";
 import { oauthStateStore } from "./utils/oauth-state-store";
@@ -61,9 +61,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/readyz", async (req, res) => {
     try {
-      // Check database connection by attempting to get any user (will work even if no users exist)
-      // This validates the database connection is working
-      await storage.getUserByEmail("healthcheck@test.local").catch(() => null);
+      // Check database connection - let errors propagate so we can detect real failures
+      await storage.getUserByEmail("healthcheck@test.local");
       
       // Check Redis if configured
       const redisHealthy = await oauthStateStore.checkHealth();
@@ -83,8 +82,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         database: "ok",
         redis: redisConfigured ? "ok" : "not_configured"
       });
-    } catch (error) {
-      res.status(503).json({ status: "not ready", error: "Database connection failed" });
+    } catch (error: any) {
+      res.status(503).json({ 
+        status: "not ready", 
+        database: "unavailable",
+        error: error.message || "Database connection failed" 
+      });
     }
   });
 
@@ -99,6 +102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ error: "Forbidden" });
     }
     
+    const queueStatus = getQueueStatus();
+    
     res.json({
       requests: {
         total: metrics.requests.total,
@@ -111,6 +116,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       connections: {
         total: metrics.connections.total,
         byPlatform: Object.fromEntries(metrics.connections.byPlatform),
+      },
+      queue: {
+        available: queueStatus.available,
+        reason: queueStatus.reason,
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
@@ -542,7 +551,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add to BullMQ queue with scheduled time
       try {
-        await publishQueue.add(
+        const queueStatus = getQueueStatus();
+        if (!queueStatus.available) {
+          throw new Error(`Job queue unavailable: ${queueStatus.reason}. Scheduled posts are not supported.`);
+        }
+        
+        await publishQueue!.add(
           `publish-${post.id}`,
           {
             postId: post.id,
