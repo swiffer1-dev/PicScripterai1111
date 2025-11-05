@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sidebar } from "@/components/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Menu, Store, RefreshCw } from "lucide-react";
+import { Loader2, ExternalLink, Menu, Store, RefreshCw, ShoppingBag } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook, SiShopify, SiEtsy, SiSquarespace } from "react-icons/si";
 import type { Connection, Platform, EcommerceConnection, EcommercePlatform } from "@shared/schema";
 import { useState } from "react";
