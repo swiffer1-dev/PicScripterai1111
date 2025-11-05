@@ -322,6 +322,9 @@ export default function AIStudio() {
         address: propertyAddress, // Include property address for Real Estate listings
       });
 
+      console.log("🎯 EMOJI SETTING:", addEmojis);
+      console.log("📝 FULL PROMPT:", prompt);
+
       // Generate caption using Gemini (already has resizing built in from geminiService)
       const result = await generateDescription(imageFiles, prompt);
       
