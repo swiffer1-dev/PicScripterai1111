@@ -42,6 +42,31 @@ The application provides secure authentication, encrypted token storage, automat
 
 Preferred communication style: Simple, everyday language.
 
+## Database Schema & Migrations
+
+**Migration Setup (Nov 5, 2025):**
+- Drizzle ORM with PostgreSQL and migration support
+- Pre-generated migration files in `migrations/` directory
+- Initial migration: `0000_chief_sabra.sql` with all 11 tables
+- Migration commands available via npx:
+  - `npx drizzle-kit generate` - Generate migrations from schema changes
+  - `npx drizzle-kit migrate` - Apply migrations to database
+- **Note**: Package.json needs manual script additions (see MIGRATION_SETUP.md)
+
+**Database Tables:**
+- **users** - User accounts with email/password
+- **connections** - OAuth tokens for social platforms
+  - Unique index: `(user_id, platform)` prevents duplicate connections
+- **ecommerce_connections** - OAuth tokens for e-commerce platforms
+- **posts** - Scheduled/published social media content
+- **jobs** - BullMQ job tracking for async operations
+- **analytics_events** - User activity and event tracking
+- **products** - Cached e-commerce product listings
+- **job_logs** - Detailed publishing attempt logs
+- **media_library** - Uploaded media files and metadata
+- **templates** - Saved caption and brand voice templates
+- **post_analytics** - Social engagement metrics
+
 ## System Architecture
 
 ### Frontend Architecture
