@@ -227,16 +227,23 @@ export const generateDescription = async (
     const generatedContent = contentMatch ? contentMatch[1].trim() : responseText;
     
     console.log("📝 Parsed imageSummary:", imageSummary);
-    console.log("📝 Parsed generatedContent:", generatedContent);
+    console.log("📝 Parsed generatedContent (BEFORE buzzword filter):", generatedContent);
     
     // Apply buzzword filter
     const { cleanedText, replacements } = removeBuzzwords(generatedContent);
     
-    return {
+    console.log("📝 After buzzword filter:", cleanedText);
+    console.log("📝 Buzzwords removed:", replacements);
+    
+    const finalResult = {
       description: cleanedText,
       metadata: imageSummary,
       buzzwordsRemoved: replacements.length > 0 ? replacements : undefined,
     };
+    
+    console.log("📝 FINAL RESULT BEING RETURNED:", finalResult);
+    
+    return finalResult;
 
   } catch (error) {
     console.error("Error generating description:", error);
