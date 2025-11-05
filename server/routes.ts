@@ -1126,6 +1126,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Presigned upload endpoint with validation
+  app.post("/api/uploads/presign", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { contentType, fileSize, category } = req.body;
+
+      if (!contentType || typeof contentType !== "string") {
+        return res.status(400).json({ error: "contentType is required and must be a string" });
+      }
+
+      if (!fileSize || typeof fileSize !== "number") {
+        return res.status(400).json({ error: "fileSize is required and must be a number" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const result = await objectStorageService.getPresignedUploadURL({
+        contentType,
+        fileSize,
+        category,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error generating presigned URL:", error);
+      
+      // Return validation errors with 400 status
+      if (error.message.includes("Unsupported file type") || 
+          error.message.includes("File size exceeds") ||
+          error.message.includes("File size must be")) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Serve uploaded images
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();

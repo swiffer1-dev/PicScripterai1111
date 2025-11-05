@@ -149,6 +149,77 @@ export class ObjectStorageService {
     return { uploadURL, objectPath };
   }
 
+  // Gets a presigned upload URL with validation
+  async getPresignedUploadURL(options: {
+    contentType: string;
+    fileSize: number;
+    category?: string;
+  }): Promise<{ uploadURL: string; key: string; publicURL: string }> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error(
+        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
+          "tool and set PRIVATE_OBJECT_DIR env var."
+      );
+    }
+
+    // Validate MIME type
+    const allowedMimeTypes = [
+      // Images
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+      // Videos
+      "video/mp4",
+      "video/quicktime",
+      "video/x-msvideo",
+      "video/webm",
+      // Documents
+      "application/pdf",
+      "text/plain",
+      "text/csv",
+    ];
+
+    if (!allowedMimeTypes.includes(options.contentType)) {
+      throw new Error(`Unsupported file type: ${options.contentType}`);
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (options.fileSize > maxSize) {
+      throw new Error(`File size exceeds maximum of 10MB (got ${Math.round(options.fileSize / 1024 / 1024)}MB)`);
+    }
+
+    if (options.fileSize <= 0) {
+      throw new Error("File size must be greater than 0");
+    }
+
+    const objectId = randomUUID();
+    const category = options.category || "uploads";
+    const fullPath = `${privateObjectDir}/${category}/${objectId}`;
+
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    // Sign URL for PUT method with TTL and content type
+    const uploadURL = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "PUT",
+      ttlSec: 900,
+      contentType: options.contentType,
+    });
+
+    // Generate the key and public URL
+    const key = `/${category}/${objectId}`;
+    const publicURL = `/objects${key}`;
+
+    return { uploadURL, key, publicURL };
+  }
+
   // Gets the object entity file from the object path.
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith("/objects/")) {
@@ -226,18 +297,26 @@ async function signObjectURL({
   objectName,
   method,
   ttlSec,
+  contentType,
 }: {
   bucketName: string;
   objectName: string;
   method: "GET" | "PUT" | "DELETE" | "HEAD";
   ttlSec: number;
+  contentType?: string;
 }): Promise<string> {
-  const request = {
+  const request: any = {
     bucket_name: bucketName,
     object_name: objectName,
     method,
     expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
   };
+
+  // Add content type if provided (for PUT requests)
+  if (contentType && method === "PUT") {
+    request.content_type = contentType;
+  }
+
   const response = await fetch(
     `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
     {

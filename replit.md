@@ -31,6 +31,12 @@ The application provides secure authentication, encrypted token storage, automat
   - Returns {code, message, requestId} for all errors
   - Stack traces shown in development, hidden in production
   - All errors logged with full context
+- Added presigned upload functionality:
+  - POST /api/uploads/presign endpoint for direct-to-cloud uploads
+  - MIME type validation (images, videos, documents)
+  - File size validation (10MB maximum)
+  - Client uploads directly to Google Cloud Storage
+  - Server stores only public URLs (no local disk usage)
 
 ## User Preferences
 
