@@ -447,19 +447,25 @@ export default function Connections() {
                                 <div className="space-y-2">
                                   <p className="text-xs text-muted-foreground">Connect using access token:</p>
                                   <Input
+                                    name="shopify-store-domain"
                                     placeholder="Store name (e.g., yourstore)"
                                     value={shopDomain}
                                     onChange={(e) => setShopDomain(e.target.value)}
                                     data-testid="input-shop-domain"
                                     className="text-sm"
+                                    autoComplete="section-shopify url"
+                                    inputMode="url"
                                   />
                                   <Input
                                     type="password"
+                                    name="shopify-access-token"
                                     placeholder="Admin API access token"
                                     value={shopifyAccessToken}
                                     onChange={(e) => setShopifyAccessToken(e.target.value)}
                                     data-testid="input-shopify-token"
                                     className="text-sm"
+                                    autoComplete="off"
+                                    data-lpignore="true"
                                   />
                                   <Button
                                     className="w-full"
