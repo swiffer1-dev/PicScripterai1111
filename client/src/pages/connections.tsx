@@ -9,7 +9,7 @@ import { Loader2, ExternalLink, Menu, Store, RefreshCw } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook, SiShopify, SiEtsy, SiSquarespace } from "react-icons/si";
 import type { Connection, Platform, EcommerceConnection, EcommercePlatform } from "@shared/schema";
 import { useState } from "react";
-import logoImage from "@assets/generated_images/Clean_gradient_logo_no_pattern_787327cb.png";
+import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
 
 const platformIcons = {
   instagram: SiInstagram,
