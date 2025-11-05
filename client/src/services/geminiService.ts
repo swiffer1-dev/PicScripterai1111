@@ -140,11 +140,20 @@ export const generateDescription = async (
   console.log("Client initialized successfully");
   
   const instruction = `
-    You have two tasks. First, create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach."). This will be the 'imageSummary'.
-    Second, follow the user's primary instruction to generate the main content. This will be the 'generatedContent'.
-    The user's primary instruction is: "${prompt}"
-
-    Return your response as a single, minified JSON object with two keys: "imageSummary" and "generatedContent". Do not include any other text, formatting, or markdown.
+    You have two tasks:
+    
+    1. Create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach.")
+    
+    2. Follow the user's primary instruction below to generate the main content.
+    
+    User's instruction:
+    ${prompt}
+    
+    Format your response EXACTLY like this:
+    IMAGE_SUMMARY: [your one-sentence summary here]
+    
+    GENERATED_CONTENT:
+    [your main generated content here]
   `;
 
   try {
@@ -196,34 +205,30 @@ export const generateDescription = async (
     console.log("Calling Gemini API");
     console.log("Image parts:", imageParts.length);
     
-    // Call Gemini API - using stable gemini-2.5-flash model
+    // Call Gemini API - using stable gemini-2.5-flash model WITHOUT JSON schema
+    // This allows emojis and other Unicode characters to be returned
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [...imageParts, textPart] }],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            imageSummary: { type: Type.STRING },
-            generatedContent: { type: Type.STRING },
-          },
-          required: ['imageSummary', 'generatedContent'],
-        },
-      },
     });
     
     console.log("Gemini API response received");
     
-    const responseText = response.text || '{}';
-    const resultJson = JSON.parse(responseText);
+    const responseText = response.text || '';
+    
+    // Parse the response manually
+    const summaryMatch = responseText.match(/IMAGE_SUMMARY:\s*(.+?)(?=\n\nGENERATED_CONTENT:)/);
+    const contentMatch = responseText.match(/GENERATED_CONTENT:\s*([\s\S]+)/);
+    
+    const imageSummary = summaryMatch ? summaryMatch[1].trim() : 'Image description';
+    const generatedContent = contentMatch ? contentMatch[1].trim() : responseText;
     
     // Apply buzzword filter
-    const { cleanedText, replacements } = removeBuzzwords(resultJson.generatedContent);
+    const { cleanedText, replacements } = removeBuzzwords(generatedContent);
     
     return {
       description: cleanedText,
-      metadata: resultJson.imageSummary,
+      metadata: imageSummary,
       buzzwordsRemoved: replacements.length > 0 ? replacements : undefined,
     };
 
