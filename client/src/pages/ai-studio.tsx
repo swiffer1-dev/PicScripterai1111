@@ -116,6 +116,14 @@ export default function AIStudio() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [propertyAddress, setPropertyAddress] = useState<string>('');
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  const loadingMessages = [
+    "Infusing tone and style",
+    "Analyzing visual context",
+    "Crafting the perfect script",
+    "Generating creative ideas"
+  ];
 
   const { data: connections, isLoading: loadingConnections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -137,6 +145,19 @@ export default function AIStudio() {
     }
   }, [toast]);
 
+  // Cycle through loading messages when generating
+  useEffect(() => {
+    if (!isGenerating) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 2000); // Change message every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [isGenerating, loadingMessages.length]);
 
   const connectedPlatforms = new Set(connections?.map(c => c.platform) || []);
 
@@ -1429,7 +1450,17 @@ export default function AIStudio() {
                     </div>
                   )}
                 </div>
-                {generatedContent ? (
+                {isGenerating ? (
+                  <div className="bg-muted/50 rounded-lg p-8 text-center min-h-[200px] flex flex-col items-center justify-center gap-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-purple-500 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+                    </div>
+                    <p className="text-base font-medium text-foreground animate-pulse">
+                      {loadingMessages[loadingMessageIndex]}...
+                    </p>
+                  </div>
+                ) : generatedContent ? (
                   <div className="space-y-4">
                     {/* Show uploaded image(s) for easy reference on mobile */}
                     {previewUrls.length > 0 && (
