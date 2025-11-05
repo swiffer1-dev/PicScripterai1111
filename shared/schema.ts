@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, pgEnum, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, pgEnum, jsonb, integer, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -35,6 +35,17 @@ export const mediaTypeEnum = pgEnum("media_type_enum", ["image", "video"]);
 
 export const templateTypeEnum = pgEnum("template_type", ["caption", "brand_voice"]);
 
+export const jobStatusEnum = pgEnum("job_status", ["waiting", "active", "completed", "failed", "delayed"]);
+
+export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
+  "page_view",
+  "post_created",
+  "post_published",
+  "connection_added",
+  "ai_generation",
+  "export_download",
+]);
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -44,22 +55,28 @@ export const users = pgTable("users", {
 });
 
 // Connections table - stores OAuth tokens for social platforms
-export const connections = pgTable("connections", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  platform: platformEnum("platform").notNull(),
-  scopes: text("scopes").array().notNull(),
-  accessTokenEnc: text("access_token_enc").notNull(),
-  refreshTokenEnc: text("refresh_token_enc"),
-  tokenType: text("token_type").notNull().default("Bearer"),
-  expiresAt: timestamp("expires_at"),
-  accountId: text("account_id"),
-  accountHandle: text("account_handle"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const connections = pgTable(
+  "connections",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: platformEnum("platform").notNull(),
+    scopes: text("scopes").array().notNull(),
+    accessTokenEnc: text("access_token_enc").notNull(),
+    refreshTokenEnc: text("refresh_token_enc"),
+    tokenType: text("token_type").notNull().default("Bearer"),
+    expiresAt: timestamp("expires_at"),
+    accountId: text("account_id"),
+    accountHandle: text("account_handle"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    userPlatformIdx: uniqueIndex("connections_user_platform_idx").on(table.userId, table.platform),
+  })
+);
 
 // E-commerce connections table - stores OAuth tokens for e-commerce platforms
 export const ecommerceConnections = pgTable("ecommerce_connections", {
@@ -183,6 +200,42 @@ export const postAnalytics = pgTable("post_analytics", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Jobs table - tracks BullMQ job metadata
+export const jobs = pgTable("jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: text("job_id").notNull().unique(),
+  postId: varchar("post_id").references(() => posts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  queueName: text("queue_name").notNull(),
+  status: jobStatusEnum("status").notNull().default("waiting"),
+  data: jsonb("data"),
+  result: jsonb("result"),
+  error: text("error"),
+  attempts: integer("attempts").default(0),
+  maxAttempts: integer("max_attempts").default(3),
+  scheduledAt: timestamp("scheduled_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  failedAt: timestamp("failed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Analytics events table - tracks user actions and events
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  eventType: analyticsEventTypeEnum("event_type").notNull(),
+  eventName: text("event_name").notNull(),
+  properties: jsonb("properties"),
+  sessionId: text("session_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
@@ -190,6 +243,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   posts: many(posts),
   mediaLibrary: many(mediaLibrary),
   templates: many(templates),
+  jobs: many(jobs),
+  analyticsEvents: many(analyticsEvents),
 }));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({
@@ -251,6 +306,24 @@ export const postAnalyticsRelations = relations(postAnalytics, ({ one }) => ({
   }),
 }));
 
+export const jobsRelations = relations(jobs, ({ one }) => ({
+  user: one(users, {
+    fields: [jobs.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [jobs.postId],
+    references: [posts.id],
+  }),
+}));
+
+export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [analyticsEvents.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -308,6 +381,17 @@ export const insertPostAnalyticsSchema = createInsertSchema(postAnalytics).omit(
   updatedAt: true,
 });
 
+export const insertJobSchema = createInsertSchema(jobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -336,9 +420,17 @@ export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 export type PostAnalytics = typeof postAnalytics.$inferSelect;
 export type InsertPostAnalytics = z.infer<typeof insertPostAnalyticsSchema>;
 
+export type Job = typeof jobs.$inferSelect;
+export type InsertJob = z.infer<typeof insertJobSchema>;
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
 export type Platform = typeof platformEnum.enumValues[number];
 export type EcommercePlatform = typeof ecommercePlatformEnum.enumValues[number];
 export type PostStatus = typeof postStatusEnum.enumValues[number];
 export type LogLevel = typeof logLevelEnum.enumValues[number];
 export type MediaType = typeof mediaTypeEnum.enumValues[number];
 export type TemplateType = typeof templateTypeEnum.enumValues[number];
+export type JobStatus = typeof jobStatusEnum.enumValues[number];
+export type AnalyticsEventType = typeof analyticsEventTypeEnum.enumValues[number];
