@@ -22,6 +22,15 @@ The application provides secure authentication, encrypted token storage, automat
   - Helmet provides: X-Content-Type-Options, HSTS, X-Frame-Options, etc.
   - Content-Security-Policy (CSP) enabled in production only (allows self + data: for images)
   - CSP disabled in development to support Vite hot module reload
+- Added Pino HTTP logging with request tracking:
+  - Auto-generated requestId (UUID) for every request
+  - Structured JSON logging with method, URL, status, responseTime
+  - Auth headers/cookies redacted for security
+  - Pretty-printed logs in development, JSON in production
+- Implemented centralized Express error handler:
+  - Returns {code, message, requestId} for all errors
+  - Stack traces shown in development, hidden in production
+  - All errors logged with full context
 
 ## User Preferences
 

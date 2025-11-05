@@ -4,11 +4,58 @@ import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
 import helmet from "helmet";
 import { validateEnv } from "./config/env";
+import pino from "pino";
+import pinoHttp from "pino-http";
+import { randomUUID } from "crypto";
 
 // Validate environment variables on startup
 validateEnv();
 
 const app = express();
+
+// Configure Pino logger
+const logger = pino({
+  level: process.env.LOG_LEVEL || "info",
+  transport:
+    process.env.NODE_ENV === "development"
+      ? {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            ignore: "pid,hostname",
+            translateTime: "HH:MM:ss",
+          },
+        }
+      : undefined,
+});
+
+// HTTP request logging with Pino
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: () => randomUUID(),
+    customLogLevel: (req, res, err) => {
+      if (res.statusCode >= 500 || err) return "error";
+      if (res.statusCode >= 400) return "warn";
+      return "info";
+    },
+    redact: {
+      paths: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "req.headers['x-api-key']",
+        "res.headers['set-cookie']",
+      ],
+      remove: true,
+    },
+    customSuccessMessage: (req, res) => {
+      return `${req.method} ${req.url} ${res.statusCode}`;
+    },
+    customErrorMessage: (req, res, err) => {
+      return `${req.method} ${req.url} ${res.statusCode} - ${err.message}`;
+    },
+  })
+);
 
 // Security headers with Helmet
 // Production headers include: X-Content-Type-Options, CSP, HSTS, X-Frame-Options, etc.
@@ -55,45 +102,42 @@ app.post("/post_to_fb", (req, res) => {
   return res.json({ success: true, echo: message });
 });
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Centralized error handler
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    const requestId = (req as any).id || "unknown";
 
-    res.status(status).json({ message });
-    throw err;
+    // Log error with request context
+    req.log?.error(
+      {
+        err,
+        requestId,
+        status,
+        path: req.path,
+        method: req.method,
+      },
+      "Request error"
+    );
+
+    // Return clean error response
+    const errorResponse: any = {
+      code: status,
+      message: status >= 500 && process.env.NODE_ENV === "production" 
+        ? "Internal Server Error" 
+        : message,
+      requestId,
+    };
+
+    // Include stack trace only in development
+    if (process.env.NODE_ENV === "development" && err.stack) {
+      errorResponse.stack = err.stack;
+    }
+
+    res.status(status).json(errorResponse);
   });
 
   // importantly only setup vite in development and after
