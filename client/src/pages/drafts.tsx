@@ -26,6 +26,7 @@ export default function Drafts() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [postingDraftId, setPostingDraftId] = useState<string | null>(null);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
 
   const { data: drafts, isLoading } = useQuery<Draft[]>({
     queryKey: ["/api/drafts"],
@@ -51,6 +52,7 @@ export default function Drafts() {
         title: "Draft deleted",
         description: "Your draft has been removed",
       });
+      setDeletingDraftId(null);
     },
     onError: (error: Error) => {
       toast({
@@ -58,6 +60,7 @@ export default function Drafts() {
         description: error.message,
         variant: "destructive",
       });
+      setDeletingDraftId(null);
     },
   });
 
@@ -309,6 +312,11 @@ export default function Drafts() {
                                     <AlertCircle className="h-4 w-4" />
                                   )}
                                 </div>
+                                {!isConnected && (
+                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                    Not connected
+                                  </span>
+                                )}
                                 {exceedsLimit && isConnected && (
                                   <span className="text-xs text-red-600 dark:text-red-400 mt-1 block">
                                     Too long ({captionLength}/{platformCharLimits[platform]})
@@ -341,11 +349,14 @@ export default function Drafts() {
                       variant="outline"
                       size="sm"
                       className="w-full"
-                      onClick={() => deleteDraftMutation.mutate(draft.id)}
-                      disabled={deleteDraftMutation.isPending}
+                      onClick={() => {
+                        setDeletingDraftId(draft.id);
+                        deleteDraftMutation.mutate(draft.id);
+                      }}
+                      disabled={deletingDraftId === draft.id}
                       data-testid={`button-delete-draft-${draft.id}`}
                     >
-                      {deleteDraftMutation.isPending ? (
+                      {deletingDraftId === draft.id ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Trash2 className="mr-2 h-4 w-4" />
