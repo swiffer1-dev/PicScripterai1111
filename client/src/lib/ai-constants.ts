@@ -109,6 +109,11 @@ const buildFinalPrompt = (basePrompt: string, { tone, addHashtags, addEmojis, cu
   prompt += `\n- ${generateToneInstruction(tone)}`;
   prompt += `\n- ${generatePlatformSpecificInstructions(socialPlatform, addHashtags, addEmojis)}`;
   
+  // Explicit emoji instruction if enabled
+  if (addEmojis) {
+    prompt += `\n\n**IMPORTANT: You MUST include relevant emojis throughout the text.** Add them naturally where they enhance the message and add personality. Don't overdo it, but make sure they're present to make the content more engaging and visually appealing.`;
+  }
+  
   if (customPrompt) {
     prompt += `\n\nAdditional Instructions from user: ${customPrompt}`;
   }
