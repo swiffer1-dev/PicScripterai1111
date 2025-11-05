@@ -1,8 +1,8 @@
-# Picscripter - Social Media Management Platform
+# Picscripterai - Social Media Management Platform
 
 ## Overview
 
-Picscripter is a full-stack social media management application that enables users to connect multiple social media accounts and e-commerce platforms via OAuth 2.0. Users can schedule/publish content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, and Facebook) and pull product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace) to generate AI-powered promotional content.
+Picscripterai is a full-stack social media management application that enables users to connect multiple social media accounts and e-commerce platforms via OAuth 2.0. Users can schedule/publish content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, and Facebook) and pull product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace) to generate AI-powered promotional content.
 
 The application provides secure authentication, encrypted token storage, automatic token refresh, job-based scheduling with retry logic, platform-specific publishing flows, and e-commerce product synchronization. It's designed as a productivity tool with a focus on efficiency, clarity, reliable multi-platform content distribution, and seamless integration between e-commerce product catalogs and social media marketing.
 
@@ -66,7 +66,7 @@ Preferred communication style: Simple, everyday language.
 - `/posts` - View all posts with status tracking and quick action buttons:
   - Duplicate - Creates instant draft copy
   - Edit & Repost - Opens Create page with post data pre-filled
-  - Send to AI Studio - Loads caption into Create page for AI enhancement
+  - Send to Create - Loads caption into Create page for AI enhancement
 
 ### Backend Architecture
 

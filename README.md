@@ -1,4 +1,4 @@
-# Picscripter - Social Media Management Backend
+# Picscripterai - Social Media Management Backend
 
 A comprehensive Node.js + TypeScript backend for managing OAuth 2.0 integrations and scheduled content posting across 7 major social media platforms.
 
@@ -49,7 +49,7 @@ npm run db:push --force
 
 ```bash
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/picscripter
+DATABASE_URL=postgresql://user:password@localhost:5432/picscripterai
 
 # Security (generate random secure strings)
 JWT_SECRET=your-random-jwt-secret-min-32-chars
@@ -260,7 +260,7 @@ Returns: {
 # Quick Facebook post (for testing)
 POST /post_to_fb
 Headers: Authorization: Bearer {token}
-Body: { "message": "Test post from Picscripter 🚀" }
+Body: { "message": "Test post from Picscripterai 🚀" }
 ```
 
 ### Health Checks

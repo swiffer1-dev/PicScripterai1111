@@ -107,7 +107,7 @@ export default function Posts() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Picscripter</h1>
+          <h1 className="text-lg font-semibold">Picscripterai</h1>
         </div>
 
         <div className="max-w-4xl mx-auto p-4 lg:p-8">
@@ -246,7 +246,7 @@ export default function Posts() {
                                 data-testid={`button-send-to-ai-${post.id}`}
                               >
                                 <Sparkles className="h-3 w-3" />
-                                Send to AI Studio
+                                Send to Create
                               </Button>
                             </Link>
                           </div>

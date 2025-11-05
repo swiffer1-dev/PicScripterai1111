@@ -129,7 +129,7 @@ export default function AIStudio() {
     queryKey: ["/api/connections"],
   });
 
-  // Load caption from query parameter if provided (for "Send to AI Studio" button)
+  // Load caption from query parameter if provided (for "Send to Create" button)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const caption = urlParams.get('caption');
@@ -1111,7 +1111,7 @@ export default function AIStudio() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Picscripter</h1>
+          <h1 className="text-lg font-semibold">Picscripterai</h1>
         </div>
 
         <div className="max-w-6xl mx-auto p-4 lg:p-8">

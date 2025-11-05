@@ -65,7 +65,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       
       <aside className={`fixed lg:sticky top-0 h-screen w-64 border-r border-border bg-sidebar flex flex-col z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">Picscripter</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Picscripterai</h2>
           {onClose && (
             <Button
               variant="ghost"

@@ -1,10 +1,10 @@
-# Picscripter Design Guidelines
+# Picscripterai Design Guidelines
 
 ## Design Approach
 
 **Selected Approach:** Design System with Productivity Tool References
 
-**Justification:** Picscripter is a utility-focused social media management platform where efficiency, clarity, and reliability are paramount. Drawing inspiration from Linear's precision, Notion's organization, and Buffer's workflow clarity while maintaining systematic consistency.
+**Justification:** Picscripterai is a utility-focused social media management platform where efficiency, clarity, and reliability are paramount. Drawing inspiration from Linear's precision, Notion's organization, and Buffer's workflow clarity while maintaining systematic consistency.
 
 **Core Principles:**
 - Clarity over decoration: Every element serves a functional purpose

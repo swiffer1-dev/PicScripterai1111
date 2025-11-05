@@ -69,7 +69,7 @@ export class SquarespaceOAuthProvider extends EcommerceOAuthProvider {
     const response = await axios.get("https://api.squarespace.com/1.0/authorization/website", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "Picscripter/1.0",
+        "User-Agent": "Picscripterai/1.0",
       },
     });
 
@@ -85,7 +85,7 @@ export class SquarespaceOAuthProvider extends EcommerceOAuthProvider {
     const response = await axios.get("https://api.squarespace.com/1.0/commerce/products", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "Picscripter/1.0",
+        "User-Agent": "Picscripterai/1.0",
       },
       params: {
         limit: 100,

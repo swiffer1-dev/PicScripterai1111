@@ -64,7 +64,7 @@ export default function Login() {
       <Card className="w-full max-w-md border-border shadow-lg">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-semibold tracking-tight text-center">
-            Picscripter
+            Picscripterai
           </CardTitle>
           <CardDescription className="text-center text-base">
             {isSignup ? "Create your account to get started" : "Sign in to manage your social media posts"}

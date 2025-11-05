@@ -38,7 +38,7 @@ export default function Dashboard() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Picscripter</h1>
+          <h1 className="text-lg font-semibold">Picscripterai</h1>
         </div>
 
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
