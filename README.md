@@ -99,17 +99,299 @@ FACEBOOK_APP_SECRET=your-facebook-app-secret
 
 ## Running the Application
 
+### Development (Option 1 - Separate Terminals)
+
 ```bash
-# Start the API server (development)
+# Terminal 1: Start the API server
 npm run dev
 
-# Start the background worker (separate terminal)
-NODE_ENV=development tsx server/worker.ts
-
-# Production
-npm start  # Starts API
-NODE_ENV=production node dist/worker.js  # Starts worker (after building with npm run build)
+# Terminal 2: Start the background worker
+npm run dev:worker
 ```
+
+### Development (Option 2 - PM2)
+
+```bash
+# Build application first
+npm run build
+
+# Start both processes with PM2
+npm run pm2:start
+
+# View logs
+npm run pm2:logs
+
+# Monitor processes
+npm run pm2:monit
+
+# Restart all
+npm run pm2:restart
+
+# Stop all
+npm run pm2:stop
+```
+
+### Production
+
+See [Production Deployment](#production-deployment) section below.
+
+### Required package.json Scripts
+
+Add these scripts to your `package.json` for full PM2 support:
+
+```json
+{
+  "scripts": {
+    "dev:worker": "NODE_ENV=development tsx server/worker.ts",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && esbuild server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start:worker": "NODE_ENV=production node dist/worker.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:logs": "pm2 logs",
+    "pm2:monit": "pm2 monit"
+  }
+}
+```
+
+## Production Deployment
+
+### Deploy to Render
+
+Render supports the `Procfile` format for defining multiple processes.
+
+**1. Create a new Web Service on Render**
+
+**2. Configure Environment Variables** (copy all from `.env.example`)
+
+**3. Build Command:**
+```bash
+npm install && npm run build && npm run db:push
+```
+
+**4. The `Procfile` defines two processes:**
+```
+web: NODE_ENV=production node dist/index.js
+worker: NODE_ENV=production node dist/worker.js
+```
+
+**5. Render Configuration:**
+- Render will automatically detect the `Procfile`
+- Create a **Background Worker** service for the worker process
+- Use the same build command for both services
+- Set environment variables identically for both services
+- Add PostgreSQL and Redis add-ons
+
+**6. Health Check Endpoints:**
+- **Liveness**: `GET /healthz`
+- **Readiness**: `GET /readyz`
+
+### Deploy to Fly.io
+
+**1. Install Fly CLI:**
+```bash
+curl -L https://fly.io/install.sh | sh
+```
+
+**2. Create a `fly.toml` configuration:**
+```toml
+app = "picscripterai"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  NODE_ENV = "production"
+
+[[services]]
+  internal_port = 5000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.http_checks]]
+    interval = 10000
+    grace_period = "5s"
+    method = "get"
+    path = "/healthz"
+    protocol = "http"
+    timeout = 2000
+
+[processes]
+  web = "node dist/index.js"
+  worker = "node dist/worker.js"
+```
+
+**3. Deploy:**
+```bash
+# Login
+fly auth login
+
+# Launch app (first time)
+fly launch
+
+# Deploy
+fly deploy
+
+# Scale worker process
+fly scale count worker=1
+
+# View logs
+fly logs
+```
+
+### Using PM2 on VPS/EC2
+
+**1. Install PM2 globally:**
+```bash
+npm install -g pm2
+```
+
+**2. Build and start:**
+```bash
+# Install dependencies
+npm install
+
+# Build application
+npm run build
+
+# Push database schema
+npm run db:push
+
+# Start processes with PM2
+pm2 start ecosystem.config.js
+
+# Save PM2 process list
+pm2 save
+
+# Setup PM2 to start on system boot
+pm2 startup
+```
+
+**3. PM2 Commands:**
+```bash
+# View status
+pm2 status
+
+# View logs
+pm2 logs
+
+# Monitor processes
+pm2 monit
+
+# Restart all
+pm2 restart all
+
+# Stop all
+pm2 stop all
+
+# Delete all processes
+pm2 delete all
+```
+
+## Health Checks & Monitoring
+
+### Health Endpoints
+
+**Liveness Probe** - Check if application is running:
+```bash
+curl http://localhost:5000/healthz
+# Response: {"status": "ok"}
+```
+
+**Readiness Probe** - Check if application is ready to serve traffic:
+```bash
+curl http://localhost:5000/readyz
+# Success: {"status": "ready"}
+# Failure: {"status": "not ready", "error": "Database connection failed"}
+```
+
+### Metrics Endpoint
+
+The application exposes a `/metrics` endpoint for monitoring. Access is protected by the `METRICS_TOKEN` environment variable.
+
+```bash
+# With authentication
+curl -H "X-Metrics-Token: your-secret-token" http://localhost:5000/metrics
+
+# Response includes:
+{
+  "requests": {
+    "total": 1234,
+    "byEndpoint": { "GET /api/posts": 45, ... },
+    "byStatus": { "200": 1100, "404": 34, ... }
+  },
+  "auth": { "signups": 23, "logins": 145 },
+  "posts": { "created": 67, "published": 54, "failed": 3 },
+  "ai": { "generations": 89 },
+  "connections": {
+    "total": 45,
+    "byPlatform": { "instagram": 12, "tiktok": 8, ... }
+  },
+  "uptime": 86400,
+  "memory": {
+    "rss": 123456789,
+    "heapTotal": 67890123,
+    "heapUsed": 45678901,
+    "external": 1234567
+  }
+}
+```
+
+**Configure Metrics Token:**
+```bash
+# .env
+METRICS_TOKEN=your-very-secret-metrics-token
+```
+
+**Use Cases:**
+- Prometheus scraping
+- Custom monitoring dashboards
+- Application performance monitoring (APM)
+- Alerting and notifications
+
+## Process Management Best Practices
+
+### Development
+- Run web and worker in separate terminals for easier debugging
+- Use `tsx` for hot reload during development
+- Monitor logs in real-time
+
+### Production
+- Use PM2 or platform-specific process managers (Render, Fly)
+- Configure auto-restart on failure
+- Set memory limits to prevent leaks
+- Enable log rotation
+- Monitor both processes with health checks
+
+### Scaling Considerations
+
+**Web Process:**
+- Can run multiple instances behind a load balancer
+- Stateless design allows horizontal scaling
+- Sessions stored in database (not in-memory)
+
+**Worker Process:**
+- Single instance recommended to avoid duplicate job processing
+- BullMQ handles concurrency internally
+- Scale by increasing BullMQ concurrency settings, not process count
+
+## Redis Considerations
+
+The worker process **requires** Redis for job queue management. If Redis is unavailable:
+
+- **Web process**: Continues to function, but post scheduling will fail
+- **Worker process**: Will not start and will log connection errors
+
+For development without Redis:
+- Install Redis locally: `brew install redis` (Mac) or `sudo apt-get install redis` (Linux)
+- Or use a cloud Redis provider (Upstash, Redis Cloud)
 
 ## OAuth Setup Guide
 
