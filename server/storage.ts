@@ -2,6 +2,8 @@
 import {
   users,
   connections,
+  ecommerceConnections,
+  products,
   posts,
   jobLogs,
   mediaLibrary,
@@ -11,6 +13,10 @@ import {
   type InsertUser,
   type Connection,
   type InsertConnection,
+  type EcommerceConnection,
+  type InsertEcommerceConnection,
+  type Product,
+  type InsertProduct,
   type Post,
   type InsertPost,
   type JobLog,
@@ -22,6 +28,7 @@ import {
   type PostAnalytics,
   type InsertPostAnalytics,
   type Platform,
+  type EcommercePlatform,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -38,6 +45,20 @@ export interface IStorage {
   createConnection(connection: InsertConnection): Promise<Connection>;
   updateConnection(id: string, data: Partial<InsertConnection>): Promise<Connection>;
   deleteConnection(id: string): Promise<void>;
+  
+  // E-commerce connection operations
+  getEcommerceConnections(userId: string): Promise<EcommerceConnection[]>;
+  getEcommerceConnection(id: string): Promise<EcommerceConnection | undefined>;
+  createEcommerceConnection(connection: InsertEcommerceConnection): Promise<EcommerceConnection>;
+  updateEcommerceConnection(id: string, data: Partial<InsertEcommerceConnection>): Promise<EcommerceConnection>;
+  deleteEcommerceConnection(id: string): Promise<void>;
+  
+  // Product operations
+  getProducts(ecommerceConnectionId: string): Promise<Product[]>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(id: string): Promise<void>;
+  deleteProductsByConnection(ecommerceConnectionId: string): Promise<void>;
   
   // Post operations
   getPosts(userId: string): Promise<Post[]>;
@@ -121,6 +142,78 @@ export class DatabaseStorage implements IStorage {
   
   async deleteConnection(id: string): Promise<void> {
     await db.delete(connections).where(eq(connections.id, id));
+  }
+  
+  // E-commerce connection operations
+  async getEcommerceConnections(userId: string): Promise<EcommerceConnection[]> {
+    return await db
+      .select()
+      .from(ecommerceConnections)
+      .where(eq(ecommerceConnections.userId, userId))
+      .orderBy(desc(ecommerceConnections.createdAt));
+  }
+  
+  async getEcommerceConnection(id: string): Promise<EcommerceConnection | undefined> {
+    const [connection] = await db
+      .select()
+      .from(ecommerceConnections)
+      .where(eq(ecommerceConnections.id, id));
+    return connection || undefined;
+  }
+  
+  async createEcommerceConnection(connection: InsertEcommerceConnection): Promise<EcommerceConnection> {
+    const [newConnection] = await db
+      .insert(ecommerceConnections)
+      .values(connection)
+      .returning();
+    return newConnection;
+  }
+  
+  async updateEcommerceConnection(id: string, data: Partial<InsertEcommerceConnection>): Promise<EcommerceConnection> {
+    const [updated] = await db
+      .update(ecommerceConnections)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(ecommerceConnections.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteEcommerceConnection(id: string): Promise<void> {
+    await db.delete(ecommerceConnections).where(eq(ecommerceConnections.id, id));
+  }
+  
+  // Product operations
+  async getProducts(ecommerceConnectionId: string): Promise<Product[]> {
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.ecommerceConnectionId, ecommerceConnectionId))
+      .orderBy(desc(products.createdAt));
+  }
+  
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db
+      .insert(products)
+      .values(product)
+      .returning();
+    return newProduct;
+  }
+  
+  async updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product> {
+    const [updated] = await db
+      .update(products)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteProduct(id: string): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
+  }
+  
+  async deleteProductsByConnection(ecommerceConnectionId: string): Promise<void> {
+    await db.delete(products).where(eq(products.ecommerceConnectionId, ecommerceConnectionId));
   }
   
   // Post operations

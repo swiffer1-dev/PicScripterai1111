@@ -2,9 +2,9 @@
 
 ## Overview
 
-Picscripter is a full-stack social media management application that enables users to connect multiple social media accounts via OAuth 2.0 and schedule/publish content across 7 major platforms: Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, and Facebook.
+Picscripter is a full-stack social media management application that enables users to connect multiple social media accounts and e-commerce platforms via OAuth 2.0. Users can schedule/publish content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, and Facebook) and pull product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace) to generate AI-powered promotional content.
 
-The application provides secure authentication, encrypted token storage, automatic token refresh, job-based scheduling with retry logic, and platform-specific publishing flows. It's designed as a productivity tool with a focus on efficiency, clarity, and reliable multi-platform content distribution.
+The application provides secure authentication, encrypted token storage, automatic token refresh, job-based scheduling with retry logic, platform-specific publishing flows, and e-commerce product synchronization. It's designed as a productivity tool with a focus on efficiency, clarity, reliable multi-platform content distribution, and seamless integration between e-commerce product catalogs and social media marketing.
 
 ## User Preferences
 
@@ -57,7 +57,11 @@ Preferred communication style: Simple, everyday language.
   - Direct posting to connected platforms
   - Accessible via "Create" link in sidebar
 - `/calendar` - Content calendar with month/week views and color-coded posts by platform
-- `/connections` - Manage OAuth connections to social platforms
+- `/connections` - Manage OAuth connections to social media and e-commerce platforms with:
+  - Social Media section with 7 platform connections
+  - E-commerce section with 3 platform connections (Shopify, Etsy, Squarespace)
+  - Product sync functionality for e-commerce platforms
+  - Platform-specific setup (e.g., Shopify requires shop domain input)
 - `/create` - Create/schedule post form (also accessible via query params from Posts page quick actions)
 - `/posts` - View all posts with status tracking and quick action buttons:
   - Duplicate - Creates instant draft copy
@@ -116,11 +120,13 @@ Preferred communication style: Simple, everyday language.
 
 **Database Schema:**
 - `users` - User accounts with email/password
-- `connections` - OAuth tokens and metadata per platform
+- `connections` - OAuth tokens and metadata for social media platforms
+- `ecommerce_connections` - OAuth tokens and metadata for e-commerce platforms (separate from social)
+- `products` - Cached product data from e-commerce platforms (title, description, price, images, etc.)
 - `posts` - Scheduled/published content with status tracking
 - `job_logs` - Detailed logging of publish attempts
-- Enums for platform, post_status, log_level
-- Cascade deletes for data integrity
+- Enums for platform, ecommerce_platform, post_status, log_level
+- Cascade deletes for data integrity (deleting e-commerce connection removes associated products)
 - Timestamps for audit trails
 
 ### External Dependencies
@@ -166,12 +172,50 @@ Preferred communication style: Simple, everyday language.
    - Page post publishing
    - Long-lived token exchange support
 
+**E-commerce Platform APIs:**
+1. **Shopify** - Admin API with OAuth 2.0
+   - Requires shop domain (e.g., yourstore.myshopify.com)
+   - OAuth scopes: read_products, read_product_listings
+   - Permanent access tokens (no refresh needed)
+   - Product API endpoint for listing sync
+   
+2. **Etsy** - OpenAPI v3 with PKCE OAuth
+   - PKCE-required OAuth flow for enhanced security
+   - Short-lived tokens (1 hour) with refresh token support
+   - User API for shop information
+   - Listings API for active products with image support
+   
+3. **Squarespace** - Commerce API with OAuth 2.0
+   - Very short-lived tokens (30 minutes) with refresh support
+   - Requires user approval for API access
+   - Website authorization endpoint for site info
+   - Products API with variant and pricing data
+
+**E-commerce Integration Architecture:**
+- Separate database tables (ecommerce_connections, products) from social media
+- E-commerce platforms are data sources, not posting destinations
+- Product sync fetches listings from platform APIs and caches in database
+- Cached products reduce API rate limit concerns and enable offline use
+- Products include: title, description, price, currency, images, SKU, inventory, tags
+- OAuth provider factory pattern with base class and platform-specific implementations
+- Each provider implements: exchangeCodeForTokens, refreshTokens, getStoreInfo, getProducts
+- Products associated with connection via foreign key with cascade delete
+
+**API Routes for E-commerce:**
+- `GET /api/ecommerce/connections` - Get user's e-commerce connections
+- `GET /api/ecommerce/connect/:platform` - Initiate OAuth flow (accepts ?shopDomain for Shopify)
+- `GET /api/ecommerce/callback/:platform` - OAuth callback handler
+- `DELETE /api/ecommerce/connections/:id` - Remove e-commerce connection
+- `GET /api/ecommerce/products/:connectionId` - Get cached products for connection
+- `POST /api/ecommerce/products/sync/:connectionId` - Sync products from platform API
+
 **Environment Configuration:**
-- Platform client IDs and secrets for all 7 OAuth providers
+- Social media client IDs and secrets for 7 OAuth providers
+- E-commerce client IDs and secrets for 3 platforms (SHOPIFY_, ETSY_, SQUARESPACE_ prefixes)
 - ENCRYPTION_KEY for token encryption (SHA-256 hashed to 32 bytes)
 - JWT_SECRET for session tokens (auto-generated in dev, required in prod)
 - DATABASE_URL for PostgreSQL connection
-- REDIS_URL for queue backend
+- REDIS_URL for queue backend (optional in dev)
 - CORS_ORIGIN for OAuth redirect URIs
 - NODE_ENV for environment detection
 

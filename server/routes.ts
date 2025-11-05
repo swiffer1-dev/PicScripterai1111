@@ -6,15 +6,18 @@ import { signToken } from "./utils/jwt";
 import { encryptToken, decryptToken } from "./utils/encryption";
 import { getOAuthProvider } from "./services/oauth/factory";
 import { generatePKCE, type OAuthState } from "./services/oauth/base";
+import { getEcommerceOAuthProvider } from "./services/ecommerce-oauth/factory";
+import { type EcommerceOAuthState } from "./services/ecommerce-oauth/base";
 import { publishToPlatform } from "./services/publishers";
 import { publishQueue } from "./worker-queue";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { insertUserSchema, insertPostSchema, type Platform } from "@shared/schema";
+import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatform } from "@shared/schema";
 
 // In-memory state store for OAuth flows (in production, use Redis)
 const oauthStates = new Map<string, OAuthState>();
+const ecommerceOauthStates = new Map<string, EcommerceOAuthState>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoints
@@ -124,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const platform = req.params.platform as Platform;
       
       // Generate PKCE challenge
-      const { code_verifier, code_challenge } = generatePKCE();
+      const { code_verifier, code_challenge } = await generatePKCE();
       
       // Generate state
       const state: OAuthState = {
@@ -679,6 +682,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(data.items || []);
     } catch (error: any) {
       console.error("Error fetching Pinterest boards:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // E-commerce connection endpoints
+  app.get("/api/ecommerce/connections", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const connections = await storage.getEcommerceConnections(req.userId!);
+      
+      // Remove encrypted tokens from response
+      const sanitized = connections.map(c => ({
+        id: c.id,
+        userId: c.userId,
+        platform: c.platform,
+        scopes: c.scopes,
+        tokenType: c.tokenType,
+        expiresAt: c.expiresAt,
+        storeId: c.storeId,
+        storeName: c.storeName,
+        storeUrl: c.storeUrl,
+        lastSyncedAt: c.lastSyncedAt,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }));
+      
+      res.json(sanitized);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/ecommerce/connect/:platform", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const platform = req.params.platform as EcommercePlatform;
+      const { shopDomain } = req.query; // For Shopify
+      
+      // Generate PKCE challenge
+      const { code_verifier, code_challenge } = await generatePKCE();
+      
+      // Generate state
+      const state: EcommerceOAuthState = {
+        userId: req.userId!,
+        platform,
+        codeVerifier: code_verifier,
+        timestamp: Date.now(),
+      };
+      
+      // Add shop domain to state for Shopify
+      if (shopDomain) {
+        (state as any).shopDomain = shopDomain;
+      }
+      
+      const stateToken = Buffer.from(JSON.stringify(state)).toString("base64url");
+      
+      // Store state (expires in 10 minutes)
+      ecommerceOauthStates.set(stateToken, state);
+      setTimeout(() => ecommerceOauthStates.delete(stateToken), 10 * 60 * 1000);
+      
+      // Get OAuth provider
+      const provider = getEcommerceOAuthProvider(platform, shopDomain as string | undefined);
+      
+      // Generate auth URL
+      const authUrl = provider.generateAuthUrl(stateToken, code_challenge);
+      
+      res.json({ redirectUrl: authUrl });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/ecommerce/callback/:platform", async (req, res) => {
+    try {
+      const platform = req.params.platform as EcommercePlatform;
+      const { code, state: stateToken } = req.query;
+      
+      if (!code || !stateToken) {
+        return res.status(400).json({ error: "Missing code or state" });
+      }
+      
+      // Verify state
+      const state = ecommerceOauthStates.get(stateToken as string);
+      if (!state) {
+        return res.status(400).json({ error: "Invalid or expired state" });
+      }
+      
+      // Verify platform matches
+      if (state.platform !== platform) {
+        return res.status(400).json({ error: "Platform mismatch" });
+      }
+      
+      // Delete state
+      ecommerceOauthStates.delete(stateToken as string);
+      
+      // Get OAuth provider
+      const shopDomain = (state as any).shopDomain;
+      const provider = getEcommerceOAuthProvider(platform, shopDomain);
+      
+      // Exchange code for tokens
+      const tokens = await provider.exchangeCodeForTokens(
+        code as string,
+        state.codeVerifier
+      );
+      
+      // Get store info
+      const storeInfo = await provider.getStoreInfo(tokens.accessToken);
+      
+      // Encrypt tokens
+      const accessTokenEnc = encryptToken(tokens.accessToken);
+      const refreshTokenEnc = tokens.refreshToken ? encryptToken(tokens.refreshToken) : undefined;
+      
+      // Calculate expiration
+      const expiresAt = tokens.expiresIn
+        ? new Date(Date.now() + tokens.expiresIn * 1000)
+        : undefined;
+      
+      // Check if connection already exists
+      const existingConnections = await storage.getEcommerceConnections(state.userId);
+      const existing = existingConnections.find(c => c.platform === platform && c.storeId === storeInfo.storeId);
+      
+      if (existing) {
+        // Update existing connection
+        await storage.updateEcommerceConnection(existing.id, {
+          accessTokenEnc,
+          refreshTokenEnc,
+          expiresAt,
+          scopes: tokens.scope?.split(" ") || [],
+          storeName: storeInfo.storeName,
+          storeUrl: storeInfo.storeUrl,
+        });
+      } else {
+        // Create new connection
+        await storage.createEcommerceConnection({
+          userId: state.userId,
+          platform,
+          scopes: tokens.scope?.split(" ") || [],
+          accessTokenEnc,
+          refreshTokenEnc,
+          tokenType: tokens.tokenType,
+          expiresAt,
+          storeId: storeInfo.storeId,
+          storeName: storeInfo.storeName,
+          storeUrl: storeInfo.storeUrl,
+        });
+      }
+      
+      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?success=true&type=ecommerce`);
+    } catch (error: any) {
+      console.error("E-commerce OAuth callback error:", error);
+      res.redirect(`${process.env.CORS_ORIGIN || "http://localhost:5000"}/connections?error=${encodeURIComponent(error.message)}`);
+    }
+  });
+
+  app.delete("/api/ecommerce/connections/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify connection belongs to user
+      const connection = await storage.getEcommerceConnection(id);
+      if (!connection) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      
+      if (connection.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      await storage.deleteEcommerceConnection(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Product endpoints
+  app.get("/api/ecommerce/products/:connectionId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { connectionId } = req.params;
+      
+      // Verify connection belongs to user
+      const connection = await storage.getEcommerceConnection(connectionId);
+      if (!connection) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      
+      if (connection.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      const products = await storage.getProducts(connectionId);
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/ecommerce/products/sync/:connectionId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { connectionId } = req.params;
+      
+      // Verify connection belongs to user
+      const connection = await storage.getEcommerceConnection(connectionId);
+      if (!connection) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      
+      if (connection.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Decrypt access token
+      const accessToken = decryptToken(connection.accessTokenEnc);
+      
+      // Get OAuth provider to fetch products
+      const shopDomain = connection.storeUrl ? new URL(connection.storeUrl).hostname : undefined;
+      const provider = getEcommerceOAuthProvider(connection.platform, shopDomain);
+      
+      // Fetch products from platform
+      const platformProducts = await provider.getProducts(accessToken);
+      
+      // Delete existing products for this connection
+      await storage.deleteProductsByConnection(connectionId);
+      
+      // Store products in database
+      const savedProducts = await Promise.all(
+        platformProducts.map(async (product: any) => {
+          return await storage.createProduct({
+            ecommerceConnectionId: connectionId,
+            externalId: product.id,
+            title: product.title,
+            description: product.description || null,
+            price: product.price || null,
+            currency: product.currency || null,
+            imageUrl: product.imageUrl || null,
+            productUrl: product.productUrl || null,
+            sku: product.sku || null,
+            inventory: product.inventory || null,
+            tags: product.tags || [],
+            metadata: product.metadata || null,
+          });
+        })
+      );
+      
+      // Update lastSyncedAt
+      await storage.updateEcommerceConnection(connectionId, {
+        lastSyncedAt: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        count: savedProducts.length,
+        products: savedProducts,
+      });
+    } catch (error: any) {
+      console.error("Product sync error:", error);
       res.status(500).json({ error: error.message });
     }
   });
