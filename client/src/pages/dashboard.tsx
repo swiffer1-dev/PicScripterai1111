@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
-import logoImage from "@assets/3b7202e2-9203-4af9-8c28-e5e0face0c49_1762309431850.png";
+import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function Dashboard() {
           <img 
             src={logoImage} 
             alt="Picscripterai" 
-            className="h-7 w-auto object-contain"
+            className="h-8 w-auto object-contain"
             data-testid="img-logo-mobile-dashboard"
           />
         </div>

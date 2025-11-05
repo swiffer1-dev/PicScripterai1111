@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import logoImage from "@assets/generated_images/Gradient_logo_transparent_background_606bf93d.png";
+import logoImage from "@assets/9d027683-80c2-4c91-884a-86938f55ece9_1762314951318.jpeg";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -73,7 +73,7 @@ export default function Login() {
             <img 
               src={logoImage} 
               alt="Picscripterai" 
-              className="h-32 w-auto object-contain"
+              className="h-24 w-auto object-contain"
               data-testid="img-logo-login"
             />
           </div>
