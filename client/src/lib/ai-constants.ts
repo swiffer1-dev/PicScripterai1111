@@ -104,15 +104,17 @@ const generatePlatformSpecificInstructions = (platform: string | undefined, addH
 };
 
 const buildFinalPrompt = (basePrompt: string, { tone, addHashtags, addEmojis, customPrompt, language, socialPlatform }: PromptTemplateParams): string => {
-  let prompt = basePrompt;
+  let prompt = '';
+  
+  // CRITICAL: Emoji instruction at the very top if enabled
+  if (addEmojis) {
+    prompt += `🚨 CRITICAL INSTRUCTION: You MUST include emojis in your response. This is NOT optional. Use 3-8 relevant emojis naturally distributed throughout the text. Examples: ✨🌟💫🎯🔥💪❤️🎉🌈☀️🌺🎨📸🏆💎🌍✈️🍕🎵📱💼🏠🌟\n\n`;
+  }
+  
+  prompt += basePrompt;
   prompt += `\n\nStyle Guidelines:`;
   prompt += `\n- ${generateToneInstruction(tone)}`;
   prompt += `\n- ${generatePlatformSpecificInstructions(socialPlatform, addHashtags, addEmojis)}`;
-  
-  // Explicit emoji instruction if enabled
-  if (addEmojis) {
-    prompt += `\n\n**IMPORTANT: You MUST include relevant emojis throughout the text.** Add them naturally where they enhance the message and add personality. Don't overdo it, but make sure they're present to make the content more engaging and visually appealing.`;
-  }
   
   if (customPrompt) {
     prompt += `\n\nAdditional Instructions from user: ${customPrompt}`;
@@ -120,6 +122,11 @@ const buildFinalPrompt = (basePrompt: string, { tone, addHashtags, addEmojis, cu
   
   prompt += "\n\nThe final output must be plain text, without any special formatting like asterisks or markdown. It should be ready to be copied directly to a social media post.";
   prompt += `\n\nImportant: The entire response must be in ${language}.`;
+  
+  // Reminder at the end if emojis enabled
+  if (addEmojis) {
+    prompt += `\n\n⚠️ REMINDER: DO NOT FORGET TO INCLUDE EMOJIS IN YOUR RESPONSE. Use at least 3-8 emojis.`;
+  }
   
   return prompt;
 };
