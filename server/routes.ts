@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authMiddleware, type AuthRequest } from "./middleware/auth";
+import { type AuthRequest } from "./middleware/auth";
 import { 
   requireAuth, 
   setAuthCookies, 
@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Connection endpoints
-  app.get("/api/connections", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/connections", requireAuth, async (req: AuthRequest, res) => {
     try {
       const connections = await storage.getConnections(req.userId!);
       
@@ -282,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/connect/:platform", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
+  app.get("/api/connect/:platform", requireAuth, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
       
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/disconnect/:platform", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/disconnect/:platform", requireAuth, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
       
@@ -429,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Post endpoints
-  app.post("/api/posts/draft", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/posts/draft", requireAuth, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
         caption: z.string().min(1),
@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/posts", authMiddleware, postCreationRateLimiter, async (req: AuthRequest, res) => {
+  app.post("/api/posts", requireAuth, postCreationRateLimiter, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
         platform: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
@@ -555,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/schedule", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/schedule", requireAuth, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
         platform: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
@@ -649,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/posts", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/posts", requireAuth, async (req: AuthRequest, res) => {
     try {
       const posts = await storage.getPosts(req.userId!);
       res.json(posts);
@@ -659,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Draft endpoints
-  app.get("/api/drafts", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/drafts", requireAuth, async (req: AuthRequest, res) => {
     try {
       const drafts = await storage.getDrafts(req.userId!);
       res.json(drafts);
@@ -668,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/drafts", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/drafts", requireAuth, async (req: AuthRequest, res) => {
     try {
       const draftData = {
         userId: req.userId!,
@@ -693,7 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/drafts/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.patch("/api/drafts/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       const draft = await storage.getDraft(req.params.id);
       
@@ -721,7 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/drafts/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.delete("/api/drafts/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       const draft = await storage.getDraft(req.params.id);
       
@@ -736,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/posts/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.delete("/api/posts/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       const post = await storage.getPost(req.params.id);
       
@@ -755,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/posts/:id/status", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/posts/:id/status", requireAuth, async (req: AuthRequest, res) => {
     try {
       const post = await storage.getPost(req.params.id);
       
@@ -781,7 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Simple endpoint for testing - posts to Facebook
-  app.post("/post_to_fb", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/post_to_fb", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { message } = req.body;
       
@@ -837,7 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate AI caption from images
-  app.post("/api/ai/generate", authMiddleware, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
+  app.post("/api/ai/generate", requireAuth, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
     try {
       const { imageUrls, prompt } = req.body;
       
@@ -913,7 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Pinterest boards for a user
-  app.get("/api/pinterest/boards", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/pinterest/boards", requireAuth, async (req: AuthRequest, res) => {
     try {
       const connection = await storage.getConnection(req.userId!, "pinterest");
       if (!connection) {
@@ -952,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // E-commerce connection endpoints
-  app.get("/api/ecommerce/connections", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/ecommerce/connections", requireAuth, async (req: AuthRequest, res) => {
     try {
       const connections = await storage.getEcommerceConnections(req.userId!);
       
@@ -978,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/ecommerce/connect/:platform", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
+  app.get("/api/ecommerce/connect/:platform", requireAuth, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as EcommercePlatform;
       const { shopDomain } = req.query; // For Shopify
@@ -1106,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/ecommerce/connections/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.delete("/api/ecommerce/connections/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
       
@@ -1128,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Product endpoints
-  app.get("/api/ecommerce/products/:connectionId", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/ecommerce/products/:connectionId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { connectionId } = req.params;
       
@@ -1149,7 +1149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ecommerce/products/sync/:connectionId", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/ecommerce/products/sync/:connectionId", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { connectionId } = req.params;
       
@@ -1213,7 +1213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Token-based Shopify connection (simple method)
-  app.post("/api/ecommerce/connect/shopify/token", authMiddleware, oauthRateLimiter, async (req: AuthRequest, res) => {
+  app.post("/api/ecommerce/connect/shopify/token", requireAuth, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const { accessToken, shopDomain } = req.body;
       
@@ -1293,7 +1293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Image upload endpoints
-  app.post("/api/upload/image", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/upload/image", requireAuth, async (req: AuthRequest, res) => {
     try {
       const objectStorageService = new ObjectStorageService();
       const result = await objectStorageService.getImageUploadURL();
@@ -1305,7 +1305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Presigned upload endpoint with validation
-  app.post("/api/uploads/presign", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/uploads/presign", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { contentType, fileSize, category } = req.body;
 
@@ -1355,7 +1355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Media Library endpoints
-  app.get("/api/media", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/media", requireAuth, async (req: AuthRequest, res) => {
     try {
       const media = await storage.getMediaLibrary(req.userId!);
       res.json(media);
@@ -1364,7 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/media", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/media", requireAuth, async (req: AuthRequest, res) => {
     try {
       const media = await storage.createMedia({
         ...req.body,
@@ -1376,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/media/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.delete("/api/media/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       await storage.deleteMedia(req.params.id, req.userId!);
       res.json({ success: true });
@@ -1386,7 +1386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Templates endpoints
-  app.get("/api/templates", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/templates", requireAuth, async (req: AuthRequest, res) => {
     try {
       const templates = await storage.getTemplates(req.userId!);
       res.json(templates);
@@ -1395,7 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/templates", requireAuth, async (req: AuthRequest, res) => {
     try {
       const template = await storage.createTemplate({
         ...req.body,
@@ -1407,7 +1407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+  app.delete("/api/templates/:id", requireAuth, async (req: AuthRequest, res) => {
     try {
       await storage.deleteTemplate(req.params.id, req.userId!);
       res.json({ success: true });
@@ -1417,7 +1417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Post Analytics endpoints
-  app.get("/api/analytics", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/analytics", requireAuth, async (req: AuthRequest, res) => {
     try {
       const analytics = await storage.getPostAnalytics(req.userId!);
       res.json(analytics);
@@ -1426,7 +1426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/summary", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/api/analytics/summary", requireAuth, async (req: AuthRequest, res) => {
     try {
       const days = req.query.days ? parseInt(req.query.days as string) : 30;
       const events = await storage.getAnalyticsEvents(req.userId!, days);
@@ -1450,7 +1450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/analytics/track", authMiddleware, async (req: AuthRequest, res) => {
+  app.post("/api/analytics/track", requireAuth, async (req: AuthRequest, res) => {
     try {
       const schema = z.object({
         eventType: z.enum(["caption_generated", "post_scheduled", "post_published", "publish_failed"]),
@@ -1477,7 +1477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Audit Log endpoint
-  app.get("/admin/audit", authMiddleware, async (req: AuthRequest, res) => {
+  app.get("/admin/audit", requireAuth, async (req: AuthRequest, res) => {
     try {
       // Check if user is admin (using ADMIN_USER_IDS env var)
       const adminUserIds = process.env.ADMIN_USER_IDS?.split(",") || [];

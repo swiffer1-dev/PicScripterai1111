@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Feature flag for cookie-based auth
-const FEATURE_TOKEN_REFRESH = import.meta.env.VITE_FEATURE_TOKEN_REFRESH === "true";
+// Feature flag for cookie-based auth (enabled by default to fix 401 errors)
+const FEATURE_TOKEN_REFRESH = import.meta.env.VITE_FEATURE_TOKEN_REFRESH !== "false";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {

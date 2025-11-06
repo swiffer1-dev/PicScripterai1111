@@ -7,8 +7,8 @@ export interface AuthRequest extends Request {
   userEmail?: string;
 }
 
-// Feature flag for cookie-based auth
-const FEATURE_TOKEN_REFRESH = process.env.FEATURE_TOKEN_REFRESH === "true";
+// Feature flag for cookie-based auth (enabled by default to fix 401 errors)
+const FEATURE_TOKEN_REFRESH = process.env.FEATURE_TOKEN_REFRESH !== "false";
 
 // Token TTLs
 const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "15m";
@@ -74,8 +74,23 @@ export function clearAuthCookies(res: Response) {
     return;
   }
   
-  res.clearCookie("access_token", { path: "/" });
-  res.clearCookie("refresh_token", { path: "/api/auth" });
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  // Clear access token cookie (must match the options used when setting)
+  res.clearCookie("access_token", {
+    path: "/",
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+  });
+  
+  // Clear refresh token cookie (must match the options used when setting)
+  res.clearCookie("refresh_token", {
+    path: "/api/auth",
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "strict",
+  });
 }
 
 /**
@@ -83,13 +98,8 @@ export function clearAuthCookies(res: Response) {
  * Falls back to Bearer token if cookies are not present (backward compatible)
  */
 export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
-  // If feature flag is disabled, don't check cookies
-  if (!FEATURE_TOKEN_REFRESH) {
-    return next();
-  }
-
-  // Try to get token from cookie first
-  let token = req.cookies?.access_token;
+  // Try to get token from cookie first (if feature is enabled)
+  let token = FEATURE_TOKEN_REFRESH ? req.cookies?.access_token : undefined;
   let source = "cookie";
   
   // Fall back to Authorization header for backward compatibility
