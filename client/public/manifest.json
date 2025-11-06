@@ -1,11 +1,11 @@
 {
-  "name": "Picscripter - AI Social Media Manager",
-  "short_name": "Picscripter",
+  "name": "Picscripterai - AI Social Media Manager",
+  "short_name": "Picscripterai",
   "description": "Create AI-generated captions and post to Instagram, Facebook, Pinterest, Twitter, TikTok, LinkedIn, and YouTube with one click",
-  "start_url": "/?v=4",
+  "start_url": "/?v=5",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#7c3aed",
+  "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
   "icons": [
     {
