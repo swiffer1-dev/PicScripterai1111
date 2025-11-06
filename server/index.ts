@@ -81,11 +81,32 @@ app.use(
   })
 );
 
-// CORS - locked to CORS_ORIGIN environment variable
+// CORS - support comma-separated allowlist, no wildcards in production
 const corsOrigin = process.env.CORS_ORIGIN;
+const allowedOrigins = corsOrigin 
+  ? corsOrigin.split(",").map(origin => origin.trim())
+  : [];
+
+// Block wildcard in production
+if (process.env.NODE_ENV === "production" && allowedOrigins.includes("*")) {
+  throw new Error("Wildcard (*) CORS origin not allowed in production");
+}
+
 app.use(
   cors({
-    origin: corsOrigin || false, // Block requests if CORS_ORIGIN not set
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Check if origin is in allowlist
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   })
 );

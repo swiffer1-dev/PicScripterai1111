@@ -15,15 +15,18 @@ if (!JWT_SECRET) {
   console.warn(`⚠️  Generated secret (save this if you need consistent sessions): ${JWT_SECRET}`);
 }
 
-const JWT_EXPIRES_IN = "7d";
+// Token TTL from environment (default: 15m access, 30d refresh)
+const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "15m";
+const REFRESH_TOKEN_TTL = process.env.REFRESH_TOKEN_TTL || "30d";
 
 export interface JWTPayload {
   userId: string;
   email: string;
 }
 
-export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export function signToken(payload: JWTPayload, type: "access" | "refresh" = "access"): string {
+  const expiresIn = type === "access" ? ACCESS_TOKEN_TTL : REFRESH_TOKEN_TTL;
+  return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
 export function verifyToken(token: string): JWTPayload {

@@ -1403,6 +1403,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Audit Log endpoint
+  app.get("/admin/audit", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Check if user is admin (using ADMIN_USER_IDS env var)
+      const adminUserIds = process.env.ADMIN_USER_IDS?.split(",") || [];
+      if (!adminUserIds.includes(req.userId!)) {
+        return res.status(403).json({ error: "Forbidden - admin access required" });
+      }
+
+      // Validate query parameters
+      const querySchema = z.object({
+        page: z.string().optional(),
+        limit: z.string().optional(),
+        userId: z.string().optional(),
+        action: z.enum([
+          "user.login",
+          "user.logout",
+          "user.register",
+          "connection.create",
+          "connection.delete",
+          "ecommerce_connection.create",
+          "ecommerce_connection.delete",
+          "post.create",
+          "post.update",
+          "post.delete",
+          "post.schedule",
+          "post.publish",
+          "draft.create",
+          "draft.update",
+          "draft.delete",
+        ]).optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      });
+
+      const validatedQuery = querySchema.parse(req.query);
+
+      const page = parseInt(validatedQuery.page || "1");
+      const limit = Math.min(parseInt(validatedQuery.limit || "50"), 200);
+      const offset = (page - 1) * limit;
+
+      // Get audit events with optional filters
+      const auditEvents = await storage.getAuditEvents({
+        userId: validatedQuery.userId,
+        action: validatedQuery.action,
+        startDate: validatedQuery.startDate ? new Date(validatedQuery.startDate) : undefined,
+        endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
+        limit,
+        offset,
+      });
+
+      const total = await storage.getAuditEventsCount({
+        userId: validatedQuery.userId,
+        action: validatedQuery.action,
+        startDate: validatedQuery.startDate ? new Date(validatedQuery.startDate) : undefined,
+        endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
+      });
+
+      res.json({
+        events: auditEvents,
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid query parameters", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

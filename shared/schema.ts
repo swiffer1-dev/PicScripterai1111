@@ -49,6 +49,24 @@ export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
   "publish_failed",
 ]);
 
+export const auditActionEnum = pgEnum("audit_action", [
+  "user.login",
+  "user.logout",
+  "user.register",
+  "connection.create",
+  "connection.delete",
+  "ecommerce_connection.create",
+  "ecommerce_connection.delete",
+  "post.create",
+  "post.update",
+  "post.delete",
+  "post.schedule",
+  "post.publish",
+  "draft.create",
+  "draft.update",
+  "draft.delete",
+]);
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -253,6 +271,19 @@ export const analyticsEvents = pgTable("analytics_events", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Audit events table - tracks sensitive security actions
+export const auditEvents = pgTable("audit_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  action: auditActionEnum("action").notNull(),
+  resourceType: text("resource_type"),
+  resourceId: text("resource_id"),
+  metadata: jsonb("metadata"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
@@ -263,6 +294,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   templates: many(templates),
   jobs: many(jobs),
   analyticsEvents: many(analyticsEvents),
+  auditEvents: many(auditEvents),
 }));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({
@@ -349,6 +381,13 @@ export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => 
   }),
 }));
 
+export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [auditEvents.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -423,6 +462,11 @@ export const insertDraftSchema = createInsertSchema(drafts).omit({
   updatedAt: true,
 });
 
+export const insertAuditEventSchema = createInsertSchema(auditEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -468,3 +512,7 @@ export type MediaType = typeof mediaTypeEnum.enumValues[number];
 export type TemplateType = typeof templateTypeEnum.enumValues[number];
 export type JobStatus = typeof jobStatusEnum.enumValues[number];
 export type AnalyticsEventType = typeof analyticsEventTypeEnum.enumValues[number];
+
+export type AuditEvent = typeof auditEvents.$inferSelect;
+export type InsertAuditEvent = z.infer<typeof insertAuditEventSchema>;
+export type AuditAction = typeof auditActionEnum.enumValues[number];

@@ -11,6 +11,7 @@ import {
   templates,
   postAnalytics,
   analyticsEvents,
+  auditEvents,
   type User,
   type InsertUser,
   type Connection,
@@ -33,6 +34,8 @@ import {
   type InsertPostAnalytics,
   type AnalyticsEvent,
   type InsertAnalyticsEvent,
+  type AuditEvent,
+  type InsertAuditEvent,
   type Platform,
   type EcommercePlatform,
 } from "@shared/schema";
@@ -99,6 +102,23 @@ export interface IStorage {
   getAnalyticsSummary(userId: string): Promise<any>;
   createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
   getAnalyticsEvents(userId: string, days?: number): Promise<AnalyticsEvent[]>;
+  
+  // Audit operations
+  createAuditEvent(event: InsertAuditEvent): Promise<AuditEvent>;
+  getAuditEvents(filters: {
+    userId?: string;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditEvent[]>;
+  getAuditEventsCount(filters: {
+    userId?: string;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -428,6 +448,97 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(analyticsEvents.createdAt));
+  }
+
+  // Audit operations
+  async createAuditEvent(event: InsertAuditEvent): Promise<AuditEvent> {
+    const [auditEvent] = await db
+      .insert(auditEvents)
+      .values(event)
+      .returning();
+    return auditEvent;
+  }
+
+  async getAuditEvents(filters: {
+    userId?: string;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditEvent[]> {
+    const conditions = [];
+    
+    if (filters.userId) {
+      conditions.push(eq(auditEvents.userId, filters.userId));
+    }
+    
+    if (filters.action) {
+      conditions.push(eq(auditEvents.action, filters.action as any));
+    }
+    
+    if (filters.startDate) {
+      conditions.push(sql`${auditEvents.createdAt} >= ${filters.startDate}`);
+    }
+    
+    if (filters.endDate) {
+      conditions.push(sql`${auditEvents.createdAt} <= ${filters.endDate}`);
+    }
+
+    let query = db
+      .select()
+      .from(auditEvents)
+      .orderBy(desc(auditEvents.createdAt));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    if (filters.offset) {
+      query = query.offset(filters.offset) as any;
+    }
+
+    return await query;
+  }
+
+  async getAuditEventsCount(filters: {
+    userId?: string;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<number> {
+    const conditions = [];
+    
+    if (filters.userId) {
+      conditions.push(eq(auditEvents.userId, filters.userId));
+    }
+    
+    if (filters.action) {
+      conditions.push(eq(auditEvents.action, filters.action as any));
+    }
+    
+    if (filters.startDate) {
+      conditions.push(sql`${auditEvents.createdAt} >= ${filters.startDate}`);
+    }
+    
+    if (filters.endDate) {
+      conditions.push(sql`${auditEvents.createdAt} <= ${filters.endDate}`);
+    }
+
+    let query = db
+      .select({ count: sql<number>`cast(count(*) as integer)` })
+      .from(auditEvents);
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const result = await query;
+    return result[0]?.count || 0;
   }
 }
 

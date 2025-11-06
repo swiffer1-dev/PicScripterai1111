@@ -4,13 +4,24 @@ const envSchema = z.object({
   // Required
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
-  ENCRYPTION_KEY: z.string().min(32, "ENCRYPTION_KEY must be at least 32 characters"),
+  
+  // Encryption - support both old and new format (at least one required)
+  ENCRYPTION_KEY: z.string().optional(),
+  ENCRYPTION_KEYS_JSON: z.string().optional(),
+  ENCRYPTION_KEY_CURRENT: z.string().default("v1"),
+  
+  // Session secret (optional, not currently used but available)
+  SESSION_SECRET: z.string().optional(),
   
   // Optional with defaults
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.string().default("5000"),
   CORS_ORIGIN: z.string().default("http://localhost:5000"),
   REDIS_URL: z.string().optional(),
+  
+  // Auth token TTL
+  ACCESS_TOKEN_TTL: z.string().default("15m"),
+  REFRESH_TOKEN_TTL: z.string().default("30d"),
   
   // Social Media OAuth (optional - needed for those platform connections)
   INSTAGRAM_CLIENT_ID: z.string().optional(),
@@ -59,7 +70,14 @@ export function validateEnv(): Env {
   }
 
   try {
-    validatedEnv = envSchema.parse(process.env);
+    const parsed = envSchema.parse(process.env);
+    
+    // Additional validation: ensure at least one encryption key is set
+    if (!parsed.ENCRYPTION_KEY && !parsed.ENCRYPTION_KEYS_JSON) {
+      throw new Error("Either ENCRYPTION_KEY or ENCRYPTION_KEYS_JSON must be set");
+    }
+    
+    validatedEnv = parsed;
     return validatedEnv;
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -76,7 +94,8 @@ export function validateEnv(): Env {
       
       process.exit(1);
     }
-    throw error;
+    console.error("❌ Environment validation failed:", error instanceof Error ? error.message : error);
+    process.exit(1);
   }
 }
 
