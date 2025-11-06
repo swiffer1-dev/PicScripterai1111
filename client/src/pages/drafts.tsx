@@ -261,20 +261,16 @@ export default function Drafts() {
                     <div className="flex flex-col md:flex-row gap-4 p-4">
                       {/* Left side: Images */}
                       {draft.mediaUrls && draft.mediaUrls.length > 0 && (
-                        <div className="flex gap-2 md:w-48 flex-shrink-0">
-                          {draft.mediaUrls.slice(0, 2).map((url, index) => (
+                        <div className="flex gap-2 overflow-x-auto md:w-auto flex-shrink-0 pb-2 md:pb-0">
+                          {draft.mediaUrls.map((url, index) => (
                             <img
                               key={index}
                               src={url}
                               alt={`Draft content ${index + 1}`}
-                              className="w-full md:w-24 h-24 object-cover rounded"
+                              className="w-24 h-24 object-cover rounded flex-shrink-0"
+                              data-testid={`img-draft-media-${draft.id}-${index}`}
                             />
                           ))}
-                          {draft.mediaUrls.length > 2 && (
-                            <div className="hidden md:flex items-center justify-center w-24 h-24 bg-muted rounded text-sm text-muted-foreground">
-                              +{draft.mediaUrls.length - 2}
-                            </div>
-                          )}
                         </div>
                       )}
                       
