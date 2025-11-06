@@ -648,6 +648,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/drafts/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const draft = await storage.getDraft(req.params.id);
+      
+      if (!draft || draft.userId !== req.userId!) {
+        return res.status(404).json({ error: "Draft not found" });
+      }
+      
+      const updateData: any = {};
+      if (req.body.caption !== undefined) updateData.caption = req.body.caption;
+      if (req.body.mediaUrls !== undefined) updateData.mediaUrls = req.body.mediaUrls;
+      if (req.body.settings !== undefined) updateData.settings = req.body.settings;
+      
+      const updatedDraft = await storage.updateDraft(req.params.id, updateData);
+      
+      await trackEvent(
+        req.userId!,
+        "post_created",
+        "Draft updated",
+        { draftId: req.params.id }
+      );
+      
+      res.json(updatedDraft);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/drafts/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const draft = await storage.getDraft(req.params.id);
