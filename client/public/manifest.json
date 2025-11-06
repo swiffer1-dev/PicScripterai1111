@@ -2,29 +2,29 @@
   "name": "Picscripter - AI Social Media Manager",
   "short_name": "Picscripter",
   "description": "Create AI-generated captions and post to Instagram, Facebook, Pinterest, Twitter, TikTok, LinkedIn, and YouTube with one click",
-  "start_url": "/?v=3",
+  "start_url": "/?v=4",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/app-icon.png?v=3",
-      "sizes": "1024x1024",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/app-icon.png?v=3",
+      "src": "/app-icon.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/app-icon.png?v=3",
+      "src": "/app-icon.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/app-icon-maskable.png?v=4",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["productivity", "social", "business"],
@@ -36,7 +36,7 @@
       "url": "/ai-studio",
       "icons": [
         {
-          "src": "/app-icon.png?v=3",
+          "src": "/app-icon.png?v=4",
           "sizes": "192x192"
         }
       ]
@@ -48,7 +48,7 @@
       "url": "/calendar",
       "icons": [
         {
-          "src": "/app-icon.png?v=3",
+          "src": "/app-icon.png?v=4",
           "sizes": "192x192"
         }
       ]
