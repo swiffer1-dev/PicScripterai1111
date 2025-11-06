@@ -5,8 +5,9 @@ import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Send, Menu, CheckCircle, AlertCircle, Calendar as CalendarIcon, Edit } from "lucide-react";
+import { Loader2, Trash2, Send, Menu, CheckCircle, AlertCircle, Calendar as CalendarIcon, Edit, Save, X } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 import type { Platform, Connection, Draft } from "@shared/schema";
@@ -29,6 +30,8 @@ export default function Drafts() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [postingDraftId, setPostingDraftId] = useState<string | null>(null);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [editedCaption, setEditedCaption] = useState<string>("");
 
   const { data: drafts, isLoading } = useQuery<Draft[]>({
     queryKey: ["/api/drafts"],
@@ -44,6 +47,27 @@ export default function Drafts() {
     queryKey: ["/api/pinterest/boards"],
     enabled: connectedPlatforms.has('pinterest'),
     retry: false,
+  });
+
+  const updateDraftMutation = useMutation({
+    mutationFn: (data: { draftId: string; caption: string }) => 
+      apiRequest("PATCH", `/api/drafts/${data.draftId}`, { caption: data.caption }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/drafts"] });
+      toast({
+        title: "Draft updated",
+        description: "Your changes have been saved",
+      });
+      setEditingDraftId(null);
+      setEditedCaption("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteDraftMutation = useMutation({
@@ -269,42 +293,90 @@ export default function Drafts() {
                           </div>
                         </div>
                         
-                        <div className="text-sm text-foreground whitespace-pre-wrap">
-                          {draft.caption}
-                        </div>
+                        {editingDraftId === draft.id ? (
+                          <Textarea
+                            value={editedCaption}
+                            onChange={(e) => setEditedCaption(e.target.value)}
+                            className="text-sm min-h-[100px] resize-y"
+                            data-testid={`textarea-edit-caption-${draft.id}`}
+                          />
+                        ) : (
+                          <div className="text-sm text-foreground whitespace-pre-wrap">
+                            {draft.caption}
+                          </div>
+                        )}
                       </div>
                       
                       {/* Right side: Action buttons */}
-                      <div className="flex md:flex-col gap-2 md:w-24 flex-shrink-0">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex-1 md:w-full"
-                          onClick={() => {
-                            setLocation(`/ai-studio?draftId=${draft.id}`);
-                          }}
-                          data-testid={`button-edit-draft-${draft.id}`}
-                        >
-                          <Edit className="h-4 w-4 md:mr-0 mr-2" />
-                          <span className="md:hidden">Edit</span>
-                        </Button>
-                        
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="secondary"
+                      <div className="flex md:flex-col gap-2 md:w-28 flex-shrink-0">
+                        {editingDraftId === draft.id ? (
+                          <>
+                            <Button
+                              variant="default"
                               size="sm"
                               className="flex-1 md:w-full"
                               onClick={() => {
-                                setPostingDraftId(draft.id);
-                                setSelectedPlatforms([]);
+                                updateDraftMutation.mutate({
+                                  draftId: draft.id,
+                                  caption: editedCaption,
+                                });
                               }}
-                              data-testid={`button-post-draft-${draft.id}`}
+                              disabled={updateDraftMutation.isPending}
+                              data-testid={`button-save-draft-${draft.id}`}
                             >
-                              <Send className="h-4 w-4 md:mr-0 mr-2" />
-                              <span className="md:hidden">Post</span>
+                              {updateDraftMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Save className="h-4 w-4 mr-2" />
+                              )}
+                              Save
                             </Button>
-                          </DialogTrigger>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 md:w-full"
+                              onClick={() => {
+                                setEditingDraftId(null);
+                                setEditedCaption("");
+                              }}
+                              data-testid={`button-cancel-edit-${draft.id}`}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="flex-1 md:w-full"
+                              onClick={() => {
+                                setEditingDraftId(draft.id);
+                                setEditedCaption(draft.caption);
+                              }}
+                              data-testid={`button-edit-draft-${draft.id}`}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                            
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="secondary"
+                                  size="sm"
+                                  className="flex-1 md:w-full"
+                                  onClick={() => {
+                                    setPostingDraftId(draft.id);
+                                    setSelectedPlatforms([]);
+                                  }}
+                                  data-testid={`button-post-draft-${draft.id}`}
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Post
+                                </Button>
+                              </DialogTrigger>
                           <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                               <DialogTitle>Select Platforms</DialogTitle>
@@ -389,9 +461,15 @@ export default function Drafts() {
                           disabled={deletingDraftId === draft.id}
                           data-testid={`button-delete-draft-${draft.id}`}
                         >
-                          <Trash2 className="h-4 w-4 md:mr-0 mr-2" />
-                          <span className="md:hidden">Delete</span>
+                          {deletingDraftId === draft.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Delete
                         </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </Card>
