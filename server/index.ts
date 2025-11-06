@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import { validateEnv } from "./config/env";
 import { validatePlatformConfigurations } from "./utils/platform-config-validator";
 import pino from "pino";
@@ -16,6 +17,9 @@ validateEnv();
 validatePlatformConfigurations();
 
 const app = express();
+
+// Trust proxy for cookie-based auth (required for secure cookies behind load balancer)
+app.set("trust proxy", 1);
 
 // Configure Pino logger
 const logger = pino({
@@ -110,6 +114,9 @@ app.use(
     credentials: true,
   })
 );
+
+// Cookie parser (before routes)
+app.use(cookieParser());
 
 // parse JSON first
 app.use(

@@ -1,0 +1,84 @@
+Goal: Eliminate 401 “invalid or expired token” errors by adding cookie-based tokens and an automatic refresh route. Do not break or remove any existing auth code; add feature-flagged middleware and client interceptor.
+
+Constraints:
+
+* Additive only — existing login/logout APIs must still work.
+* Access tokens short-lived (~15m); refresh tokens long (~30d).
+* Use HttpOnly, Secure cookies for tokens.
+* Add a `/auth/refresh` route and a small client retry helper.
+* Wrap behind FEATURE_TOKEN_REFRESH=true (default false).
+
+Tasks:
+
+1. **Backend**
+
+   * Add `setAuthCookies(res, { accessToken, refreshToken })` helper:
+
+     * Sets two cookies:
+
+       * `access_token`: httpOnly, Secure (in prod), SameSite=Lax, maxAge=15m.
+       * `refresh_token`: httpOnly, Secure, SameSite=Strict, path="/auth", maxAge=30d.
+   * Add middleware `requireAuth`:
+
+     * Reads `access_token` from cookies.
+     * Verifies JWT; if valid → attach user → next(); else → 401.
+   * Add `POST /auth/refresh` route:
+
+     * Reads `refresh_token` cookie.
+     * Verifies JWT; if valid → issue new access+refresh tokens, rotate cookies.
+     * If invalid → 401 (client will redirect to login).
+   * Update CORS + app config:
+
+     ```ts
+     app.set("trust proxy", 1);
+     app.use(cors({
+       origin: process.env.CORS_ORIGIN?.split(",") ?? [],
+       credentials: true
+     }));
+     app.use(helmet());
+     ```
+   * Add `Cache-Control: no-store` to protected routes.
+   * Do not touch existing `POST /auth/login` except to call `setAuthCookies()` after login succeeds.
+   * Add `FEATURE_TOKEN_REFRESH=false` to `.env.example`.
+
+2. **Frontend**
+
+   * Create `apiFetch()` helper:
+
+     ```ts
+     async function apiFetch(input, init = {}) {
+       const res = await fetch(input, { ...init, credentials: "include" });
+       if (res.status !== 401) return res;
+       const refreshed = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
+       if (refreshed.ok) return fetch(input, { ...init, credentials: "include" });
+       throw new Error("AUTH_REAUTH_REQUIRED");
+     }
+     ```
+   * Replace direct fetch calls in existing API client with `apiFetch` (feature-flagged).
+   * On “AUTH_REAUTH_REQUIRED”, show login modal or redirect.
+
+3. **Testing checklist**
+
+   * ✅ Login sets both cookies.
+   * ✅ API calls work until 15m; after that, refresh route silently renews.
+   * ✅ Refresh rotates tokens, old refresh token invalid.
+   * ✅ 401 → refresh retry → success → user never notices.
+   * ✅ If refresh fails (expired), user redirected to login.
+
+4. **Mobile/PWA notes**
+
+   * Serve web + API from same top-level domain to allow cookies.
+   * Use `SameSite=Lax` for `access_token`, `Strict` for `refresh_token`.
+   * Confirm HTTPS enforced; proxy trusted; cookies visible in Network tab.
+
+5. **Commit**
+
+   ```
+   feat(auth): cookie-based tokens + auto-refresh (feature-flagged)
+   ```
+
+Result:
+
+* Stops random 401s on mobile and desktop.
+* Users stay logged in silently for 30 days unless they log out.
+* Safe, reversible (turn off with FEATURE_TOKEN_REFRESH=false).

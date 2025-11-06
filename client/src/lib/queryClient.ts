@@ -1,9 +1,64 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Feature flag for cookie-based auth
+const FEATURE_TOKEN_REFRESH = import.meta.env.VITE_FEATURE_TOKEN_REFRESH === "true";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
+  }
+}
+
+/**
+ * Fetch with automatic token refresh on 401
+ * Retries the request once after refreshing the access token
+ */
+async function apiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  // If feature is disabled, use regular fetch
+  if (!FEATURE_TOKEN_REFRESH) {
+    return fetch(input, init);
+  }
+
+  // Make initial request with credentials
+  const res = await fetch(input, { 
+    ...init, 
+    credentials: "include" 
+  });
+  
+  // If not 401, return response
+  if (res.status !== 401) {
+    return res;
+  }
+  
+  // Try to refresh token
+  try {
+    const refreshed = await fetch("/api/auth/refresh", { 
+      method: "POST", 
+      credentials: "include" 
+    });
+    
+    if (!refreshed.ok) {
+      // Refresh failed - user needs to re-authenticate
+      throw new Error("AUTH_REAUTH_REQUIRED");
+    }
+    
+    // Retry original request with new token
+    return fetch(input, { 
+      ...init, 
+      credentials: "include" 
+    });
+  } catch (error: any) {
+    if (error.message === "AUTH_REAUTH_REQUIRED") {
+      // Clear local storage and redirect to login
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+      throw error;
+    }
+    throw error;
   }
 }
 
@@ -23,11 +78,10 @@ export async function apiRequest(
     headers["Authorization"] = `Bearer ${token}`;
   }
   
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -47,9 +101,8 @@ export const getQueryFn: <T>(options: {
       headers["Authorization"] = `Bearer ${token}`;
     }
     
-    const res = await fetch(queryKey.join("/") as string, {
+    const res = await apiFetch(queryKey.join("/") as string, {
       headers,
-      credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

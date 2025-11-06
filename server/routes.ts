@@ -3,13 +3,19 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authMiddleware, type AuthRequest } from "./middleware/auth";
 import { 
+  requireAuth, 
+  setAuthCookies, 
+  clearAuthCookies, 
+  generateTokens 
+} from "./middleware/cookie-auth";
+import { 
   authRateLimiter, 
   generalRateLimiter, 
   aiGenerationRateLimiter,
   postCreationRateLimiter,
   oauthRateLimiter
 } from "./middleware/rateLimiter";
-import { signToken } from "./utils/jwt";
+import { signToken, verifyToken } from "./utils/jwt";
 import { encryptToken, decryptToken } from "./utils/encryption";
 import { getSafeRedirectUri } from "./utils/redirect-validator";
 import { getOAuthProvider } from "./services/oauth/factory";
@@ -167,6 +173,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate JWT
       const token = signToken({ userId: user.id, email: user.email });
       
+      // Set cookies if feature is enabled
+      const tokens = generateTokens({ userId: user.id, email: user.email });
+      setAuthCookies(res, tokens);
+      
       metrics.auth.signups++;
       
       res.json({ token, user: { id: user.id, email: user.email } });
@@ -199,6 +209,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate JWT
       const token = signToken({ userId: user.id, email: user.email });
       
+      // Set cookies if feature is enabled
+      const tokens = generateTokens({ userId: user.id, email: user.email });
+      setAuthCookies(res, tokens);
+      
       metrics.auth.logins++;
       
       res.json({ token, user: { id: user.id, email: user.email } });
@@ -208,7 +222,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", authMiddleware, (req, res) => {
+  // Token refresh endpoint
+  app.post("/api/auth/refresh", async (req, res) => {
+    try {
+      const refreshToken = req.cookies?.refresh_token;
+      
+      if (!refreshToken) {
+        return res.status(401).json({ error: "No refresh token provided" });
+      }
+      
+      // Verify refresh token
+      const payload = verifyToken(refreshToken);
+      
+      // Generate new tokens
+      const tokens = generateTokens({ userId: payload.userId, email: payload.email });
+      
+      // Set new cookies (token rotation)
+      setAuthCookies(res, tokens);
+      
+      res.json({ 
+        success: true,
+        user: { id: payload.userId, email: payload.email }
+      });
+    } catch (error: any) {
+      // Clear invalid cookies
+      clearAuthCookies(res);
+      res.status(401).json({ error: "Invalid or expired refresh token" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
+    clearAuthCookies(res);
     res.json({ message: "Logged out successfully" });
   });
 
