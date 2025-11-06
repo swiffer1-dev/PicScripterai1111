@@ -251,9 +251,9 @@ export default function Drafts() {
                         />
                       </div>
                     )}
-                    <p className="text-sm text-muted-foreground line-clamp-3">
+                    <div className="text-sm text-muted-foreground max-h-32 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                       {draft.caption}
-                    </p>
+                    </div>
                   </CardContent>
                   
                   <CardFooter className="flex flex-col gap-3">
