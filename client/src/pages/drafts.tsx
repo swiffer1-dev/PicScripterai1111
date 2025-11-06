@@ -293,30 +293,24 @@ export default function Drafts() {
                           </div>
                         </div>
                         
-                        {editingDraftId === draft.id ? (
-                          <Textarea
-                            value={editedCaption}
-                            onChange={(e) => {
-                              setEditedCaption(e.target.value);
-                              e.target.style.height = 'auto';
-                              e.target.style.height = e.target.scrollHeight + 'px';
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.height = 'auto';
-                              e.target.style.height = e.target.scrollHeight + 'px';
-                            }}
-                            className="text-sm resize-none overflow-hidden"
-                            style={{ 
-                              height: 'auto',
-                              minHeight: 'fit-content'
-                            }}
-                            data-testid={`textarea-edit-caption-${draft.id}`}
-                          />
-                        ) : (
-                          <div className="text-sm text-foreground whitespace-pre-wrap">
-                            {draft.caption}
-                          </div>
-                        )}
+                        <div className="text-sm text-foreground whitespace-pre-wrap">
+                          {editingDraftId === draft.id ? (
+                            <Textarea
+                              value={editedCaption}
+                              onChange={(e) => setEditedCaption(e.target.value)}
+                              className="text-sm resize-none border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-full"
+                              style={{ 
+                                height: 'auto',
+                                overflow: 'visible',
+                                minHeight: 'fit-content',
+                                lineHeight: '1.5'
+                              }}
+                              data-testid={`textarea-edit-caption-${draft.id}`}
+                            />
+                          ) : (
+                            draft.caption
+                          )}
+                        </div>
                       </div>
                       
                       {/* Right side: Action buttons */}
