@@ -296,10 +296,20 @@ export default function Drafts() {
                         {editingDraftId === draft.id ? (
                           <Textarea
                             value={editedCaption}
-                            onChange={(e) => setEditedCaption(e.target.value)}
-                            className="text-sm resize-none"
-                            rows={draft.caption.split('\n').length || 3}
-                            style={{ height: 'auto', minHeight: '60px' }}
+                            onChange={(e) => {
+                              setEditedCaption(e.target.value);
+                              e.target.style.height = 'auto';
+                              e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.height = 'auto';
+                              e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            className="text-sm resize-none overflow-hidden"
+                            style={{ 
+                              height: 'auto',
+                              minHeight: 'fit-content'
+                            }}
                             data-testid={`textarea-edit-caption-${draft.id}`}
                           />
                         ) : (
