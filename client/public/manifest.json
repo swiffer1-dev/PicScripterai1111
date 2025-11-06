@@ -27,31 +27,5 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "social", "business"],
-  "shortcuts": [
-    {
-      "name": "AI Studio",
-      "short_name": "AI Studio",
-      "description": "Create AI-powered social media content",
-      "url": "/ai-studio",
-      "icons": [
-        {
-          "src": "/app-icon.png?v=4",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Calendar",
-      "short_name": "Calendar",
-      "description": "View scheduled posts",
-      "url": "/calendar",
-      "icons": [
-        {
-          "src": "/app-icon.png?v=4",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ]
+  "categories": ["productivity", "social", "business"]
 }
