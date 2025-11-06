@@ -226,170 +226,175 @@ export default function Drafts() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-4">
               {drafts.map(draft => {
                 const settings = draft.settings as any || {};
                 const category = settings.category || 'General';
                 const tone = settings.tone || 'Professional';
                 
                 return (
-                  <Card key={draft.id} className="flex flex-col" data-testid={`card-draft-${draft.id}`}>
-                    <CardHeader className="space-y-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <CalendarIcon className="h-3.5 w-3.5" />
-                          <span>Generation Date: {format(new Date(draft.createdAt), 'MMMM d, yyyy')} at {format(new Date(draft.createdAt), 'h:mm a')}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Target Platform:</span> <span className="font-medium">{category}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Intended Tone:</span> <span className="font-medium">{tone}</span>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="flex-1 space-y-4">
+                  <Card key={draft.id} className="overflow-hidden" data-testid={`card-draft-${draft.id}`}>
+                    <div className="flex flex-col md:flex-row gap-4 p-4">
+                      {/* Left side: Images */}
                       {draft.mediaUrls && draft.mediaUrls.length > 0 && (
-                        <div className="space-y-3">
-                          {draft.mediaUrls.map((url, index) => (
+                        <div className="flex gap-2 md:w-48 flex-shrink-0">
+                          {draft.mediaUrls.slice(0, 2).map((url, index) => (
                             <img
                               key={index}
                               src={url}
                               alt={`Draft content ${index + 1}`}
-                              className="w-full rounded-md"
+                              className="w-full md:w-24 h-24 object-cover rounded"
                             />
                           ))}
-                        </div>
-                      )}
-                      <div className="text-sm whitespace-pre-wrap">
-                        {draft.caption}
-                      </div>
-                    </CardContent>
-                  
-                  <CardFooter className="flex flex-col gap-3">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setLocation(`/ai-studio?draftId=${draft.id}`);
-                      }}
-                      data-testid={`button-edit-draft-${draft.id}`}
-                    >
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          className="w-full"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setPostingDraftId(draft.id);
-                            setSelectedPlatforms([]);
-                          }}
-                          data-testid={`button-post-draft-${draft.id}`}
-                        >
-                          <Send className="mr-2 h-4 w-4" />
-                          Post
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Select Platforms</DialogTitle>
-                          <DialogDescription>
-                            Choose which platforms to post this draft to
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <div className="grid grid-cols-2 gap-3 my-4">
-                          {(['instagram', 'facebook', 'pinterest', 'twitter', 'tiktok', 'linkedin', 'youtube'] as Platform[]).map(platform => {
-                            const isConnected = connectedPlatforms.has(platform);
-                            const isSelected = selectedPlatforms.includes(platform);
-                            const captionLength = draft.caption.length;
-                            const exceedsLimit = captionLength > platformCharLimits[platform];
-                            
-                            return (
-                              <button
-                                key={platform}
-                                onClick={() => isConnected && !exceedsLimit && togglePlatform(platform)}
-                                disabled={!isConnected || exceedsLimit}
-                                className={`p-3 rounded-lg border transition-colors ${
-                                  isSelected
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : isConnected
-                                    ? exceedsLimit
-                                      ? 'bg-muted border-red-300 dark:border-red-700 opacity-50 cursor-not-allowed'
-                                      : 'bg-card border-border hover:bg-muted'
-                                    : 'bg-muted border-border opacity-50 cursor-not-allowed'
-                                }`}
-                                data-testid={`platform-${platform}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium capitalize">{platform}</span>
-                                  {isConnected && isSelected && (
-                                    <CheckCircle className="h-4 w-4" />
-                                  )}
-                                  {(!isConnected || exceedsLimit) && (
-                                    <AlertCircle className="h-4 w-4" />
-                                  )}
-                                </div>
-                                {!isConnected && (
-                                  <span className="text-xs text-muted-foreground mt-1 block">
-                                    Not connected
-                                  </span>
-                                )}
-                                {exceedsLimit && isConnected && (
-                                  <span className="text-xs text-red-600 dark:text-red-400 mt-1 block">
-                                    Too long ({captionLength}/{platformCharLimits[platform]})
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <Button
-                          onClick={() => handlePostFromDraft(draft)}
-                          disabled={postFromDraftMutation.isPending || selectedPlatforms.length === 0}
-                          className="w-full"
-                          data-testid="button-confirm-post"
-                        >
-                          {postFromDraftMutation.isPending && postingDraftId === draft.id ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Posting...
-                            </>
-                          ) : (
-                            `Post to ${selectedPlatforms.length} Platform${selectedPlatforms.length !== 1 ? 's' : ''}`
+                          {draft.mediaUrls.length > 2 && (
+                            <div className="hidden md:flex items-center justify-center w-24 h-24 bg-muted rounded text-sm text-muted-foreground">
+                              +{draft.mediaUrls.length - 2}
+                            </div>
                           )}
-                        </Button>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setDeletingDraftId(draft.id);
-                        deleteDraftMutation.mutate(draft.id);
-                      }}
-                      disabled={deletingDraftId === draft.id}
-                      data-testid={`button-delete-draft-${draft.id}`}
-                    >
-                      {deletingDraftId === draft.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        </div>
                       )}
-                      Delete
-                    </Button>
-                  </CardFooter>
-                </Card>
+                      
+                      {/* Middle: Metadata and Description */}
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <CalendarIcon className="h-3 w-3" />
+                            <span>{format(new Date(draft.createdAt), 'MMM d, yyyy h:mm a')}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Platform:</span> <span className="font-medium">{category}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Tone:</span> <span className="font-medium">{tone}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm text-muted-foreground line-clamp-3">
+                          {draft.caption}
+                        </div>
+                      </div>
+                      
+                      {/* Right side: Action buttons */}
+                      <div className="flex md:flex-col gap-2 md:w-24 flex-shrink-0">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1 md:w-full"
+                          onClick={() => {
+                            setLocation(`/ai-studio?draftId=${draft.id}`);
+                          }}
+                          data-testid={`button-edit-draft-${draft.id}`}
+                        >
+                          <Edit className="h-4 w-4 md:mr-0 mr-2" />
+                          <span className="md:hidden">Edit</span>
+                        </Button>
+                        
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="secondary"
+                              size="sm"
+                              className="flex-1 md:w-full"
+                              onClick={() => {
+                                setPostingDraftId(draft.id);
+                                setSelectedPlatforms([]);
+                              }}
+                              data-testid={`button-post-draft-${draft.id}`}
+                            >
+                              <Send className="h-4 w-4 md:mr-0 mr-2" />
+                              <span className="md:hidden">Post</span>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Select Platforms</DialogTitle>
+                              <DialogDescription>
+                                Choose which platforms to post this draft to
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="grid grid-cols-2 gap-3 my-4">
+                              {(['instagram', 'facebook', 'pinterest', 'twitter', 'tiktok', 'linkedin', 'youtube'] as Platform[]).map(platform => {
+                                const isConnected = connectedPlatforms.has(platform);
+                                const isSelected = selectedPlatforms.includes(platform);
+                                const captionLength = draft.caption.length;
+                                const exceedsLimit = captionLength > platformCharLimits[platform];
+                                
+                                return (
+                                  <button
+                                    key={platform}
+                                    onClick={() => isConnected && !exceedsLimit && togglePlatform(platform)}
+                                    disabled={!isConnected || exceedsLimit}
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      isSelected
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : isConnected
+                                        ? exceedsLimit
+                                          ? 'bg-muted border-red-300 dark:border-red-700 opacity-50 cursor-not-allowed'
+                                          : 'bg-card border-border hover:bg-muted'
+                                        : 'bg-muted border-border opacity-50 cursor-not-allowed'
+                                    }`}
+                                    data-testid={`platform-${platform}`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm font-medium capitalize">{platform}</span>
+                                      {isConnected && isSelected && (
+                                        <CheckCircle className="h-4 w-4" />
+                                      )}
+                                      {(!isConnected || exceedsLimit) && (
+                                        <AlertCircle className="h-4 w-4" />
+                                      )}
+                                    </div>
+                                    {!isConnected && (
+                                      <span className="text-xs text-muted-foreground mt-1 block">
+                                        Not connected
+                                      </span>
+                                    )}
+                                    {exceedsLimit && isConnected && (
+                                      <span className="text-xs text-red-600 dark:text-red-400 mt-1 block">
+                                        Too long ({captionLength}/{platformCharLimits[platform]})
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <Button
+                              onClick={() => handlePostFromDraft(draft)}
+                              disabled={postFromDraftMutation.isPending || selectedPlatforms.length === 0}
+                              className="w-full"
+                              data-testid="button-confirm-post"
+                            >
+                              {postFromDraftMutation.isPending && postingDraftId === draft.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Posting...
+                                </>
+                              ) : (
+                                `Post to ${selectedPlatforms.length} Platform${selectedPlatforms.length !== 1 ? 's' : ''}`
+                              )}
+                            </Button>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 md:w-full"
+                          onClick={() => {
+                            setDeletingDraftId(draft.id);
+                            deleteDraftMutation.mutate(draft.id);
+                          }}
+                          disabled={deletingDraftId === draft.id}
+                          data-testid={`button-delete-draft-${draft.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 md:mr-0 mr-2" />
+                          <span className="md:hidden">Delete</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 );
               })}
             </div>
