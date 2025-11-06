@@ -43,12 +43,28 @@ Preferred communication style: Simple, everyday language.
 - Axios for external API calls
 
 **Authentication & Security:**
-- JWT-based sessions (7-day expiration)
+- JWT-based sessions with configurable TTLs
+  - Access tokens: 15 minutes (ACCESS_TOKEN_TTL)
+  - Refresh tokens: 30 days (REFRESH_TOKEN_TTL)
 - bcrypt password hashing (10 rounds)
-- AES-256-GCM encryption for OAuth tokens at rest with versioned key support
-  - Format: version:iv:authTag:encryptedData
-  - Backward compatible with old format (3-part)
-  - Supports key rotation via ENCRYPTION_KEY_V2 env var
+- **Versioned Encryption Key Rotation:**
+  - AES-256-GCM encryption for OAuth tokens at rest
+  - Kid-based encryption format: `kid:iv:authTag:encryptedData`
+  - Supports multiple active keys via ENCRYPTION_KEYS_JSON
+  - Current key managed via ENCRYPTION_KEY_CURRENT
+  - Backward compatible with legacy 3-part format
+  - Re-encryption script for seamless key rotation (`server/scripts/rotate-encryption-keys.ts`)
+- **Audit Logging System:**
+  - `audit_events` table tracking all sensitive actions
+  - Tracks user authentication, OAuth connections, posts, drafts
+  - Admin endpoint GET `/admin/audit` with filtering and pagination
+  - Captures IP address, user agent, metadata for security review
+  - ADMIN_USER_IDS env var for admin access control
+- **Hardened CORS Configuration:**
+  - Comma-separated origin allowlist (CORS_ORIGIN)
+  - Wildcard blocking in production environments
+  - Per-request origin validation
+  - Credentials support for cookie-based auth
 - PKCE support for all OAuth flows (S256 challenge method)
 - CSRF protection via OAuth state parameter (10-minute expiration)
 - OAuth redirect URI allowlist validation (OAUTH_REDIRECT_ALLOWLIST env var)
@@ -56,10 +72,10 @@ Preferred communication style: Simple, everyday language.
   - TokenRefreshError class categorizes failures
   - Distinguishes user action required vs. temporary errors
 - Centralized environment variable validation using Zod
-- Multi-tier rate limiting for general API, authentication, AI generation, post creation, and OAuth connections.
-- Helmet security headers and CORS protection.
-- Pino HTTP logging with request tracking.
-- Centralized Express error handling.
+- Multi-tier rate limiting for general API, authentication, AI generation, post creation, and OAuth connections
+- Helmet security headers
+- Pino HTTP logging with request tracking
+- Centralized Express error handling
 
 **API Structure:**
 - RESTful endpoints under `/api`
@@ -86,10 +102,10 @@ Preferred communication style: Simple, everyday language.
 - Error handling with descriptive messages.
 
 **Database Schema:**
-- Drizzle ORM with PostgreSQL.
-- Tables for users, connections (social and e-commerce), posts, jobs, analytics events, products, job logs, media library, templates, and post analytics.
-- Enums for platform types, post status, and log levels.
-- Cascade deletes for data integrity.
+- Drizzle ORM with PostgreSQL
+- Tables: users, connections (social and e-commerce), posts, jobs, analytics events, products, job logs, media library, templates, post analytics, and **audit_events**
+- Enums for platform types, post status, log levels, and audit actions
+- Cascade deletes for data integrity
 
 ## Process Architecture
 
@@ -146,5 +162,23 @@ Picscripterai uses a dual-process architecture:
 - OAuth provider factory for e-commerce platforms, handling token exchange, refresh, store info, and product retrieval.
 
 **Environment Configuration:**
-- Client IDs and secrets for all social media and e-commerce platforms.
-- `ENCRYPTION_KEY`, `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`.
+- Client IDs and secrets for all social media and e-commerce platforms
+- Core secrets: `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`
+- **Security settings:**
+  - `ENCRYPTION_KEYS_JSON`: JSON mapping of key IDs to key values (e.g., `{"v1":"key1","v2":"key2"}`)
+  - `ENCRYPTION_KEY_CURRENT`: Active encryption key ID (default: "v1")
+  - `CORS_ORIGIN`: Comma-separated origin allowlist (no wildcards in production)
+  - `ACCESS_TOKEN_TTL`: Access token expiration (default: 15m)
+  - `REFRESH_TOKEN_TTL`: Refresh token expiration (default: 30d)
+  - `ADMIN_USER_IDS`: Comma-separated admin user IDs for audit access
+
+## Production Security Features
+
+**Implemented November 2025:**
+
+1. **Versioned Encryption Key Rotation** - Multi-key support with kid-based format, backward compatibility, and re-encryption tooling
+2. **Audit Logging System** - Comprehensive tracking of sensitive actions with admin reporting interface
+3. **Hardened CORS** - Strict origin allowlist with wildcard blocking in production
+4. **Configurable JWT Settings** - Secure token lifetimes (15m access, 30d refresh)
+
+See `PRODUCTION_SECURITY.md` for detailed documentation on security features, deployment checklist, and best practices.
