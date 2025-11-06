@@ -297,7 +297,9 @@ export default function Drafts() {
                           <Textarea
                             value={editedCaption}
                             onChange={(e) => setEditedCaption(e.target.value)}
-                            className="text-sm min-h-[100px] resize-y"
+                            className="text-sm resize-none"
+                            rows={draft.caption.split('\n').length || 3}
+                            style={{ height: 'auto', minHeight: '60px' }}
                             data-testid={`textarea-edit-caption-${draft.id}`}
                           />
                         ) : (
