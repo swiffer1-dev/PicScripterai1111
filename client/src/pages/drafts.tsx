@@ -269,7 +269,7 @@ export default function Drafts() {
                           </div>
                         </div>
                         
-                        <div className="text-sm text-muted-foreground line-clamp-3">
+                        <div className="text-sm text-foreground whitespace-pre-wrap">
                           {draft.caption}
                         </div>
                       </div>
