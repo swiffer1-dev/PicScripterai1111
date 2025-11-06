@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Send, Menu, CheckCircle, AlertCircle, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Trash2, Send, Menu, CheckCircle, AlertCircle, Calendar as CalendarIcon, Edit } from "lucide-react";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 import type { Platform, Connection, Draft } from "@shared/schema";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
@@ -23,6 +24,7 @@ const platformCharLimits: Record<Platform, number> = {
 
 export default function Drafts() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [postingDraftId, setPostingDraftId] = useState<string | null>(null);
@@ -225,42 +227,65 @@ export default function Drafts() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {drafts.map(draft => (
-                <Card key={draft.id} className="flex flex-col" data-testid={`card-draft-${draft.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base line-clamp-2">
-                          {draft.caption.substring(0, 50)}...
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-2">
-                          <CalendarIcon className="h-3 w-3" />
-                          {format(new Date(draft.createdAt), 'MMM d, yyyy')}
-                        </CardDescription>
+              {drafts.map(draft => {
+                const settings = draft.settings as any || {};
+                const category = settings.category || 'General';
+                const tone = settings.tone || 'Professional';
+                
+                return (
+                  <Card key={draft.id} className="flex flex-col" data-testid={`card-draft-${draft.id}`}>
+                    <CardHeader className="space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          <span>Generation Date: {format(new Date(draft.createdAt), 'MMMM d, yyyy')} at {format(new Date(draft.createdAt), 'h:mm a')}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Target Platform:</span> <span className="font-medium">{category}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Intended Tone:</span> <span className="font-medium">{tone}</span>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="flex-1">
-                    {draft.mediaUrls && draft.mediaUrls.length > 0 && (
-                      <div className="mb-3">
-                        <img
-                          src={draft.mediaUrls[0]}
-                          alt="Draft content"
-                          className="w-full h-32 object-cover rounded-md"
-                        />
+                    </CardHeader>
+                    
+                    <CardContent className="flex-1 space-y-4">
+                      {draft.mediaUrls && draft.mediaUrls.length > 0 && (
+                        <div className="space-y-3">
+                          {draft.mediaUrls.map((url, index) => (
+                            <img
+                              key={index}
+                              src={url}
+                              alt={`Draft content ${index + 1}`}
+                              className="w-full rounded-md"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <div className="text-sm whitespace-pre-wrap">
+                        {draft.caption}
                       </div>
-                    )}
-                    <div className="text-sm text-muted-foreground max-h-32 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                      {draft.caption}
-                    </div>
-                  </CardContent>
+                    </CardContent>
                   
                   <CardFooter className="flex flex-col gap-3">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setLocation(`/ai-studio?draftId=${draft.id}`);
+                      }}
+                      data-testid={`button-edit-draft-${draft.id}`}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button 
-                          className="w-full" 
+                          className="w-full"
+                          variant="secondary"
                           size="sm"
                           onClick={() => {
                             setPostingDraftId(draft.id);
@@ -365,7 +390,8 @@ export default function Drafts() {
                     </Button>
                   </CardFooter>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
