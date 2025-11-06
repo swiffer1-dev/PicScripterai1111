@@ -257,7 +257,7 @@ export default function Drafts() {
                 const tone = settings.tone || 'Professional';
                 
                 return (
-                  <Card key={draft.id} className="overflow-hidden" data-testid={`card-draft-${draft.id}`}>
+                  <Card key={draft.id} className="overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-primary/50" data-testid={`card-draft-${draft.id}`}>
                     <div className="flex flex-col md:flex-row gap-4 p-4">
                       {/* Left side: Images */}
                       {draft.mediaUrls && draft.mediaUrls.length > 0 && (
