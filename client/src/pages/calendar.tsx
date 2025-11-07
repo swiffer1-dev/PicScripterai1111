@@ -85,6 +85,17 @@ export default function Calendar() {
   
   const { data: posts, isLoading } = useQuery<Post[]>({
     queryKey: featureEnabled ? ["/api/calendar", monthParam] : ["/api/posts"],
+    queryFn: featureEnabled
+      ? async () => {
+          const response = await fetch(`/api/calendar?month=${monthParam}`, {
+            credentials: 'include',
+          });
+          if (!response.ok) {
+            throw new Error('Failed to fetch calendar');
+          }
+          return response.json();
+        }
+      : undefined, // Use default queryFn for legacy endpoint
   });
 
   // Check for draft data from AI Studio
@@ -193,7 +204,13 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar"] });
+      // Invalidate all calendar queries (will match any month)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/calendar";
+        }
+      });
       setScheduleDialogOpen(false);
       setScheduleData(null);
       setSelectedPlatforms([]);
@@ -222,7 +239,13 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar"] });
+      // Invalidate all calendar queries (will match any month)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/calendar";
+        }
+      });
       setResolveDialogOpen(false);
       setSelectedPost(null);
       toast({
