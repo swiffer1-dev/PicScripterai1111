@@ -69,6 +69,8 @@ export default function Calendar() {
     scheduledAt: string;
   } | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const featureEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_PENDING === "true";
   const { toast } = useToast();
 
@@ -76,8 +78,13 @@ export default function Calendar() {
     queryKey: ["/api/connections"],
   });
 
+  // Use new calendar endpoint if feature enabled, otherwise use legacy posts endpoint
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+  const monthParam = `${year}-${month}`;
+  
   const { data: posts, isLoading } = useQuery<Post[]>({
-    queryKey: ["/api/posts"],
+    queryKey: featureEnabled ? ["/api/calendar", monthParam] : ["/api/posts"],
   });
 
   // Check for draft data from AI Studio
