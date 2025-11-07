@@ -166,18 +166,21 @@ export default function Calendar() {
       scheduledAt: string;
       imageUrl: string | null;
     }) => {
+      // Convert datetime-local string to ISO string with timezone
+      const scheduledAtISO = new Date(data.scheduledAt).toISOString();
+      
       const payload: any = featureEnabled
         ? {
             platforms: selectedPlatforms.length > 0 
               ? selectedPlatforms.map(p => ({ provider: p }))
               : [{ provider: data.platform }],
             caption: data.caption,
-            scheduledAt: data.scheduledAt,
+            scheduledAt: scheduledAtISO,
           }
         : {
             platform: data.platform,
             caption: data.caption,
-            scheduledAt: data.scheduledAt,
+            scheduledAt: scheduledAtISO,
           };
 
       if (data.imageUrl) {
