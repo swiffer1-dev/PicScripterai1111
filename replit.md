@@ -43,6 +43,14 @@ Preferred communication style: Simple, everyday language.
 - Axios for external API calls
 
 **Authentication & Security:**
+- **Cookie-Based Authentication (Default):**
+  - httpOnly cookies for access and refresh tokens (enabled via FEATURE_TOKEN_REFRESH)
+  - Access token: httpOnly, Secure (prod), SameSite=Lax, path=/, 15m TTL
+  - Refresh token: httpOnly, Secure (prod), SameSite=Strict, path=/api/auth, 30d TTL
+  - Automatic token refresh on 401 errors (frontend retry logic)
+  - POST `/api/auth/refresh` endpoint for token renewal
+  - POST `/api/auth/logout` endpoint clears cookies (maxAge=0)
+  - Backward compatible with Bearer token authentication
 - JWT-based sessions with configurable TTLs
   - Access tokens: 15 minutes (ACCESS_TOKEN_TTL)
   - Refresh tokens: 30 days (REFRESH_TOKEN_TTL)
