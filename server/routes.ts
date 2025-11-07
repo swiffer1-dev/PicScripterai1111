@@ -555,95 +555,365 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function for preflight checks
+  async function runPreflightChecks(
+    userId: string,
+    platforms: Array<{ provider: Platform; boardId?: string }>
+  ): Promise<Array<{ provider: Platform; connected: boolean; issues: string[]; boardId?: string }>> {
+    const results = [];
+    
+    for (const platformConfig of platforms) {
+      const { provider, boardId } = platformConfig;
+      const issues: string[] = [];
+      
+      // Check if connection exists
+      const connection = await storage.getConnection(userId, provider);
+      const connected = !!connection;
+      
+      if (!connected) {
+        issues.push(`No ${provider} connection found`);
+      }
+      
+      // Platform-specific required fields
+      if (provider === "pinterest" && !boardId) {
+        issues.push("Pinterest requires a board selection");
+      }
+      
+      results.push({
+        provider,
+        connected,
+        issues,
+        boardId,
+      });
+    }
+    
+    return results;
+  }
+
   app.post("/api/schedule", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const schema = z.object({
-        platform: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
-        caption: z.string().min(1),
-        media: z.object({
-          type: z.enum(["image", "video"]),
-          url: z.string().url(),
-        }).optional(),
-        scheduledAtISO: z.string(),
-        options: z.any().optional(),
-      });
+      const featureEnabled = process.env.FEATURE_SCHEDULE_PENDING === "true";
       
-      const data = schema.parse(req.body);
-      
-      // Check connection exists
-      const connection = await storage.getConnection(req.userId!, data.platform);
-      if (!connection) {
-        return res.status(400).json({ error: `No ${data.platform} connection found` });
-      }
-      
-      const scheduledAt = new Date(data.scheduledAtISO);
-      
-      // Validate scheduled time is in the future
-      if (scheduledAt <= new Date()) {
-        return res.status(400).json({ error: "Scheduled time must be in the future" });
-      }
-      
-      // Create post
-      const post = await storage.createPost({
-        userId: req.userId!,
-        platform: data.platform,
-        caption: data.caption,
-        mediaType: data.media?.type,
-        mediaUrl: data.media?.url,
-        scheduledAt,
-        options: data.options || null,
-      });
-      
-      // Add to BullMQ queue with scheduled time
-      try {
-        const queueStatus = getQueueStatus();
-        if (!queueStatus.available) {
-          throw new Error(`Job queue unavailable: ${queueStatus.reason}. Scheduled posts are not supported.`);
+      // New schema for feature-flagged endpoint
+      if (featureEnabled) {
+        const schema = z.object({
+          postId: z.string().optional(),
+          caption: z.string().min(1),
+          media: z.object({
+            type: z.enum(["image", "video"]),
+            url: z.string(),
+          }).optional(),
+          scheduledAt: z.string(),
+          platforms: z.array(z.object({
+            provider: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
+            boardId: z.string().optional(),
+          })),
+        });
+        
+        const data = schema.parse(req.body);
+        const scheduledAt = new Date(data.scheduledAt);
+        
+        // Validate scheduled time is in the future
+        if (scheduledAt <= new Date()) {
+          return res.status(400).json({ error: "Scheduled time must be in the future" });
         }
         
-        await publishQueue!.add(
-          `publish-${post.id}`,
-          {
-            postId: post.id,
-            userId: req.userId!,
-            platform: data.platform,
-            caption: data.caption,
-            mediaUrl: data.media?.url,
-            mediaType: data.media?.type,
-            options: data.options,
-          },
-          {
-            delay: scheduledAt.getTime() - Date.now(),
-            jobId: `post-${post.id}`, // Idempotency: prevent duplicate jobs
+        // Run preflight checks
+        const preflightResults = await runPreflightChecks(req.userId!, data.platforms);
+        
+        // Determine if all platforms are ready
+        const allReady = preflightResults.every(r => r.connected && r.issues.length === 0);
+        
+        // Create or update post
+        const postData = {
+          userId: req.userId!,
+          platform: data.platforms[0].provider, // Primary platform for backward compatibility
+          caption: data.caption,
+          mediaType: data.media?.type,
+          mediaUrl: data.media?.url,
+          scheduledAt,
+          status: allReady ? ("scheduled" as const) : ("scheduled_pending" as const),
+          platforms: data.platforms,
+          preflightIssues: allReady ? null : preflightResults.filter(r => r.issues.length > 0),
+          jobId: null,
+        };
+        
+        let post;
+        if (data.postId) {
+          // Update existing post
+          post = await storage.updatePost(data.postId, postData);
+        } else {
+          // Create new post
+          post = await storage.createPost(postData);
+        }
+        
+        // If all ready, enqueue the job
+        if (allReady) {
+          try {
+            const queueStatus = getQueueStatus();
+            if (queueStatus.available) {
+              const job = await publishQueue!.add(
+                `publish-${post.id}`,
+                {
+                  postId: post.id,
+                  userId: req.userId!,
+                  platform: data.platforms[0].provider,
+                  caption: data.caption,
+                  mediaUrl: data.media?.url,
+                  mediaType: data.media?.type,
+                  options: data.platforms[0],
+                },
+                {
+                  delay: scheduledAt.getTime() - Date.now(),
+                  jobId: `post-${post.id}`,
+                }
+              );
+              
+              await storage.updatePost(post.id, { jobId: job.id });
+              
+              await storage.createJobLog({
+                postId: post.id,
+                level: "info",
+                message: `Scheduled for ${scheduledAt.toISOString()}`,
+                raw: { scheduledAt: data.scheduledAt },
+              });
+              
+              await trackEvent(
+                req.userId!,
+                "post_scheduled",
+                "Post scheduled",
+                { platform: data.platforms[0].provider, postId: post.id }
+              );
+            }
+          } catch (queueError: any) {
+            console.warn("Queue error:", queueError.message);
+            await storage.createJobLog({
+              postId: post.id,
+              level: "warn",
+              message: `Queue unavailable: ${queueError.message}`,
+              raw: { error: queueError.message },
+            });
           }
-        );
+        }
         
-        await storage.createJobLog({
-          postId: post.id,
-          level: "info",
-          message: `Scheduled for ${scheduledAt.toISOString()}`,
-          raw: { scheduledAt: data.scheduledAtISO },
+        res.json({
+          id: post.id,
+          status: post.status,
+          scheduledAt: post.scheduledAt,
+          platforms: data.platforms.map(p => p.provider),
+          issues: postData.preflightIssues,
+        });
+      } else {
+        // Legacy behavior (FEATURE_SCHEDULE_PENDING=false)
+        const schema = z.object({
+          platform: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
+          caption: z.string().min(1),
+          media: z.object({
+            type: z.enum(["image", "video"]),
+            url: z.string().url(),
+          }).optional(),
+          scheduledAtISO: z.string(),
+          options: z.any().optional(),
         });
         
-        // Track post_scheduled event
-        await trackEvent(
-          req.userId!,
-          "post_scheduled",
-          "Post scheduled",
-          { platform: data.platform, postId: post.id }
-        );
-      } catch (queueError: any) {
-        console.warn("Queue error (post saved but not queued):", queueError.message);
-        // Post is still created, just log the queue failure
-        await storage.createJobLog({
-          postId: post.id,
-          level: "warn",
-          message: `Post created but queue unavailable: ${queueError.message}`,
-          raw: { error: queueError.message },
+        const data = schema.parse(req.body);
+        
+        // Check connection exists
+        const connection = await storage.getConnection(req.userId!, data.platform);
+        if (!connection) {
+          return res.status(400).json({ error: `No ${data.platform} connection found` });
+        }
+        
+        const scheduledAt = new Date(data.scheduledAtISO);
+        
+        // Validate scheduled time is in the future
+        if (scheduledAt <= new Date()) {
+          return res.status(400).json({ error: "Scheduled time must be in the future" });
+        }
+        
+        // Create post
+        const post = await storage.createPost({
+          userId: req.userId!,
+          platform: data.platform,
+          caption: data.caption,
+          mediaType: data.media?.type,
+          mediaUrl: data.media?.url,
+          scheduledAt,
+          options: data.options || null,
         });
+        
+        // Add to BullMQ queue with scheduled time
+        try {
+          const queueStatus = getQueueStatus();
+          if (!queueStatus.available) {
+            throw new Error(`Job queue unavailable: ${queueStatus.reason}. Scheduled posts are not supported.`);
+          }
+          
+          await publishQueue!.add(
+            `publish-${post.id}`,
+            {
+              postId: post.id,
+              userId: req.userId!,
+              platform: data.platform,
+              caption: data.caption,
+              mediaUrl: data.media?.url,
+              mediaType: data.media?.type,
+              options: data.options,
+            },
+            {
+              delay: scheduledAt.getTime() - Date.now(),
+              jobId: `post-${post.id}`, // Idempotency: prevent duplicate jobs
+            }
+          );
+          
+          await storage.createJobLog({
+            postId: post.id,
+            level: "info",
+            message: `Scheduled for ${scheduledAt.toISOString()}`,
+            raw: { scheduledAt: data.scheduledAtISO },
+          });
+          
+          // Track post_scheduled event
+          await trackEvent(
+            req.userId!,
+            "post_scheduled",
+            "Post scheduled",
+            { platform: data.platform, postId: post.id }
+          );
+        } catch (queueError: any) {
+          console.warn("Queue error (post saved but not queued):", queueError.message);
+          // Post is still created, just log the queue failure
+          await storage.createJobLog({
+            postId: post.id,
+            level: "warn",
+            message: `Post created but queue unavailable: ${queueError.message}`,
+            raw: { error: queueError.message },
+          });
+        }
+        
+        res.json(post);
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get calendar view of scheduled posts
+  app.get("/api/calendar", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { month } = req.query;
+      
+      if (!month || typeof month !== "string" || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
       }
       
-      res.json(post);
+      // Parse month and calculate date range
+      const [year, monthNum] = month.split("-").map(Number);
+      const startDate = new Date(year, monthNum - 1, 1);
+      const endDate = new Date(year, monthNum, 0, 23, 59, 59);
+      
+      // Get all posts for the user in this month
+      const allPosts = await storage.getPosts(req.userId!);
+      
+      // Filter posts within the month
+      const postsInMonth = allPosts.filter(post => {
+        if (!post.scheduledAt) return false;
+        const scheduledDate = new Date(post.scheduledAt);
+        return scheduledDate >= startDate && scheduledDate <= endDate;
+      });
+      
+      // Format response
+      const calendarPosts = postsInMonth.map(post => ({
+        id: post.id,
+        status: post.status,
+        scheduledAt: post.scheduledAt,
+        platforms: post.platforms || [post.platform],
+        caption: post.caption.substring(0, 80) + (post.caption.length > 80 ? "..." : ""),
+        mediaUrl: post.mediaUrl,
+      }));
+      
+      res.json(calendarPosts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Resolve pending scheduled post
+  app.patch("/api/schedule/:id/resolve", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { platforms } = req.body;
+      
+      if (!platforms || !Array.isArray(platforms)) {
+        return res.status(400).json({ error: "platforms array required" });
+      }
+      
+      // Get existing post
+      const post = await storage.getPost(id);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (post.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Re-run preflight checks with updated details
+      const preflightResults = await runPreflightChecks(req.userId!, platforms);
+      const allReady = preflightResults.every(r => r.connected && r.issues.length === 0);
+      
+      // Update post
+      const updateData = {
+        platforms,
+        preflightIssues: allReady ? null : preflightResults.filter(r => r.issues.length > 0),
+        status: allReady ? ("scheduled" as const) : ("scheduled_pending" as const),
+      };
+      
+      const updatedPost = await storage.updatePost(id, updateData);
+      
+      // If now ready, enqueue job
+      if (allReady && updatedPost.scheduledAt) {
+        try {
+          const queueStatus = getQueueStatus();
+          if (queueStatus.available) {
+            const job = await publishQueue!.add(
+              `publish-${updatedPost.id}`,
+              {
+                postId: updatedPost.id,
+                userId: req.userId!,
+                platform: platforms[0].provider,
+                caption: updatedPost.caption,
+                mediaUrl: updatedPost.mediaUrl,
+                mediaType: updatedPost.mediaType,
+                options: platforms[0],
+              },
+              {
+                delay: new Date(updatedPost.scheduledAt).getTime() - Date.now(),
+                jobId: `post-${updatedPost.id}`,
+              }
+            );
+            
+            await storage.updatePost(updatedPost.id, { jobId: job.id });
+            
+            await storage.createJobLog({
+              postId: updatedPost.id,
+              level: "info",
+              message: `Resolved and scheduled for ${updatedPost.scheduledAt.toISOString()}`,
+              raw: { resolvedAt: new Date().toISOString() },
+            });
+          }
+        } catch (queueError: any) {
+          console.warn("Queue error:", queueError.message);
+        }
+      }
+      
+      res.json({
+        id: updatedPost.id,
+        status: updatedPost.status,
+        scheduledAt: updatedPost.scheduledAt,
+        platforms: platforms.map((p: any) => p.provider),
+        issues: updateData.preflightIssues,
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
