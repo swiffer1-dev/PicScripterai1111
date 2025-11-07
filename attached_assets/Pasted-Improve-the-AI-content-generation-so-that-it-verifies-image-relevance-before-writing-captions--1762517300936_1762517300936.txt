@@ -1,0 +1,49 @@
+Improve the AI content generation so that it verifies image relevance before writing captions.
+
+**Goal:** Prevent the AI from writing mismatched content (e.g., real estate description for a cat photo). Detect image category first, and if it doesn’t match the user’s selected topic, show a friendly warning instead of generating a caption.
+
+**Implementation Steps:**
+
+1. **Image Category Detection**
+
+   * Use a lightweight image classification model (e.g., `@tensorflow-models/mobilenet` or `clip` via `replicate` or `OpenAI embeddings`).
+   * Extract top predicted labels from the image (e.g., “cat”, “house”, “food”, “car”).
+   * Compare the detected labels to the user’s selected or inferred post category (e.g., Real Estate, Pets, Fashion, Food).
+
+2. **Mismatch Handling**
+
+   * If the detected category **does not align** with the selected content type:
+
+     * Don’t call the caption-generation endpoint.
+     * Instead, show a friendly message to the user:
+
+       > “Hmm… this image looks like a **cat**, but you selected **Real Estate**. Please upload an image that matches your category so we can create the best caption!”
+
+3. **UI Feedback**
+
+   * Display the warning above the caption editor in a clear card or toast.
+   * Offer a “Try Again” button to upload a new image or change the category.
+
+4. **Backend Safeguard**
+
+   * Add a check in the AI generation API route (`/api/generate-caption` or equivalent):
+
+     * Run the image classification first.
+     * Only proceed with `generateCaption()` if the category confidence matches (e.g., ≥ 0.6 cosine similarity to the target topic).
+
+5. **Optional Enhancements**
+
+   * Cache recent classification results to avoid re-analyzing the same image.
+   * Log mismatches in the analytics DB for later quality improvements.
+
+✅ **Success Criteria**
+
+* When the user uploads a mismatched image, AI stops and displays a category warning.
+* When the image matches, captions are generated normally.
+* Prevents obviously wrong captions like “House for sale” for animals or products.
+
+🧠 Commit:
+
+```
+feat(ai): add image-category verification to prevent mismatched captions
+```
