@@ -363,13 +363,32 @@ export default function AIStudio() {
 
       console.log("🎯 EMOJI SETTING:", addEmojis);
       console.log("📝 FULL PROMPT:", prompt);
+      console.log("📁 Category:", category);
 
-      // Generate caption using Gemini (already has resizing built in from geminiService)
-      const result = await generateDescription(imageFiles, prompt);
+      // Call backend API for caption generation with category verification
+      const response = await apiRequest("POST", "/api/ai/generate", {
+        imageUrls: uploadedUrls,
+        prompt,
+        category,
+      });
+
+      const result = await response.json();
       
       // Check if session was reset during generation
       if (sessionIdRef.current !== currentSessionId) {
         return; // Abort - session was reset
+      }
+
+      // Check for category mismatch
+      if (result.categoryMismatch) {
+        toast({
+          title: "⚠️ Image doesn't match category",
+          description: `This image looks like ${result.detectedObjects?.join(', ') || result.detectedCategory}, but you selected "${result.selectedCategory}". Please upload a matching image or change your category.`,
+          variant: "destructive",
+        });
+        setGeneratedContent("");
+        setIsGenerating(false);
+        return;
       }
       
       // Clean the text immediately to remove any encoding issues
@@ -394,18 +413,10 @@ export default function AIStudio() {
         console.error('Failed to track analytics:', error);
       }
       
-      // Notify user if buzzwords were removed
-      if (result.buzzwordsRemoved && result.buzzwordsRemoved.length > 0) {
-        toast({
-          title: "✨ Human Authenticity Engine activated!",
-          description: `Removed ${result.buzzwordsRemoved.length} AI buzzword${result.buzzwordsRemoved.length > 1 ? 's' : ''} to make your content feel more authentic`,
-        });
-      } else {
-        toast({
-          title: "Content generated!",
-          description: "AI has created your social media caption and uploaded your images",
-        });
-      }
+      toast({
+        title: "✨ Content generated!",
+        description: "AI has created your social media caption and uploaded your images",
+      });
     } catch (error) {
       console.error("Error generating caption:", error);
       console.error("Error details:", {
