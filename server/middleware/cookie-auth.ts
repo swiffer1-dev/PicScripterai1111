@@ -67,7 +67,7 @@ export function setAuthCookies(
 }
 
 /**
- * Clear authentication cookies
+ * Clear authentication cookies by setting them to expire immediately
  */
 export function clearAuthCookies(res: Response) {
   if (!FEATURE_TOKEN_REFRESH) {
@@ -76,20 +76,22 @@ export function clearAuthCookies(res: Response) {
   
   const isProduction = process.env.NODE_ENV === "production";
   
-  // Clear access token cookie (must match the options used when setting)
-  res.clearCookie("access_token", {
-    path: "/",
+  // Set access token to expire immediately
+  res.cookie("access_token", "", {
     httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
+    path: "/",
+    maxAge: 0, // Expire immediately
   });
   
-  // Clear refresh token cookie (must match the options used when setting)
-  res.clearCookie("refresh_token", {
-    path: "/api/auth",
+  // Set refresh token to expire immediately
+  res.cookie("refresh_token", "", {
     httpOnly: true,
     secure: isProduction,
     sameSite: "strict",
+    path: "/api/auth",
+    maxAge: 0, // Expire immediately
   });
 }
 

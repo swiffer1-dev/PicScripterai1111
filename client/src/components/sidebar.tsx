@@ -3,6 +3,7 @@ import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as Cale
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 interface SidebarProps {
@@ -32,12 +33,23 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     localStorage.setItem('theme', newTheme);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Call backend to clear cookies
+      await apiRequest("POST", "/api/auth/logout");
+    } catch (error) {
+      // Even if the backend call fails, still clear local storage and redirect
+      console.error("Logout error:", error);
+    }
+    
+    // Clear local storage
     localStorage.removeItem("token");
+    
     toast({
       title: "Logged out",
       description: "You've been logged out successfully",
     });
+    
     setLocation("/login");
   };
 
