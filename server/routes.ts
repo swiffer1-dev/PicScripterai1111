@@ -859,7 +859,7 @@ Also list the top 3-5 objects or subjects you see in the image.
 Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of strings), "confidence" (number 0-1)`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: { parts: [...imageParts, { text: classificationPrompt }] },
       config: {
         responseMimeType: 'application/json',
@@ -946,7 +946,18 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       // Fetch images and convert to base64
       const imageParts = await Promise.all(
         imageUrls.map(async (url: string) => {
-          const response = await fetch(url);
+          // Convert relative URLs to absolute URLs using the actual request protocol
+          const absoluteUrl = url.startsWith('http') 
+            ? url 
+            : `${req.protocol}://${req.get('host')}${url}`;
+          
+          console.log("Fetching image from:", absoluteUrl);
+          const response = await fetch(absoluteUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image from ${absoluteUrl}: ${response.statusText}`);
+          }
+          
           const buffer = await response.arrayBuffer();
           const base64 = Buffer.from(buffer).toString('base64');
           const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -989,7 +1000,7 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       `;
       
       const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: { parts: [...imageParts, { text: instruction }] },
         config: {
           responseMimeType: 'application/json',

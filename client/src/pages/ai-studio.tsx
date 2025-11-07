@@ -373,6 +373,7 @@ export default function AIStudio() {
       });
 
       const result = await response.json();
+      console.log("🔍 Backend response:", result);
       
       // Check if session was reset during generation
       if (sessionIdRef.current !== currentSessionId) {
@@ -380,7 +381,9 @@ export default function AIStudio() {
       }
 
       // Check for category mismatch
+      console.log("📊 Category mismatch check:", result.categoryMismatch);
       if (result.categoryMismatch) {
+        console.log("⚠️ Category mismatch detected! Showing warning...");
         toast({
           title: "⚠️ Image doesn't match category",
           description: `This image looks like ${result.detectedObjects?.join(', ') || result.detectedCategory}, but you selected "${result.selectedCategory}". Please upload a matching image or change your category.`,
