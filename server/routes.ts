@@ -836,10 +836,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate AI caption from images
+  // Helper function to classify image content
+  async function classifyImageContent(imageParts: any[], ai: any): Promise<{ 
+    primaryCategory: string; 
+    detectedObjects: string[]; 
+    confidence: number 
+  }> {
+    const classificationPrompt = `Analyze this image and categorize its primary subject matter. 
+    
+Choose the SINGLE most appropriate category from this list:
+- Travel (landmarks, destinations, vacation spots, scenic views, tourism)
+- Real Estate (houses, buildings, properties, interiors, architecture, rooms)
+- E-commerce (products for sale, items, merchandise, consumer goods)
+- Food (meals, dishes, cuisine, restaurants, cooking)
+- Fashion (clothing, outfits, accessories, style, models wearing clothes)
+- People (portraits, groups, activities, pets, animals that are NOT for sale)
+- Nature (landscapes, wildlife, plants that are NOT part of real estate or travel)
+- Other (anything that doesn't fit the above)
+
+Also list the top 3-5 objects or subjects you see in the image.
+
+Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of strings), "confidence" (number 0-1)`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: { parts: [...imageParts, { text: classificationPrompt }] },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: (await import("@google/genai")).Type.OBJECT,
+          properties: {
+            primaryCategory: { type: (await import("@google/genai")).Type.STRING },
+            detectedObjects: { 
+              type: (await import("@google/genai")).Type.ARRAY,
+              items: { type: (await import("@google/genai")).Type.STRING }
+            },
+            confidence: { type: (await import("@google/genai")).Type.NUMBER },
+          },
+          required: ['primaryCategory', 'detectedObjects', 'confidence'],
+        },
+      },
+    });
+
+    const cleanJson = response.text.replace(/^```json\n/, '').replace(/\n```$/, '');
+    return JSON.parse(cleanJson);
+  }
+
+  // Helper function to check if detected category matches selected category
+  function isCategoryMatch(selectedCategory: string, detectedCategory: string, confidence: number): {
+    isMatch: boolean;
+    reason?: string;
+  } {
+    // Custom category always passes (user knows what they want)
+    if (selectedCategory.toLowerCase() === 'custom') {
+      return { isMatch: true };
+    }
+
+    // Confidence threshold - if AI is not confident, let it pass
+    if (confidence < 0.6) {
+      return { isMatch: true }; // Don't block on low confidence
+    }
+
+    const selected = selectedCategory.toLowerCase().replace(/[^a-z]/g, '');
+    const detected = detectedCategory.toLowerCase();
+
+    // Direct matches
+    if (selected === 'realestate' && detected.includes('real estate')) return { isMatch: true };
+    if (selected === 'ecommerce' && detected.includes('e-commerce')) return { isMatch: true };
+    if (selected === detected) return { isMatch: true };
+
+    // Related categories that can work together
+    const compatibleGroups = [
+      ['travel', 'nature', 'people'],
+      ['fashion', 'people', 'e-commerce'],
+      ['food', 'people'],
+    ];
+
+    for (const group of compatibleGroups) {
+      if (group.includes(selected) && group.includes(detected)) {
+        return { isMatch: true };
+      }
+    }
+
+    // Mismatch
+    return { 
+      isMatch: false, 
+      reason: `Image appears to be about "${detectedCategory}" but you selected "${selectedCategory}"`
+    };
+  }
+
+  // Generate AI caption from images with category verification
   app.post("/api/ai/generate", requireAuth, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
     try {
-      const { imageUrls, prompt } = req.body;
+      const { imageUrls, prompt, category } = req.body;
       
       if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
         return res.status(400).json({ error: "No images provided" });
@@ -870,7 +959,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
+
+      // STEP 1: Classify image content to verify relevance
+      const classification = await classifyImageContent(imageParts, ai);
+      console.log("Image classification:", classification);
+
+      // STEP 2: Check if detected category matches selected category
+      const matchResult = isCategoryMatch(category || 'Custom', classification.primaryCategory, classification.confidence);
       
+      if (!matchResult.isMatch) {
+        // Return category mismatch warning instead of generating caption
+        return res.status(200).json({
+          categoryMismatch: true,
+          detectedCategory: classification.primaryCategory,
+          selectedCategory: category,
+          detectedObjects: classification.detectedObjects,
+          message: matchResult.reason || 
+            `This image looks like ${classification.detectedObjects.join(', ')}, which doesn't match your selected category "${category}". Please upload an image that matches your category or switch to a different category.`,
+        });
+      }
+
+      // STEP 3: Category matches - proceed with caption generation
       const instruction = `
         You have two tasks. First, create a brief, one-sentence factual summary of the image contents (e.g., "A photo of a golden retriever playing on a sunny beach."). This will be the 'imageSummary'.
         Second, follow the user's primary instruction to generate the main content. This will be the 'generatedContent'.
@@ -904,6 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         description: resultJson.generatedContent,
         metadata: resultJson.imageSummary,
+        categoryMatch: true,
       });
     } catch (error: any) {
       metrics.ai.errors++;
