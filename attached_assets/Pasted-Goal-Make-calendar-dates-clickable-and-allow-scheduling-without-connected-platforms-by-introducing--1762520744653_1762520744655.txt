@@ -1,0 +1,68 @@
+Goal: Make calendar dates clickable and allow scheduling without connected platforms by introducing a safe “pending” state. Do not remove or change existing publish logic; only add the minimal pieces.
+
+Constraints:
+
+* Additive only; do not alter existing queue publish code or OAuth flows.
+* Feature flag: FEATURE_SCHEDULE_PENDING=true (default false). When false, current behavior remains.
+* If a platform lacks required config (e.g., Pinterest board) or user isn’t connected, store the schedule as “pending,” visible on calendar, but do not enqueue a job.
+
+Tasks:
+
+1. DB/Schema (Drizzle)
+
+* Add to posts table (or create schedules table if you prefer):
+
+  * status: enum('draft','scheduled_pending','scheduled','queued','published','failed') NOT NULL DEFAULT 'draft'
+  * scheduled_at: timestamp null
+  * platforms jsonb null (example: [{provider:'pinterest', boardId:null}])
+  * preflight_issues jsonb null
+  * job_id text null
+* Migration only; do not modify existing columns.
+
+2. Backend endpoints
+
+* POST /api/schedule
+
+  * Input: { postId?, caption?, media?, scheduledAt, platforms: [{provider, boardId?}] }
+  * Run preflight (if exists); otherwise stub to return issues=[] and connected=false per platform.
+  * Decision:
+
+    * If all platforms connected & required fields present → enqueue publish job → status='scheduled' and store job_id.
+    * Else → create/update row with status='scheduled_pending' and preflight_issues; do NOT enqueue.
+  * Return the saved row (id, status, scheduledAt, platforms, issues).
+
+* GET /api/calendar?month=YYYY-MM
+
+  * Return posts within month with fields: id, status, scheduledAt, platforms (provider list), title/caption preview(80 chars).
+
+* PATCH /api/schedule/:id/resolve
+
+  * Accepts missing details (e.g., boardId) and re-checks preflight.
+  * If now valid → enqueue job and set status='scheduled'.
+
+3. Frontend (feature-flagged)
+
+* Calendar: make day cells clickable. On click → open "Schedule Post" drawer (date prefilled).
+* Drawer:
+
+  * Select draft or upload image + caption.
+  * Choose platforms. If not connected or missing config (e.g., no boards), show “Will be saved as Pending”.
+  * Buttons: [Schedule] (if ready) and [Save as Pending] (always available).
+* Calendar badges:
+
+  * grey = scheduled_pending, blue = scheduled, green = published, red = failed (use existing failed state if any).
+* Post detail popover: for pending items show a “Resolve” CTA that opens platform selectors; call PATCH /api/schedule/:id/resolve.
+
+4. Env + Docs
+
+* Add FEATURE_SCHEDULE_PENDING=false to .env.example with 1-paragraph README update.
+* When flag is false, the UI works exactly as today.
+
+Acceptance:
+
+* Clicking any date opens the drawer with that date prefilled.
+* You can save a schedule as Pending even with zero connected platforms. It appears on the calendar (grey).
+* After connecting a platform and providing required fields (e.g., Pinterest board), Resolve → job enqueued → blue badge.
+* No regressions to existing publish paths.
+
+Commit message: feat(schedule): pending scheduling + clickable calendar (feature-flagged)

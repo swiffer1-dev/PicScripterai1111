@@ -23,6 +23,8 @@ export const ecommercePlatformEnum = pgEnum("ecommerce_platform", [
 
 export const postStatusEnum = pgEnum("post_status", [
   "draft",
+  "scheduled_pending",
+  "scheduled",
   "queued",
   "publishing",
   "published",
@@ -157,6 +159,9 @@ export const posts = pgTable("posts", {
   externalUrl: text("external_url"),
   options: jsonb("options"),
   clientPostId: text("client_post_id"),
+  platforms: jsonb("platforms"),
+  preflightIssues: jsonb("preflight_issues"),
+  jobId: text("job_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
