@@ -592,9 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/schedule", requireAuth, async (req: AuthRequest, res) => {
     try {
-      // TEMPORARY: Hardcoded for testing - will revert after tests pass
-      const featureEnabled = true; // process.env.FEATURE_SCHEDULE_PENDING === "true";
-      console.log(`[SCHEDULE] Feature flag HARDCODED for testing: enabled=${featureEnabled}`);
+      const featureEnabled = process.env.FEATURE_SCHEDULE_PENDING === "true";
       
       // New schema for feature-flagged endpoint
       if (featureEnabled) {
