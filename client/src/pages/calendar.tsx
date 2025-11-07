@@ -726,8 +726,9 @@ export default function Calendar() {
                             const isMultiPlatform = Array.isArray(platforms) && platforms.length > 1;
                             
                             // For multi-platform posts, show the first platform icon
-                            const displayPlatform = isMultiPlatform ? platforms[0].provider : post.platform;
-                            const Icon = platformIcons[displayPlatform];
+                            const displayPlatform = (isMultiPlatform ? platforms[0].provider : post.platform) as Platform;
+                            const Icon = platformIcons[displayPlatform] || platformIcons.instagram;
+                            const platformColor = platformColors[displayPlatform] || platformColors.instagram;
                             
                             return (
                               <div
@@ -735,7 +736,7 @@ export default function Calendar() {
                                 className={`text-xs p-1.5 rounded flex items-center gap-1 truncate cursor-pointer transition-all hover:opacity-80 ${
                                   isPending 
                                     ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-600'
-                                    : `text-white ${platformColors[displayPlatform]}`
+                                    : `text-white ${platformColor}`
                                 }`}
                                 title={post.caption}
                                 onClick={() => {
