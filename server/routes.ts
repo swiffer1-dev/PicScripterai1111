@@ -883,8 +883,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId: req.userId!,
                 platform: platforms[0].provider,
                 caption: updatedPost.caption,
-                mediaUrl: updatedPost.mediaUrl,
-                mediaType: updatedPost.mediaType,
+                mediaUrl: updatedPost.mediaUrl || undefined,
+                mediaType: updatedPost.mediaType || undefined,
                 options: platforms[0],
               },
               {

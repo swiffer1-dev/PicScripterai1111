@@ -68,6 +68,8 @@ export default function Calendar() {
     platform: Platform;
     scheduledAt: string;
   } | null>(null);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
+  const featureEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_PENDING === "true";
   const { toast } = useToast();
 
   const { data: connections } = useQuery<Connection[]>({
