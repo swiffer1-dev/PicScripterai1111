@@ -168,14 +168,16 @@ export default function Calendar() {
     }) => {
       const payload: any = featureEnabled
         ? {
-            platforms: selectedPlatforms.length > 0 ? selectedPlatforms : [data.platform],
+            platforms: selectedPlatforms.length > 0 
+              ? selectedPlatforms.map(p => ({ provider: p }))
+              : [{ provider: data.platform }],
             caption: data.caption,
-            scheduledAtISO: data.scheduledAt,
+            scheduledAt: data.scheduledAt,
           }
         : {
             platform: data.platform,
             caption: data.caption,
-            scheduledAtISO: data.scheduledAt,
+            scheduledAt: data.scheduledAt,
           };
 
       if (data.imageUrl) {
