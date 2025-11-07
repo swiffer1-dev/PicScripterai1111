@@ -1,0 +1,42 @@
+Please choose **Option 2**: enable the feature flag and verify all backend scheduling endpoints before making large frontend changes.
+
+**Do now (no UI changes yet):**
+
+1. **Enable flag**
+
+   * Add `FEATURE_SCHEDULE_PENDING=true` to `.env` (and `.env.example` commented).
+   * Restart server.
+
+2. **Quick sanity tests (automate or run via REST client)**
+
+   * Create a simple script or use `curl` commands to call:
+
+     * **POST /api/schedule** with no connected platforms → should return `status:"scheduled_pending"` and `preflight_issues` (e.g., missing Pinterest board).
+     * **GET /api/calendar?month=YYYY-MM** → should include the new item with `scheduledAt`, `status`, and platforms.
+     * **PATCH /api/schedule/:id/resolve** with required fields (e.g., `boardId`) → should return `status:"scheduled"` and set `job_id` (BullMQ enqueued).
+   * Log results clearly (console output) so I can read pass/fail quickly.
+
+**Acceptance for this step:**
+
+* Flag is active.
+* A pending schedule can be created without connected platforms.
+* Calendar endpoint returns it.
+* Resolve endpoint enqueues it (job_id present) and status becomes `scheduled`.
+* No regressions to existing publish/queue code.
+
+**After backend passes, proceed with frontend in safe slices (separate PRs/commits):**
+
+* **Slice A:** Make calendar cells clickable → open “Schedule Post” drawer (date prefilled). Wire it to **POST /api/schedule**; show toast with returned status (“Pending”/“Scheduled”).
+* **Slice B:** Render status dots from **GET /api/calendar** (grey=pending, blue=scheduled).
+* **Slice C:** Click an item → “Resolve” modal (platform selectors) → **PATCH /api/schedule/:id/resolve**.
+* **Slice D (polish):** platform chips, missing-board tooltip, empty states.
+
+Constraints:
+
+* Additive only; do not change existing publish logic or OAuth flows.
+* If any test fails, stop and report the failing request/response with minimal diff.
+
+Commit messages:
+
+* `feat(schedule): enable pending mode via FEATURE_SCHEDULE_PENDING`
+* `test(schedule): backend sanity checks for create/pending/resolve`
