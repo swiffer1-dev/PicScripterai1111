@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus, X, AlertTriangle, CheckCircle } from "lucide-react";
 import type { Post, Platform, Connection } from "@shared/schema";
 import {
   SiInstagram,
@@ -155,11 +155,17 @@ export default function Calendar() {
       scheduledAt: string;
       imageUrl: string | null;
     }) => {
-      const payload: any = {
-        platform: data.platform,
-        caption: data.caption,
-        scheduledAtISO: data.scheduledAt,
-      };
+      const payload: any = featureEnabled
+        ? {
+            platforms: selectedPlatforms.length > 0 ? selectedPlatforms : [data.platform],
+            caption: data.caption,
+            scheduledAtISO: data.scheduledAt,
+          }
+        : {
+            platform: data.platform,
+            caption: data.caption,
+            scheduledAtISO: data.scheduledAt,
+          };
 
       if (data.imageUrl) {
         payload.media = {
@@ -168,9 +174,8 @@ export default function Calendar() {
         };
       }
 
-      // Add Pinterest-specific options
-      if (data.platform === "pinterest") {
-        // Fetch Pinterest boards
+      // Add Pinterest-specific options (only for single platform legacy mode)
+      if (!featureEnabled && data.platform === "pinterest") {
         const boardsResponse = await apiRequest("GET", "/api/pinterest/boards") as unknown as { items: any[] };
         
         if (!boardsResponse.items || boardsResponse.items.length === 0) {
@@ -188,8 +193,10 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar"] });
       setScheduleDialogOpen(false);
       setScheduleData(null);
+      setSelectedPlatforms([]);
       toast({
         title: "Post scheduled!",
         description: "Your post has been scheduled successfully",
@@ -198,6 +205,34 @@ export default function Calendar() {
     onError: (error: Error) => {
       toast({
         title: "Failed to schedule",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resolvePostMutation = useMutation({
+    mutationFn: async (data: {
+      postId: string;
+      platforms: Platform[];
+    }) => {
+      return await apiRequest("PATCH", `/api/schedule/${data.postId}/resolve`, {
+        platforms: data.platforms,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar"] });
+      setResolveDialogOpen(false);
+      setSelectedPost(null);
+      toast({
+        title: "Post updated!",
+        description: "Your post has been updated and will be scheduled if all issues are resolved",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update",
         description: error.message,
         variant: "destructive",
       });
@@ -271,11 +306,38 @@ export default function Calendar() {
   const handleScheduleSubmit = () => {
     if (!scheduleData) return;
 
-    const charLimit = platformCharLimits[scheduleData.platform];
-    if (scheduleData.caption.length > charLimit) {
+    // Validate character limits for all selected platforms (when feature enabled)
+    if (featureEnabled && selectedPlatforms.length > 0) {
+      const overLimitPlatforms = selectedPlatforms.filter(
+        platform => scheduleData.caption.length > platformCharLimits[platform]
+      );
+      
+      if (overLimitPlatforms.length > 0) {
+        toast({
+          title: "Caption too long",
+          description: `Caption exceeds limit for: ${overLimitPlatforms.join(', ')}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!featureEnabled) {
+      // Legacy single-platform validation
+      const charLimit = platformCharLimits[scheduleData.platform];
+      if (scheduleData.caption.length > charLimit) {
+        toast({
+          title: "Caption too long",
+          description: `${scheduleData.platform} has a ${charLimit} character limit. Current: ${scheduleData.caption.length}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Ensure at least one platform is selected when feature enabled
+    if (featureEnabled && selectedPlatforms.length === 0) {
       toast({
-        title: "Caption too long",
-        description: `${scheduleData.platform} has a ${charLimit} character limit. Current: ${scheduleData.caption.length}`,
+        title: "No platforms selected",
+        description: "Please select at least one platform",
         variant: "destructive",
       });
       return;
@@ -286,6 +348,124 @@ export default function Calendar() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Resolve Issues Dialog */}
+      <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Resolve Scheduling Issues
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPost && (
+            <div className="space-y-4">
+              {/* Post Info */}
+              <div>
+                <Label>Caption</Label>
+                <p className="mt-1 text-sm text-muted-foreground">{selectedPost.caption}</p>
+              </div>
+
+              {/* Display Issues */}
+              {(selectedPost as any).preflightIssues && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">Issues Found:</h3>
+                  <ul className="space-y-2">
+                    {(selectedPost as any).preflightIssues.map((issue: any, idx: number) => (
+                      <li key={idx} className="text-sm">
+                        <div className="font-medium text-yellow-900 dark:text-yellow-100 capitalize">{issue.provider}:</div>
+                        <ul className="ml-4 mt-1 space-y-1">
+                          {issue.issues.map((msg: string, msgIdx: number) => (
+                            <li key={msgIdx} className="text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                              <span className="text-yellow-600">•</span>
+                              {msg}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Platform Selection to Resolve */}
+              <div>
+                <Label>Update Platforms</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {(['instagram', 'tiktok', 'twitter', 'linkedin', 'pinterest', 'youtube', 'facebook'] as Platform[]).map((platform) => {
+                    const isConnected = connections?.some(c => c.platform === platform);
+                    const isSelected = selectedPlatforms.includes(platform);
+                    const Icon = platformIcons[platform];
+                    
+                    return (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
+                          } else {
+                            setSelectedPlatforms([...selectedPlatforms, platform]);
+                          }
+                        }}
+                        className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        } ${!isConnected ? 'opacity-50' : ''}`}
+                        data-testid={`resolve-platform-${platform}`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          isSelected ? 'bg-primary border-primary' : 'border-border'
+                        }`}>
+                          {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        </div>
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm capitalize">{platform}</span>
+                        {!isConnected && (
+                          <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Connect platforms in the Connections page to resolve issues.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResolveDialogOpen(false);
+                    setSelectedPost(null);
+                    setSelectedPlatforms([]);
+                  }}
+                  data-testid="button-cancel-resolve"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!selectedPost) return;
+                    resolvePostMutation.mutate({
+                      postId: selectedPost.id,
+                      platforms: selectedPlatforms,
+                    });
+                  }}
+                  disabled={resolvePostMutation.isPending || selectedPlatforms.length === 0}
+                  data-testid="button-confirm-resolve"
+                >
+                  {resolvePostMutation.isPending ? "Updating..." : "Update & Retry"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Scheduling Dialog */}
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -308,22 +488,69 @@ export default function Calendar() {
               )}
 
               {/* Platform Selection */}
-              <div>
-                <Label htmlFor="platform">Platform</Label>
-                <select
-                  id="platform"
-                  value={scheduleData.platform}
-                  onChange={(e) => setScheduleData({ ...scheduleData, platform: e.target.value as Platform })}
-                  className="w-full mt-2 bg-background border border-border rounded-lg py-2 px-3"
-                  data-testid="select-platform"
-                >
-                  {connections?.map((conn) => (
-                    <option key={conn.platform} value={conn.platform}>
-                      {conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {featureEnabled ? (
+                <div>
+                  <Label>Select Platforms</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {(['instagram', 'tiktok', 'twitter', 'linkedin', 'pinterest', 'youtube', 'facebook'] as Platform[]).map((platform) => {
+                      const isConnected = connections?.some(c => c.platform === platform);
+                      const isSelected = selectedPlatforms.includes(platform);
+                      const Icon = platformIcons[platform];
+                      
+                      return (
+                        <button
+                          key={platform}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
+                            } else {
+                              setSelectedPlatforms([...selectedPlatforms, platform]);
+                            }
+                          }}
+                          className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          } ${!isConnected ? 'opacity-50' : ''}`}
+                          data-testid={`checkbox-platform-${platform}`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-primary border-primary' : 'border-border'
+                          }`}>
+                            {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                          </div>
+                          <Icon className="h-4 w-4" />
+                          <span className="text-sm capitalize">{platform}</span>
+                          {!isConnected && (
+                            <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    You can schedule to platforms even if not connected. We'll notify you to connect them later.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="platform">Platform</Label>
+                  <select
+                    id="platform"
+                    value={scheduleData.platform}
+                    onChange={(e) => setScheduleData({ ...scheduleData, platform: e.target.value as Platform })}
+                    className="w-full mt-2 bg-background border border-border rounded-lg py-2 px-3"
+                    data-testid="select-platform"
+                  >
+                    {connections?.map((conn) => (
+                      <option key={conn.platform} value={conn.platform}>
+                        {conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Caption */}
               <div>
@@ -494,16 +721,37 @@ export default function Calendar() {
                         <div className="text-sm font-medium mb-2">{day.getDate()}</div>
                         <div className="space-y-1">
                           {dayPosts.slice(0, 3).map(post => {
-                            const Icon = platformIcons[post.platform];
+                            const isPending = post.status === 'scheduled_pending';
+                            const platforms = (post as any).platforms;
+                            const isMultiPlatform = Array.isArray(platforms) && platforms.length > 1;
+                            
+                            // For multi-platform posts, show the first platform icon
+                            const displayPlatform = isMultiPlatform ? platforms[0].provider : post.platform;
+                            const Icon = platformIcons[displayPlatform];
+                            
                             return (
                               <div
                                 key={post.id}
-                                className={`text-xs p-1.5 rounded text-white ${platformColors[post.platform]} flex items-center gap-1 truncate`}
+                                className={`text-xs p-1.5 rounded flex items-center gap-1 truncate cursor-pointer transition-all hover:opacity-80 ${
+                                  isPending 
+                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-600'
+                                    : `text-white ${platformColors[displayPlatform]}`
+                                }`}
                                 title={post.caption}
+                                onClick={() => {
+                                  if (isPending) {
+                                    setSelectedPost(post);
+                                    setResolveDialogOpen(true);
+                                  }
+                                }}
                                 data-testid={`post-${post.id}`}
                               >
+                                {isPending && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
                                 <Icon className="h-3 w-3 flex-shrink-0" />
-                                <span className="truncate">{post.caption.substring(0, 20)}...</span>
+                                <span className="truncate">{post.caption.substring(0, 15)}...</span>
+                                {isMultiPlatform && (
+                                  <span className="ml-auto text-xs">+{platforms.length - 1}</span>
+                                )}
                               </div>
                             );
                           })}
