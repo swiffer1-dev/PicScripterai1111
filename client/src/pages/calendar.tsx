@@ -329,6 +329,18 @@ export default function Calendar() {
   const handleScheduleSubmit = () => {
     if (!scheduleData) return;
 
+    // Legacy mode: check if user has any connections
+    if (!featureEnabled) {
+      if (!connections || connections.length === 0) {
+        toast({
+          title: "No platforms connected",
+          description: "Please connect at least one platform in the Connections page before scheduling",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Validate character limits for all selected platforms (when feature enabled)
     if (featureEnabled && selectedPlatforms.length > 0) {
       const overLimitPlatforms = selectedPlatforms.filter(
@@ -664,6 +676,38 @@ export default function Calendar() {
             </div>
 
             <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                className="gap-2" 
+                onClick={() => {
+                  // Open schedule dialog with empty data
+                  const defaultTime = new Date();
+                  defaultTime.setHours(defaultTime.getHours() + 1);
+                  defaultTime.setMinutes(0);
+                  defaultTime.setSeconds(0);
+                  defaultTime.setMilliseconds(0);
+                  
+                  const year = defaultTime.getFullYear();
+                  const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+                  const day = String(defaultTime.getDate()).padStart(2, '0');
+                  const hours = String(defaultTime.getHours()).padStart(2, '0');
+                  const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+                  const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+                  
+                  setScheduleData({
+                    caption: '',
+                    imageUrl: null,
+                    platform: connections?.[0]?.platform || 'instagram',
+                    scheduledAt: localDateTimeString,
+                  });
+                  setSelectedPlatforms([]);
+                  setScheduleDialogOpen(true);
+                }}
+                data-testid="button-schedule-post"
+              >
+                <CalendarIcon className="h-4 w-4" />
+                Schedule Post
+              </Button>
               <Link href="/ai-studio">
                 <Button className="gap-2" data-testid="button-create-post">
                   <Plus className="h-4 w-4" />
