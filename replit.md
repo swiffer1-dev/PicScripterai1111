@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 
 **Key Features:**
 - **AI Studio:** AI-powered content creation with multi-image upload, AI caption generation (Google Gemini), "Human Authenticity Engine" to refine tone and remove buzzwords, emoji generation, proofreading, regeneration, and direct posting. Includes real-time character counter showing which platforms are within/over limits, with frontend validation preventing posts that exceed platform limits. **Image-category verification** uses Gemini Vision to detect image content and prevent mismatched captions (e.g., food description for real estate photo) - shows friendly warning if detected category doesn't match user's selection.
-- **Content Calendar:** Month/week views with color-coded posts by platform. Includes character limit validation for scheduled posts.
+- **Content Calendar:** Month/week views with color-coded posts by platform. Includes character limit validation for scheduled posts. **Unified Schedule Drawer** (when `VITE_FEATURE_SCHEDULE_UI=true`): Single drawer interface for both creating and editing scheduled posts. Create mode accessible via "Schedule Post" button or day cell clicks. Edit mode opens when clicking existing posts, with prefilled data, update/duplicate/delete actions, and intelligent job rescheduling.
 - **Connections Management:** OAuth-based connection management for social media and e-commerce platforms, including product sync functionality.
 - **Post Management:** View all posts with status tracking, quick actions (duplicate, edit & repost, send to AI Studio).
 
@@ -92,6 +92,12 @@ Preferred communication style: Simple, everyday language.
 - OAuth callback handlers
 - Presigned upload functionality for direct-to-cloud media uploads (Google Cloud Storage).
 - Analytics event tracking endpoint (`/api/analytics/track`) and summary (`/api/analytics/summary`).
+- **Schedule Management Endpoints:**
+  - POST `/api/schedule` - Create new scheduled post
+  - GET `/api/schedule/:id` - Fetch post details for editing
+  - PATCH `/api/schedule/:id` - Update existing scheduled post (caption, media, platforms, scheduledAt) with automatic job cancellation/re-enqueueing
+  - POST `/api/schedule/:id/duplicate` - Clone post to new draft
+  - POST `/api/schedule/:id/resolve` - Legacy endpoint for resolving connection issues
 
 **OAuth Integration:**
 - Factory pattern for platform-specific OAuth providers.
@@ -179,6 +185,9 @@ Picscripterai uses a dual-process architecture:
   - `ACCESS_TOKEN_TTL`: Access token expiration (default: 15m)
   - `REFRESH_TOKEN_TTL`: Refresh token expiration (default: 30d)
   - `ADMIN_USER_IDS`: Comma-separated admin user IDs for audit access
+- **Feature Flags:**
+  - `VITE_FEATURE_SCHEDULE_UI`: Enable unified schedule drawer for create/edit (set to "true" to enable)
+  - `FEATURE_TOKEN_REFRESH`: Enable cookie-based refresh tokens (default: true)
 
 ## Production Security Features
 
