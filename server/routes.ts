@@ -838,6 +838,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get scheduled post details (for Preview)
+  app.get("/api/schedule/:id", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get post
+      const post = await storage.getPost(id);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (post.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Get job logs for lastError
+      const logs = await storage.getJobLogs(post.id);
+      const errorLog = logs.find(log => log.level === "error");
+      
+      // Calculate character counts per platform
+      const charCounts: Record<string, { current: number; limit: number }> = {};
+      const platformCharLimits: Record<Platform, number> = {
+        instagram: 2200,
+        tiktok: 2200,
+        twitter: 280,
+        linkedin: 3000,
+        pinterest: 500,
+        youtube: 5000,
+        facebook: 63206,
+      };
+      
+      const platforms = (post.platforms || (post.platform ? [post.platform] : [])) as any[];
+      platforms.forEach((platform: any) => {
+        const platformName = typeof platform === 'string' ? platform : platform.provider;
+        charCounts[platformName] = {
+          current: post.caption.length,
+          limit: platformCharLimits[platformName as Platform] || 1000,
+        };
+      });
+      
+      // Format media array
+      const media = [];
+      if (post.mediaUrl) {
+        media.push({
+          type: post.mediaType || "image",
+          url: post.mediaUrl,
+        });
+      }
+      
+      res.json({
+        id: post.id,
+        caption: post.caption,
+        scheduledAt: post.scheduledAt,
+        media,
+        platforms: platforms.map((p: any) => ({
+          provider: typeof p === 'string' ? p : p.provider,
+          status: post.status,
+        })),
+        charCounts,
+        lastError: errorLog?.message || null,
+        preflightIssues: (post as any).preflightIssues || null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Resolve pending scheduled post
   app.patch("/api/schedule/:id/resolve", requireAuth, async (req: AuthRequest, res) => {
     try {
