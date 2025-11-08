@@ -1,0 +1,70 @@
+Goal: Make the calendar feel alive without touching publish logic. Add (A) clickable day cells that open a Schedule drawer, and (B) status dots from GET /api/calendar. This must be additive-only and feature-flagged.
+
+Constraints:
+
+* Do NOT modify queue/publish/OAuth code.
+* Keep existing styles; add components in new files or clearly marked blocks.
+* Gate everything behind `FEATURE_SCHEDULE_UI=true` (default false). When false, calendar behaves exactly as today.
+
+Tasks:
+
+1. Env & flag
+
+* Add `FEATURE_SCHEDULE_UI=false` to `.env.example`.
+* Read the flag in the frontend (e.g., `import.meta.env.VITE_FEATURE_SCHEDULE_UI` or similar).
+
+2. Slice A: Clickable days → Schedule drawer
+
+* In the Calendar component, make each day cell clickable when `FEATURE_SCHEDULE_UI` is true.
+* On click, open a right-side **Schedule Post** drawer with:
+
+  * Date prefilled from the clicked day (time default 10:00 local).
+  * Fields: caption (textarea), image URL, platforms (checkboxes; reuse existing platform list component if present).
+  * Footer buttons:
+
+    * **Schedule** → calls `POST /api/schedule` with `{ caption, media:[{url}], scheduledAt, platforms }`.
+    * **Save as Pending** → same call but allow missing provider details; backend will return `scheduled_pending`.
+* On success, toast message with returned status (`Scheduled` or `Pending`) and close drawer.
+* After success, refetch calendar data (see Slice B).
+
+3. Slice B: Status dots from calendar API
+
+* On Calendar mount (and when month changes), call `GET /api/calendar?month=YYYY-MM`.
+* Maintain a local map keyed by date: `{"YYYY-MM-DD": [{id,status,platforms}]}`.
+* Render small dots inside each day cell:
+
+  * **gray** for `scheduled_pending`
+  * **blue** for `scheduled`
+  * **green** for `published`
+  * **red** for `failed`
+* If multiple statuses on the same day, display up to 3 dots (or a +N counter if more).
+* Tooltip/hover: show a tiny list (caption snippet or platform icons).
+
+4. Minimal components (new files)
+
+* `ScheduleDrawer.tsx` — the drawer UI with form + submit handlers.
+* `useCalendarData.ts` — hook that loads `GET /api/calendar` and returns a date→items map.
+* Keep styles minimal; reuse existing button/input components.
+
+5. Error states & UX
+
+* If `POST /api/schedule` returns validation issues, show them inline above the buttons.
+* If no platforms selected, allow **Save as Pending**; block **Schedule** with a hint.
+* If backend is missing (404), fail gracefully and leave current calendar as-is.
+
+6. Docs & wiring
+
+* Add a short README section: how to enable `FEATURE_SCHEDULE_UI` and what Slice A/B includes.
+* Do not remove or rename any existing Calendar exports.
+
+Acceptance:
+
+* With `FEATURE_SCHEDULE_UI=false`: Calendar unchanged.
+* With `FEATURE_SCHEDULE_UI=true`:
+
+  * Clicking a day opens the Schedule drawer with that date prefilled.
+  * Submitting calls `POST /api/schedule` and shows a success toast.
+  * Calendar shows dots from `GET /api/calendar` (gray/blue/green/red), updating after submit.
+  * No regressions in existing publish/queue behavior.
+
+Commit: `feat(calendar): clickable days + status dots (feature-flagged, additive)`
