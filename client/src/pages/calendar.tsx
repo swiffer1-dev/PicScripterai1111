@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ScheduleDrawer } from "@/components/ScheduleDrawer";
+import { useCalendarData } from "@/hooks/useCalendarData";
 
 const platformIcons: Record<Platform, any> = {
   instagram: SiInstagram,
@@ -72,7 +75,16 @@ export default function Calendar() {
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const featureEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_PENDING === "true";
+  
+  // New interactive calendar feature
+  const scheduleUIEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_UI === "true";
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDate, setDrawerDate] = useState<Date>(new Date());
+  
   const { toast } = useToast();
+  
+  // Use calendar data hook for status dots (when feature enabled)
+  const calendarData = useCalendarData(currentDate);
 
   const { data: connections } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -325,6 +337,36 @@ export default function Calendar() {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + (direction * 7));
     setCurrentDate(newDate);
+  };
+  
+  // Helper to get status dots for a day (when feature enabled)
+  const getStatusDotsForDay = (day: Date | null) => {
+    if (!day || !scheduleUIEnabled || !calendarData.data) return [];
+    
+    const dateKey = format(day, "yyyy-MM-dd");
+    const posts = calendarData.data[dateKey] || [];
+    
+    // Count statuses
+    const statusCounts = posts.reduce((acc: any, post) => {
+      acc[post.status] = (acc[post.status] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const dots = [];
+    if (statusCounts.scheduled_pending) dots.push({ status: "pending", color: "bg-gray-400", count: statusCounts.scheduled_pending });
+    if (statusCounts.scheduled) dots.push({ status: "scheduled", color: "bg-blue-500", count: statusCounts.scheduled });
+    if (statusCounts.published) dots.push({ status: "published", color: "bg-green-500", count: statusCounts.published });
+    if (statusCounts.failed) dots.push({ status: "failed", color: "bg-red-500", count: statusCounts.failed });
+    
+    return dots.slice(0, 3); // Max 3 dots
+  };
+  
+  // Handle day cell click (when feature enabled)
+  const handleDayClick = (day: Date | null) => {
+    if (!day || !scheduleUIEnabled) return;
+    
+    setDrawerDate(day);
+    setDrawerOpen(true);
   };
 
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
@@ -775,6 +817,7 @@ export default function Calendar() {
             <div className={`grid ${viewMode === "month" ? "grid-cols-7" : "grid-cols-7"} gap-2`}>
               {days.map((day, index) => {
                 const dayPosts = getPostsForDate(day);
+                const statusDots = getStatusDotsForDay(day);
                 const isToday = day && 
                   day.getDate() === new Date().getDate() &&
                   day.getMonth() === new Date().getMonth() &&
@@ -785,12 +828,31 @@ export default function Calendar() {
                     key={index}
                     className={`min-h-[120px] border border-border rounded-lg p-2 ${
                       day ? "bg-card" : "bg-muted/30"
-                    } ${isToday ? "ring-2 ring-primary" : ""}`}
+                    } ${isToday ? "ring-2 ring-primary" : ""} ${
+                      scheduleUIEnabled && day ? "cursor-pointer hover:bg-card/80 transition-colors" : ""
+                    }`}
+                    onClick={() => handleDayClick(day)}
                     data-testid={day ? `calendar-day-${day.getDate()}` : undefined}
                   >
                     {day && (
                       <>
-                        <div className="text-sm font-medium mb-2">{day.getDate()}</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-medium">{day.getDate()}</div>
+                          {scheduleUIEnabled && statusDots.length > 0 && (
+                            <div className="flex gap-1" title={`${statusDots.map(d => `${d.status}: ${d.count}`).join(', ')}`}>
+                              {statusDots.map((dot, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`w-2 h-2 rounded-full ${dot.color}`}
+                                  data-testid={`status-dot-${dot.status}`}
+                                />
+                              ))}
+                              {Object.keys(calendarData.data?.[format(day, "yyyy-MM-dd")] || []).length > 3 && (
+                                <span className="text-xs text-muted-foreground">+</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <div className="space-y-1">
                           {dayPosts.slice(0, 3).map(post => {
                             const isPending = post.status === 'scheduled_pending';
@@ -849,6 +911,15 @@ export default function Calendar() {
           )}
         </div>
       </main>
+      
+      {/* Interactive Schedule Drawer (feature-flagged) */}
+      {scheduleUIEnabled && (
+        <ScheduleDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          selectedDate={drawerDate}
+        />
+      )}
     </div>
   );
 }
