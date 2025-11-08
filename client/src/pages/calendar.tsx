@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus, X, AlertTriangle, CheckCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, Calendar as CalendarIcon, Plus, X, AlertTriangle, CheckCircle, Copy, Eye } from "lucide-react";
 import type { Post, Platform, Connection } from "@shared/schema";
 import {
   SiInstagram,
@@ -24,6 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +80,9 @@ export default function Calendar() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [postDetails, setPostDetails] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"preview" | "resolve">("preview");
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const featureEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_PENDING === "true";
   
   // New interactive calendar feature
@@ -430,120 +439,290 @@ export default function Calendar() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Resolve Issues Dialog */}
-      <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Post Preview & Resolve Dialog */}
+      <Dialog open={resolveDialogOpen} onOpenChange={(open) => {
+        setResolveDialogOpen(open);
+        if (!open) {
+          setSelectedPost(null);
+          setPostDetails(null);
+          setSelectedPlatforms([]);
+          setActiveTab("preview");
+          setCaptionExpanded(false);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="post-preview-description">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Resolve Scheduling Issues
+              <Eye className="h-5 w-5" />
+              Post Details
             </DialogTitle>
+            <p id="post-preview-description" className="sr-only">
+              Preview and manage your scheduled post
+            </p>
           </DialogHeader>
           
           {selectedPost && (
-            <div className="space-y-4">
-              {/* Post Info */}
-              <div>
-                <Label>Caption</Label>
-                <p className="mt-1 text-sm text-muted-foreground">{selectedPost.caption}</p>
-              </div>
-
-              {/* Display Issues */}
-              {(selectedPost as any).preflightIssues && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">Issues Found:</h3>
-                  <ul className="space-y-2">
-                    {(selectedPost as any).preflightIssues.map((issue: any, idx: number) => (
-                      <li key={idx} className="text-sm">
-                        <div className="font-medium text-yellow-900 dark:text-yellow-100 capitalize">{issue.provider}:</div>
-                        <ul className="ml-4 mt-1 space-y-1">
-                          {issue.issues.map((msg: string, msgIdx: number) => (
-                            <li key={msgIdx} className="text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
-                              <span className="text-yellow-600">•</span>
-                              {msg}
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Platform Selection to Resolve */}
-              <div>
-                <Label>Update Platforms</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  {(['instagram', 'tiktok', 'twitter', 'linkedin', 'pinterest', 'youtube', 'facebook'] as Platform[]).map((platform) => {
-                    const isConnected = connections?.some(c => c.platform === platform);
-                    const isSelected = selectedPlatforms.includes(platform);
-                    const Icon = platformIcons[platform];
-                    
-                    return (
-                      <button
-                        key={platform}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
-                          } else {
-                            setSelectedPlatforms([...selectedPlatforms, platform]);
-                          }
-                        }}
-                        className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        } ${!isConnected ? 'opacity-50' : ''}`}
-                        data-testid={`resolve-platform-${platform}`}
-                      >
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          isSelected ? 'bg-primary border-primary' : 'border-border'
-                        }`}>
-                          {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
-                        </div>
-                        <Icon className="h-4 w-4" />
-                        <span className="text-sm capitalize">{platform}</span>
-                        {!isConnected && (
-                          <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "preview" | "resolve")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="preview" data-testid="tab-preview">Preview</TabsTrigger>
+                <TabsTrigger value="resolve" data-testid="tab-resolve">
+                  Resolve
+                  {(selectedPost as any).preflightIssues && (
+                    <AlertTriangle className="h-3 w-3 ml-1 text-yellow-600" />
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="preview" className="space-y-4 mt-4">
+                {postDetails ? (
+                  <>
+                    {/* Media Thumbnail */}
+                    {postDetails.media && postDetails.media.length > 0 && (
+                      <div className="relative">
+                        <img
+                          src={postDetails.media[0].url}
+                          alt="Post media"
+                          loading="lazy"
+                          className="w-full max-h-64 object-cover rounded-lg border border-border"
+                          data-testid="preview-image"
+                        />
+                        {postDetails.media.length > 1 && (
+                          <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                            +{postDetails.media.length - 1} more
+                          </div>
                         )}
-                      </button>
-                    );
-                  })}
+                      </div>
+                    )}
+                    
+                    {/* Caption */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Caption</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(postDetails.caption);
+                            toast({ title: "Copied to clipboard!" });
+                          }}
+                          className="h-8"
+                          data-testid="button-copy-caption"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className={`text-sm text-foreground whitespace-pre-wrap ${!captionExpanded ? 'line-clamp-3' : ''}`}>
+                        {postDetails.caption}
+                      </div>
+                      {postDetails.caption.length > 150 && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => setCaptionExpanded(!captionExpanded)}
+                          className="p-0 h-auto mt-1"
+                          data-testid="button-toggle-caption"
+                        >
+                          {captionExpanded ? 'Show less' : 'Show more'}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Scheduled Time */}
+                    <div>
+                      <Label>Scheduled For</Label>
+                      <p className="text-sm text-foreground mt-1">
+                        {new Date(postDetails.scheduledAt).toLocaleString(undefined, {
+                          dateStyle: 'full',
+                          timeStyle: 'short',
+                        })}
+                      </p>
+                    </div>
+                    
+                    {/* Platform Status */}
+                    <div>
+                      <Label>Platforms</Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {postDetails.platforms.map((platform: any, idx: number) => {
+                          const Icon = platformIcons[platform.provider as Platform];
+                          const statusColor = 
+                            platform.status === 'published' ? 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 border-green-300 dark:border-green-600' :
+                            platform.status === 'scheduled' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 border-blue-300 dark:border-blue-600' :
+                            platform.status === 'failed' ? 'bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100 border-red-300 dark:border-red-600' :
+                            'bg-gray-100 dark:bg-gray-900/30 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600';
+                          
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm ${statusColor}`}
+                              data-testid={`platform-chip-${platform.provider}`}
+                            >
+                              <Icon className="h-4 w-4" />
+                              <span className="capitalize">{platform.provider}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Character Counts */}
+                    <div>
+                      <Label>Character Counts</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {Object.entries(postDetails.charCounts).map(([platform, counts]: [string, any]) => {
+                          const isOverLimit = counts.current > counts.limit;
+                          return (
+                            <div
+                              key={platform}
+                              className={`flex items-center justify-between p-2 rounded border ${
+                                isOverLimit ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-600' : 'border-border'
+                              }`}
+                              data-testid={`char-count-${platform}`}
+                            >
+                              <span className="text-sm capitalize">{platform}</span>
+                              <span className={`text-sm font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : ''}`}>
+                                {counts.current} / {counts.limit}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Error Banner */}
+                    {postDetails.lastError && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-600 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-red-900 dark:text-red-100">Publishing Error</h4>
+                            <p className="text-sm text-red-800 dark:text-red-200 mt-1">{postDetails.lastError}</p>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => setActiveTab("resolve")}
+                              className="p-0 h-auto mt-2 text-red-700 dark:text-red-300"
+                              data-testid="button-see-resolve"
+                            >
+                              See Resolve tab →
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    Loading post details...
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="resolve" className="space-y-4 mt-4">
+                {/* Post Info */}
+                <div>
+                  <Label>Caption</Label>
+                  <p className="mt-1 text-sm text-muted-foreground">{selectedPost.caption}</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Connect platforms in the Connections page to resolve issues.
-                </p>
-              </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setResolveDialogOpen(false);
-                    setSelectedPost(null);
-                    setSelectedPlatforms([]);
-                  }}
-                  data-testid="button-cancel-resolve"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (!selectedPost) return;
-                    resolvePostMutation.mutate({
-                      postId: selectedPost.id,
-                      platforms: selectedPlatforms,
-                    });
-                  }}
-                  disabled={resolvePostMutation.isPending || selectedPlatforms.length === 0}
-                  data-testid="button-confirm-resolve"
-                >
-                  {resolvePostMutation.isPending ? "Updating..." : "Update & Retry"}
-                </Button>
-              </div>
-            </div>
+                {/* Display Issues */}
+                {(selectedPost as any).preflightIssues && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">Issues Found:</h3>
+                    <ul className="space-y-2">
+                      {(selectedPost as any).preflightIssues.map((issue: any, idx: number) => (
+                        <li key={idx} className="text-sm">
+                          <div className="font-medium text-yellow-900 dark:text-yellow-100 capitalize">{issue.provider}:</div>
+                          <ul className="ml-4 mt-1 space-y-1">
+                            {issue.issues.map((msg: string, msgIdx: number) => (
+                              <li key={msgIdx} className="text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                                <span className="text-yellow-600">•</span>
+                                {msg}
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Platform Selection to Resolve */}
+                <div>
+                  <Label>Update Platforms</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {(['instagram', 'tiktok', 'twitter', 'linkedin', 'pinterest', 'youtube', 'facebook'] as Platform[]).map((platform) => {
+                      const isConnected = connections?.some(c => c.platform === platform);
+                      const isSelected = selectedPlatforms.includes(platform);
+                      const Icon = platformIcons[platform];
+                      
+                      return (
+                        <button
+                          key={platform}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
+                            } else {
+                              setSelectedPlatforms([...selectedPlatforms, platform]);
+                            }
+                          }}
+                          className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          } ${!isConnected ? 'opacity-50' : ''}`}
+                          data-testid={`resolve-platform-${platform}`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-primary border-primary' : 'border-border'
+                          }`}>
+                            {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                          </div>
+                          <Icon className="h-4 w-4" />
+                          <span className="text-sm capitalize">{platform}</span>
+                          {!isConnected && (
+                            <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Connect platforms in the Connections page to resolve issues.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 justify-end pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setResolveDialogOpen(false);
+                      setSelectedPost(null);
+                      setPostDetails(null);
+                      setSelectedPlatforms([]);
+                      setActiveTab("preview");
+                    }}
+                    data-testid="button-cancel-resolve"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!selectedPost) return;
+                      resolvePostMutation.mutate({
+                        postId: selectedPost.id,
+                        platforms: selectedPlatforms,
+                      });
+                    }}
+                    disabled={resolvePostMutation.isPending || selectedPlatforms.length === 0}
+                    data-testid="button-confirm-resolve"
+                  >
+                    {resolvePostMutation.isPending ? "Updating..." : "Update & Retry"}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
@@ -873,9 +1052,28 @@ export default function Calendar() {
                                     : `text-white ${platformColor}`
                                 }`}
                                 title={post.caption}
-                                onClick={() => {
-                                  if (isPending) {
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  
+                                  // Fetch full post details
+                                  try {
+                                    const details = await apiRequest("GET", `/api/schedule/${post.id}`);
+                                    setPostDetails(details);
                                     setSelectedPost(post);
+                                    setActiveTab("preview"); // Default to preview tab
+                                    setCaptionExpanded(false);
+                                    setResolveDialogOpen(true);
+                                  } catch (error) {
+                                    // Fallback to current behavior if fetch fails
+                                    console.error("Failed to fetch post details:", error);
+                                    toast({
+                                      title: "Could not load post details",
+                                      description: "Showing basic view instead",
+                                      variant: "destructive",
+                                    });
+                                    setSelectedPost(post);
+                                    setPostDetails(null);
+                                    setActiveTab(isPending ? "resolve" : "preview");
                                     setResolveDialogOpen(true);
                                   }
                                 }}
