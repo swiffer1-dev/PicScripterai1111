@@ -608,6 +608,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             provider: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
             boardId: z.string().optional(),
           })),
+          tone: z.string().optional(),
+          language: z.string().optional(),
+          category: z.string().optional(),
         });
         
         const data = schema.parse(req.body);
@@ -624,6 +627,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Determine if all platforms are ready
         const allReady = preflightResults.every(r => r.connected && r.issues.length === 0);
         
+        // Build options object for tone/language/category
+        const options: any = {};
+        if (data.tone) options.tone = data.tone;
+        if (data.language) options.language = data.language;
+        if (data.category) options.category = data.category;
+        
         // Create or update post
         const postData = {
           userId: req.userId!,
@@ -636,6 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           platforms: data.platforms,
           preflightIssues: allReady ? null : preflightResults.filter(r => r.issues.length > 0),
           jobId: null,
+          options: Object.keys(options).length > 0 ? options : undefined,
         };
         
         let post;
@@ -887,6 +897,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Extract options from jsonb field
+      const options = (post.options as any) || {};
+      
       res.json({
         id: post.id,
         caption: post.caption,
@@ -899,8 +912,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         charCounts,
         lastError: errorLog?.message || null,
         preflightIssues: (post as any).preflightIssues || null,
-        tone: (post as any).tone || null,
-        language: (post as any).language || null,
+        tone: options.tone || null,
+        language: options.language || null,
+        category: options.category || null,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -926,6 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })).optional(),
         tone: z.string().optional(),
         language: z.string().optional(),
+        category: z.string().optional(),
         boardId: z.string().optional(),
       });
       
@@ -975,13 +990,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.status = allReady ? ("scheduled" as const) : ("scheduled_pending" as const);
       }
       
-      // Handle tone/language in options
-      if (data.tone !== undefined || data.language !== undefined || data.boardId !== undefined) {
+      // Handle tone/language/category in options
+      if (data.tone !== undefined || data.language !== undefined || data.category !== undefined || data.boardId !== undefined) {
         const currentOptions = (existingPost.options as any) || {};
         updateData.options = {
           ...currentOptions,
           ...(data.tone !== undefined && { tone: data.tone }),
           ...(data.language !== undefined && { language: data.language }),
+          ...(data.category !== undefined && { category: data.category }),
           ...(data.boardId !== undefined && { boardId: data.boardId }),
         };
       }
