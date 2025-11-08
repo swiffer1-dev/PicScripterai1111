@@ -40,9 +40,105 @@ const platformLabels: Record<Platform, string> = {
   facebook: "Facebook",
 };
 
+interface SchedulePreviewProps {
+  mediaUrl?: string;
+  category?: string;
+  tone?: string;
+  caption: string;
+  platforms: Platform[];
+  scheduledAt: string;
+  onEditClick: () => void;
+}
+
+function SchedulePreview({ mediaUrl, category, tone, caption, platforms, scheduledAt, onEditClick }: SchedulePreviewProps) {
+  const formattedDate = scheduledAt 
+    ? format(new Date(scheduledAt), "EEEE, MMM d • h:mm a")
+    : "Not scheduled";
+  
+  return (
+    <div className="p-4 space-y-6">
+      {/* Image Preview */}
+      {mediaUrl && (
+        <div className="rounded-lg overflow-hidden border border-border">
+          <img 
+            src={mediaUrl} 
+            alt="Post preview" 
+            className="w-full h-auto object-cover"
+            data-testid="preview-image"
+          />
+        </div>
+      )}
+      
+      {/* Badges Row */}
+      {(category || tone) && (
+        <div className="flex gap-2 flex-wrap">
+          {category && (
+            <div className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-medium" data-testid="preview-category-badge">
+              {category}
+            </div>
+          )}
+          {tone && (
+            <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-sm font-medium" data-testid="preview-tone-badge">
+              {tone}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Caption */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-2">Caption</h3>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap" data-testid="preview-caption">
+          {caption}
+        </p>
+      </div>
+      
+      {/* Platforms */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-2">Publishing to</h3>
+        <div className="flex gap-2 flex-wrap">
+          {platforms.map((platform) => {
+            const Icon = platformIcons[platform];
+            return (
+              <div 
+                key={platform} 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/50"
+                data-testid={`preview-platform-${platform}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-sm">{platformLabels[platform]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* Scheduled Time */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-2">Scheduled for</h3>
+        <p className="text-sm font-medium" data-testid="preview-scheduled-time">
+          {formattedDate}
+        </p>
+      </div>
+      
+      {/* Edit Button */}
+      <Button 
+        onClick={onEditClick} 
+        className="w-full"
+        data-testid="button-edit-post"
+      >
+        Edit Post
+      </Button>
+    </div>
+  );
+}
+
 export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create', scheduleId }: ScheduleDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // View mode: preview (read-only) or edit (form fields)
+  const [viewMode, setViewMode] = useState<'preview' | 'edit'>(mode === 'create' ? 'edit' : 'preview');
   
   // Form state
   const [caption, setCaption] = useState("");
@@ -88,6 +184,9 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     if (isOpen) {
       if (mode === 'create' || !scheduleId) {
         resetForm();
+        setViewMode('edit'); // Create mode starts in edit
+      } else {
+        setViewMode('preview'); // Edit mode starts in preview
       }
     }
   }, [mode, scheduleId, isOpen]);
@@ -322,7 +421,9 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">{mode === 'edit' ? 'Edit Schedule' : 'Schedule Post'}</h2>
+            <h2 className="text-lg font-semibold">
+              {viewMode === 'preview' ? 'Post Preview' : mode === 'edit' ? 'Edit Schedule' : 'Schedule Post'}
+            </h2>
             <p className="text-sm text-muted-foreground">
               {format(selectedDate, "MMMM d, yyyy")}
             </p>
@@ -338,6 +439,17 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
         </div>
         
         {/* Content */}
+        {viewMode === 'preview' && mode === 'edit' && existingPost ? (
+          <SchedulePreview 
+            mediaUrl={existingPost.media?.[0]?.url}
+            category={existingPost.category}
+            tone={existingPost.tone}
+            caption={existingPost.caption}
+            platforms={selectedPlatforms}
+            scheduledAt={existingPost.scheduledAt}
+            onEditClick={() => setViewMode('edit')}
+          />
+        ) : (
         <div className="p-4 space-y-6">
           {/* Validation Errors */}
           {validationErrors.length > 0 && (
@@ -443,9 +555,11 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
             )}
           </div>
         </div>
+        )}
         
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-background border-t border-border p-4">
+        {/* Footer - Only show in edit mode since preview has its own Edit button */}
+        {viewMode === 'edit' && (
+        <div className="sticky bottom-0 bg-background border-t border-border p-4 mt-auto">
           {mode === 'create' ? (
             <div className="flex gap-3">
               <Button
@@ -490,6 +604,7 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
             </div>
           )}
         </div>
+        )}
       </div>
     </>
   );
