@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import ImageUploader from "@/components/ImageUploader";
 
 type Platform = "instagram" | "tiktok" | "twitter" | "linkedin" | "pinterest" | "youtube" | "facebook";
 
@@ -143,6 +144,9 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   // Form state
   const [caption, setCaption] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [scheduledTime, setScheduledTime] = useState("");
@@ -163,10 +167,44 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     enabled: isOpen && mode === 'edit' && !!scheduleId,
   });
   
+  // Upload mutation for images
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      // Get presigned URL from backend
+      const res = await apiRequest("POST", "/api/upload/image");
+      const response = await res.json() as { uploadURL: string; objectPath: string };
+      
+      // Upload file directly to object storage
+      const uploadResponse = await fetch(response.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      // Return the object path
+      return response.objectPath;
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Image upload failed",
+        description: error.message || "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Reset form helper
   const resetForm = () => {
     setCaption("");
     setImageUrl("");
+    setImageFile(null);
+    setImagePreviewUrl("");
     setSelectedPlatforms([]);
     setValidationErrors([]);
   };
@@ -207,8 +245,28 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     }
   }, [mode, existingPost]);
   
+  // Cleanup blob URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
+  
   const schedulePostMutation = useMutation({
     mutationFn: async () => {
+      // Upload image first if there's a file
+      let finalImageUrl = imageUrl;
+      if (imageFile) {
+        setIsUploadingImage(true);
+        try {
+          finalImageUrl = await uploadImageMutation.mutateAsync(imageFile);
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+      
       const scheduledAtISO = new Date(scheduledTime).toISOString();
       
       const payload: any = {
@@ -217,10 +275,10 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
         scheduledAt: scheduledAtISO,
       };
       
-      if (imageUrl.trim()) {
+      if (finalImageUrl && finalImageUrl.trim()) {
         payload.media = {
           type: "image",
-          url: imageUrl.trim(),
+          url: finalImageUrl.trim(),
         };
       }
       
@@ -267,6 +325,17 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     mutationFn: async () => {
       if (!scheduleId) throw new Error("No schedule ID");
       
+      // Upload image first if there's a new file
+      let finalImageUrl = imageUrl;
+      if (imageFile) {
+        setIsUploadingImage(true);
+        try {
+          finalImageUrl = await uploadImageMutation.mutateAsync(imageFile);
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+      
       const payload: any = {
         platforms: selectedPlatforms.map(p => ({ provider: p })),
         caption,
@@ -283,10 +352,10 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
         }
       }
       
-      if (imageUrl.trim()) {
+      if (finalImageUrl && finalImageUrl.trim()) {
         payload.media = {
           type: "image",
-          url: imageUrl.trim(),
+          url: finalImageUrl.trim(),
         };
       }
       
@@ -348,6 +417,11 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   });
   
   const handleSchedule = () => {
+    // Guard against concurrent mutations
+    if (isUploadingImage || schedulePostMutation.isPending || updatePostMutation.isPending) {
+      return;
+    }
+    
     setValidationErrors([]);
     
     if (!caption.trim()) {
@@ -368,6 +442,11 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   };
   
   const handleSaveAsPending = () => {
+    // Guard against concurrent mutations
+    if (isUploadingImage || schedulePostMutation.isPending || updatePostMutation.isPending) {
+      return;
+    }
+    
     setValidationErrors([]);
     
     if (!caption.trim()) {
@@ -384,6 +463,10 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   };
   
   const handleDuplicate = () => {
+    // Guard against concurrent mutations
+    if (isUploadingImage || duplicatePostMutation.isPending) {
+      return;
+    }
     duplicatePostMutation.mutate();
   };
   
@@ -485,18 +568,37 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
             </p>
           </div>
           
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
-            <Label htmlFor="drawer-image-url">Image URL (Optional)</Label>
-            <Input
-              id="drawer-image-url"
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="mt-2"
-              data-testid="input-drawer-image-url"
-            />
+            <Label>Image (Optional)</Label>
+            <div className="mt-2 h-64">
+              <ImageUploader
+                onImageChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length > 0) {
+                    const file = files[0]; // Only take first file for scheduling
+                    setImageFile(file);
+                    const previewUrl = URL.createObjectURL(file);
+                    setImagePreviewUrl(previewUrl);
+                    // Clear any existing URL
+                    setImageUrl("");
+                  }
+                }}
+                previewUrls={imagePreviewUrl ? [imagePreviewUrl] : (imageUrl ? [imageUrl] : [])}
+                isLoading={isUploadingImage}
+                onClearImages={() => {
+                  setImageFile(null);
+                  setImagePreviewUrl("");
+                  setImageUrl("");
+                }}
+                onDeleteImage={() => {
+                  setImageFile(null);
+                  setImagePreviewUrl("");
+                  setImageUrl("");
+                }}
+                onReorderImages={() => {}} // Not needed for single image
+              />
+            </div>
           </div>
           
           {/* Scheduled Time */}
@@ -568,20 +670,20 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
               <Button
                 variant="outline"
                 onClick={handleSaveAsPending}
-                disabled={schedulePostMutation.isPending}
+                disabled={schedulePostMutation.isPending || isUploadingImage}
                 className="flex-1"
                 data-testid="button-save-pending"
               >
-                {schedulePostMutation.isPending ? "Saving..." : "Save as Pending"}
+                {isUploadingImage ? "Uploading..." : schedulePostMutation.isPending ? "Saving..." : "Save as Pending"}
               </Button>
               <Button
                 onClick={handleSchedule}
-                disabled={schedulePostMutation.isPending || selectedPlatforms.length === 0}
+                disabled={schedulePostMutation.isPending || isUploadingImage || selectedPlatforms.length === 0}
                 className="flex-1"
                 data-testid="button-schedule-drawer"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {schedulePostMutation.isPending ? "Scheduling..." : "Schedule"}
+                {isUploadingImage ? "Uploading..." : schedulePostMutation.isPending ? "Scheduling..." : "Schedule"}
               </Button>
             </div>
           ) : (
@@ -589,16 +691,16 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
               <div className="flex gap-2">
                 <Button
                   onClick={handleSchedule}
-                  disabled={updatePostMutation.isPending || selectedPlatforms.length === 0}
+                  disabled={updatePostMutation.isPending || isUploadingImage || selectedPlatforms.length === 0}
                   className="flex-1"
                   data-testid="button-update-schedule"
                 >
-                  {updatePostMutation.isPending ? "Updating..." : "Update & Retry"}
+                  {isUploadingImage ? "Uploading..." : updatePostMutation.isPending ? "Updating..." : "Update & Retry"}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleDuplicate}
-                  disabled={duplicatePostMutation.isPending}
+                  disabled={duplicatePostMutation.isPending || isUploadingImage}
                   data-testid="button-duplicate-schedule"
                 >
                   {duplicatePostMutation.isPending ? "Duplicating..." : "Duplicate"}
