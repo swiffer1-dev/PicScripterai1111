@@ -474,7 +474,7 @@ export default function Calendar() {
               </TabsList>
               
               <TabsContent value="preview" className="space-y-4 mt-4">
-                {postDetails ? (
+                {postDetails && postDetails.caption !== undefined ? (
                   <>
                     {/* Media Thumbnail */}
                     {postDetails.media && postDetails.media.length > 0 && (
@@ -512,9 +512,9 @@ export default function Calendar() {
                         </Button>
                       </div>
                       <div className={`text-sm text-foreground whitespace-pre-wrap ${!captionExpanded ? 'line-clamp-3' : ''}`}>
-                        {postDetails.caption}
+                        {postDetails.caption || ''}
                       </div>
-                      {postDetails.caption.length > 150 && (
+                      {postDetails.caption && postDetails.caption.length > 150 && (
                         <Button
                           variant="link"
                           size="sm"
@@ -542,7 +542,7 @@ export default function Calendar() {
                     <div>
                       <Label>Platforms</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {postDetails.platforms.map((platform: any, idx: number) => {
+                        {postDetails.platforms && postDetails.platforms.map((platform: any, idx: number) => {
                           const Icon = platformIcons[platform.provider as Platform];
                           const statusColor = 
                             platform.status === 'published' ? 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 border-green-300 dark:border-green-600' :
@@ -568,7 +568,7 @@ export default function Calendar() {
                     <div>
                       <Label>Character Counts</Label>
                       <div className="grid grid-cols-2 gap-2 mt-2">
-                        {Object.entries(postDetails.charCounts).map(([platform, counts]: [string, any]) => {
+                        {postDetails.charCounts && Object.entries(postDetails.charCounts).map(([platform, counts]: [string, any]) => {
                           const isOverLimit = counts.current > counts.limit;
                           return (
                             <div
