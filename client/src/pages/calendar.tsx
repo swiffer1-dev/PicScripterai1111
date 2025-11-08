@@ -1047,7 +1047,7 @@ export default function Calendar() {
                             </div>
                           )}
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {dayPosts.slice(0, 3).map(post => {
                             const isPending = post.status === 'scheduled_pending';
                             const platforms = (post as any).platforms;
@@ -1058,13 +1058,17 @@ export default function Calendar() {
                             const Icon = platformIcons[displayPlatform] || platformIcons.instagram;
                             const platformColor = platformColors[displayPlatform] || platformColors.instagram;
                             
+                            // Format time and date
+                            const scheduledTime = post.scheduledAt ? format(new Date(post.scheduledAt), "h:mm a") : "";
+                            const tone = (post as any).tone;
+                            
                             return (
                               <div
                                 key={post.id}
-                                className={`text-xs p-1.5 rounded flex items-center gap-1 truncate cursor-pointer transition-all hover:opacity-80 ${
+                                className={`text-xs p-2 rounded cursor-pointer transition-all hover:shadow-md border ${
                                   isPending 
-                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-600'
-                                    : `text-white ${platformColor}`
+                                    ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-600'
+                                    : `bg-card border-border`
                                 }`}
                                 title={post.caption}
                                 onClick={async (e) => {
@@ -1103,12 +1107,33 @@ export default function Calendar() {
                                 }}
                                 data-testid={`post-${post.id}`}
                               >
-                                {isPending && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-                                <Icon className="h-3 w-3 flex-shrink-0" />
-                                <span className="truncate">{post.caption.substring(0, 15)}...</span>
-                                {isMultiPlatform && (
-                                  <span className="ml-auto text-xs">+{platforms.length - 1}</span>
+                                {/* Header row with time, icon, and status */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1">
+                                    {isPending && <AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />}
+                                    <Icon className={`h-3 w-3 ${isPending ? 'text-yellow-600 dark:text-yellow-400' : platformColor.replace('bg-', 'text-').replace(/\/\d+/, '')}`} />
+                                    {scheduledTime && (
+                                      <span className="font-medium text-foreground">{scheduledTime}</span>
+                                    )}
+                                  </div>
+                                  {isMultiPlatform && (
+                                    <span className="text-xs text-muted-foreground">+{platforms.length - 1}</span>
+                                  )}
+                                </div>
+                                
+                                {/* Tone badge if available */}
+                                {tone && (
+                                  <div className="mb-1">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary capitalize">
+                                      {tone}
+                                    </span>
+                                  </div>
                                 )}
+                                
+                                {/* Caption */}
+                                <p className="text-muted-foreground line-clamp-2 leading-tight">
+                                  {post.caption.substring(0, 60)}{post.caption.length > 60 ? '...' : ''}
+                                </p>
                               </div>
                             );
                           })}
