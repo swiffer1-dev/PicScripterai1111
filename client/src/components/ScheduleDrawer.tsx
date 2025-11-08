@@ -59,6 +59,10 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   // Fetch existing post data when in edit mode
   const { data: existingPost, isLoading: isLoadingPost } = useQuery<any>({
     queryKey: ["/api/schedule", scheduleId],
+    queryFn: async () => {
+      if (!scheduleId) return null;
+      return await apiRequest("GET", `/api/schedule/${scheduleId}`);
+    },
     enabled: isOpen && mode === 'edit' && !!scheduleId,
   });
   
