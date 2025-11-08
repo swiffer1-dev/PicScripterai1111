@@ -905,6 +905,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update scheduled post
+  app.patch("/api/schedule/:id", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Validation schema
+      const schema = z.object({
+        caption: z.string().optional(),
+        media: z.object({
+          type: z.enum(["image", "video"]),
+          url: z.string(),
+        }).optional(),
+        scheduledAt: z.string().optional(),
+        platforms: z.array(z.object({
+          provider: z.enum(["instagram", "tiktok", "twitter", "linkedin", "pinterest", "youtube", "facebook"]),
+          boardId: z.string().optional(),
+        })).optional(),
+        tone: z.string().optional(),
+        language: z.string().optional(),
+        boardId: z.string().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Get existing post
+      const existingPost = await storage.getPost(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (existingPost.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Build update data
+      const updateData: any = {};
+      
+      if (data.caption !== undefined) {
+        updateData.caption = data.caption;
+      }
+      
+      if (data.media !== undefined) {
+        updateData.mediaType = data.media.type;
+        updateData.mediaUrl = data.media.url;
+      }
+      
+      if (data.scheduledAt !== undefined) {
+        const scheduledAt = new Date(data.scheduledAt);
+        
+        // Validate scheduled time is in the future
+        if (scheduledAt <= new Date()) {
+          return res.status(400).json({ error: "Scheduled time must be in the future" });
+        }
+        
+        updateData.scheduledAt = scheduledAt;
+      }
+      
+      // Handle platforms update with preflight checks
+      if (data.platforms !== undefined) {
+        const preflightResults = await runPreflightChecks(req.userId!, data.platforms);
+        const allReady = preflightResults.every(r => r.connected && r.issues.length === 0);
+        
+        updateData.platforms = data.platforms;
+        updateData.platform = data.platforms[0].provider; // Update primary platform
+        updateData.preflightIssues = allReady ? null : preflightResults.filter(r => r.issues.length > 0);
+        updateData.status = allReady ? ("scheduled" as const) : ("scheduled_pending" as const);
+      }
+      
+      // Handle tone/language in options
+      if (data.tone !== undefined || data.language !== undefined || data.boardId !== undefined) {
+        const currentOptions = (existingPost.options as any) || {};
+        updateData.options = {
+          ...currentOptions,
+          ...(data.tone !== undefined && { tone: data.tone }),
+          ...(data.language !== undefined && { language: data.language }),
+          ...(data.boardId !== undefined && { boardId: data.boardId }),
+        };
+      }
+      
+      // Handle job cancellation and re-enqueueing if scheduledAt changed
+      const scheduledAtChanged = data.scheduledAt !== undefined;
+      const hasJob = existingPost.jobId;
+      
+      if (scheduledAtChanged && hasJob) {
+        try {
+          const queueStatus = getQueueStatus();
+          if (queueStatus.available && publishQueue) {
+            // Try to get and remove the existing job
+            const existingJob = await publishQueue.getJob(existingPost.jobId!);
+            if (existingJob) {
+              const state = await existingJob.getState();
+              // Only remove if job is waiting or delayed (not active or completed)
+              if (state === 'waiting' || state === 'delayed') {
+                await existingJob.remove();
+                await storage.createJobLog({
+                  postId: id,
+                  level: "info",
+                  message: `Cancelled existing job due to reschedule`,
+                  raw: { oldJobId: existingJob.id, oldScheduledAt: existingPost.scheduledAt },
+                });
+              }
+            }
+            updateData.jobId = null; // Clear job ID
+          }
+        } catch (jobError: any) {
+          console.warn("Error cancelling existing job:", jobError.message);
+        }
+      }
+      
+      // Update the post
+      const updatedPost = await storage.updatePost(id, updateData);
+      
+      // If post is now ready and has a scheduledAt, enqueue new job
+      const shouldEnqueue = 
+        (updatedPost.status === 'scheduled' || updateData.status === 'scheduled') &&
+        updatedPost.scheduledAt &&
+        !updatedPost.jobId;
+      
+      if (shouldEnqueue && updatedPost.scheduledAt) {
+        try {
+          const queueStatus = getQueueStatus();
+          if (queueStatus.available && publishQueue) {
+            const platforms = (updatedPost.platforms || [updatedPost.platform]) as any[];
+            const primaryPlatform = typeof platforms[0] === 'string' ? platforms[0] : platforms[0].provider;
+            const scheduledTime = new Date(updatedPost.scheduledAt);
+            
+            // Create idempotency key with timestamp to allow rescheduling
+            const idempotencyKey = `post-${updatedPost.id}-${scheduledTime.getTime()}`;
+            
+            const job = await publishQueue.add(
+              `publish-${updatedPost.id}`,
+              {
+                postId: updatedPost.id,
+                userId: req.userId!,
+                platform: primaryPlatform,
+                caption: updatedPost.caption,
+                mediaUrl: updatedPost.mediaUrl || undefined,
+                mediaType: updatedPost.mediaType || undefined,
+                options: typeof platforms[0] === 'object' ? platforms[0] : {},
+              },
+              {
+                delay: scheduledTime.getTime() - Date.now(),
+                jobId: idempotencyKey,
+              }
+            );
+            
+            await storage.updatePost(updatedPost.id, { jobId: job.id });
+            
+            await storage.createJobLog({
+              postId: updatedPost.id,
+              level: "info",
+              message: `Updated and scheduled for ${scheduledTime.toISOString()}`,
+              raw: { scheduledAt: scheduledTime.toISOString() },
+            });
+          }
+        } catch (queueError: any) {
+          console.warn("Queue error:", queueError.message);
+        }
+      }
+      
+      // Return updated post
+      const finalPost = await storage.getPost(id);
+      res.json({
+        id: finalPost!.id,
+        status: finalPost!.status,
+        caption: finalPost!.caption,
+        scheduledAt: finalPost!.scheduledAt,
+        media: finalPost!.mediaUrl ? [{
+          type: finalPost!.mediaType || 'image',
+          url: finalPost!.mediaUrl,
+        }] : [],
+        platforms: (finalPost!.platforms || [finalPost!.platform]) as any[],
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Duplicate scheduled post
+  app.post("/api/schedule/:id/duplicate", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get existing post
+      const existingPost = await storage.getPost(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (existingPost.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Create duplicate with draft status
+      const duplicateData = {
+        userId: req.userId!,
+        platform: existingPost.platform,
+        caption: existingPost.caption,
+        mediaType: existingPost.mediaType,
+        mediaUrl: existingPost.mediaUrl,
+        scheduledAt: null, // Duplicates start as drafts
+        status: "draft" as const,
+        platforms: existingPost.platforms as any,
+        options: existingPost.options as any,
+        preflightIssues: null,
+      };
+      
+      const duplicate = await storage.createPost(duplicateData);
+      
+      await storage.createJobLog({
+        postId: duplicate.id,
+        level: "info",
+        message: `Duplicated from post ${id}`,
+        raw: { originalPostId: id },
+      });
+      
+      res.json({
+        id: duplicate.id,
+        status: duplicate.status,
+        message: "Post duplicated successfully",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Resolve pending scheduled post
   app.patch("/api/schedule/:id/resolve", requireAuth, async (req: AuthRequest, res) => {
     try {

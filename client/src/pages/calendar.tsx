@@ -89,6 +89,8 @@ export default function Calendar() {
   const scheduleUIEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_UI === "true";
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerDate, setDrawerDate] = useState<Date>(new Date());
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
+  const [drawerScheduleId, setDrawerScheduleId] = useState<string | undefined>(undefined);
   
   const { toast } = useToast();
   
@@ -375,6 +377,8 @@ export default function Calendar() {
     if (!day || !scheduleUIEnabled) return;
     
     setDrawerDate(day);
+    setDrawerMode('create');
+    setDrawerScheduleId(undefined);
     setDrawerOpen(true);
   };
 
@@ -906,28 +910,39 @@ export default function Calendar() {
                 variant="outline"
                 className="gap-2" 
                 onClick={() => {
-                  // Open schedule dialog with empty data
-                  const defaultTime = new Date();
-                  defaultTime.setHours(defaultTime.getHours() + 1);
-                  defaultTime.setMinutes(0);
-                  defaultTime.setSeconds(0);
-                  defaultTime.setMilliseconds(0);
-                  
-                  const year = defaultTime.getFullYear();
-                  const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
-                  const day = String(defaultTime.getDate()).padStart(2, '0');
-                  const hours = String(defaultTime.getHours()).padStart(2, '0');
-                  const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
-                  const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-                  
-                  setScheduleData({
-                    caption: '',
-                    imageUrl: null,
-                    platform: connections?.[0]?.platform || 'instagram',
-                    scheduledAt: localDateTimeString,
-                  });
-                  setSelectedPlatforms([]);
-                  setScheduleDialogOpen(true);
+                  if (scheduleUIEnabled) {
+                    // Open new drawer
+                    const defaultTime = new Date();
+                    defaultTime.setHours(defaultTime.getHours() + 1);
+                    defaultTime.setMinutes(0, 0, 0);
+                    setDrawerDate(defaultTime);
+                    setDrawerMode('create');
+                    setDrawerScheduleId(undefined);
+                    setDrawerOpen(true);
+                  } else {
+                    // Open legacy schedule dialog
+                    const defaultTime = new Date();
+                    defaultTime.setHours(defaultTime.getHours() + 1);
+                    defaultTime.setMinutes(0);
+                    defaultTime.setSeconds(0);
+                    defaultTime.setMilliseconds(0);
+                    
+                    const year = defaultTime.getFullYear();
+                    const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+                    const day = String(defaultTime.getDate()).padStart(2, '0');
+                    const hours = String(defaultTime.getHours()).padStart(2, '0');
+                    const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+                    const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+                    
+                    setScheduleData({
+                      caption: '',
+                      imageUrl: null,
+                      platform: connections?.[0]?.platform || 'instagram',
+                      scheduledAt: localDateTimeString,
+                    });
+                    setSelectedPlatforms([]);
+                    setScheduleDialogOpen(true);
+                  }
                 }}
                 data-testid="button-schedule-post"
               >
@@ -1055,7 +1070,16 @@ export default function Calendar() {
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   
-                                  // Fetch full post details
+                                  // Use new drawer for editing if feature enabled
+                                  if (scheduleUIEnabled) {
+                                    setDrawerDate(post.scheduledAt ? new Date(post.scheduledAt) : new Date());
+                                    setDrawerMode('edit');
+                                    setDrawerScheduleId(post.id);
+                                    setDrawerOpen(true);
+                                    return;
+                                  }
+                                  
+                                  // Fetch full post details (legacy behavior)
                                   try {
                                     const details = await apiRequest("GET", `/api/schedule/${post.id}`);
                                     setPostDetails(details);
@@ -1116,6 +1140,8 @@ export default function Calendar() {
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           selectedDate={drawerDate}
+          mode={drawerMode}
+          scheduleId={drawerScheduleId}
         />
       )}
     </div>

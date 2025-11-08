@@ -16,6 +16,8 @@ interface ScheduleDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   selectedDate: Date;
+  mode?: 'create' | 'edit';
+  scheduleId?: string;
 }
 
 const platformIcons: Record<Platform, any> = {
@@ -38,7 +40,7 @@ const platformLabels: Record<Platform, string> = {
   facebook: "Facebook",
 };
 
-export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawerProps) {
+export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create', scheduleId }: ScheduleDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -47,22 +49,59 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
   const [imageUrl, setImageUrl] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [scheduledTime, setScheduledTime] = useState("");
   
   // Get connections to show which platforms are connected
   const { data: connections } = useQuery<any[]>({
     queryKey: ["/api/connections"],
   });
   
-  const [scheduledTime, setScheduledTime] = useState("");
+  // Fetch existing post data when in edit mode
+  const { data: existingPost, isLoading: isLoadingPost } = useQuery<any>({
+    queryKey: ["/api/schedule", scheduleId],
+    enabled: isOpen && mode === 'edit' && !!scheduleId,
+  });
   
-  // Update scheduled time when selectedDate or isOpen changes
+  // Reset form helper
+  const resetForm = () => {
+    setCaption("");
+    setImageUrl("");
+    setSelectedPlatforms([]);
+    setValidationErrors([]);
+  };
+  
+  // Update scheduled time when selectedDate or isOpen changes (create mode)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && mode === 'create') {
       const defaultTime = new Date(selectedDate);
       defaultTime.setHours(10, 0, 0, 0);
       setScheduledTime(format(defaultTime, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, isOpen]);
+  }, [selectedDate, isOpen, mode]);
+  
+  // Reset form when mode or scheduleId changes
+  useEffect(() => {
+    if (isOpen) {
+      if (mode === 'create' || !scheduleId) {
+        resetForm();
+      }
+    }
+  }, [mode, scheduleId, isOpen]);
+  
+  // Prefill form when editing
+  useEffect(() => {
+    if (mode === 'edit' && existingPost) {
+      setCaption(existingPost.caption || "");
+      setImageUrl(existingPost.media?.[0]?.url || "");
+      setScheduledTime(existingPost.scheduledAt ? format(new Date(existingPost.scheduledAt), "yyyy-MM-dd'T'HH:mm") : "");
+      
+      // Extract platform providers
+      const platforms = (existingPost.platforms || []).map((p: any) => 
+        typeof p === 'string' ? p : p.provider
+      );
+      setSelectedPlatforms(platforms);
+    }
+  }, [mode, existingPost]);
   
   const schedulePostMutation = useMutation({
     mutationFn: async () => {
@@ -101,10 +140,7 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
       });
       
       // Reset and close
-      setCaption("");
-      setImageUrl("");
-      setSelectedPlatforms([]);
-      setValidationErrors([]);
+      resetForm();
       onClose();
     },
     onError: (error: any) => {
@@ -123,6 +159,90 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
     },
   });
   
+  const updatePostMutation = useMutation({
+    mutationFn: async () => {
+      if (!scheduleId) throw new Error("No schedule ID");
+      
+      const payload: any = {
+        platforms: selectedPlatforms.map(p => ({ provider: p })),
+        caption,
+      };
+      
+      // Only include scheduledAt if it's a valid datetime
+      if (scheduledTime && scheduledTime.trim()) {
+        try {
+          const scheduledAtISO = new Date(scheduledTime).toISOString();
+          payload.scheduledAt = scheduledAtISO;
+        } catch (error) {
+          // Invalid date, don't include scheduledAt
+          console.warn("Invalid scheduledTime:", scheduledTime);
+        }
+      }
+      
+      if (imageUrl.trim()) {
+        payload.media = {
+          type: "image",
+          url: imageUrl.trim(),
+        };
+      }
+      
+      return await apiRequest("PATCH", `/api/schedule/${scheduleId}`, payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Post updated!",
+        description: "Your scheduled post has been updated successfully",
+      });
+      
+      // Refetch calendar data
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/calendar";
+        }
+      });
+      
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update",
+        description: error.message || "Failed to update post",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const duplicatePostMutation = useMutation({
+    mutationFn: async () => {
+      if (!scheduleId) throw new Error("No schedule ID");
+      return await apiRequest("POST", `/api/schedule/${scheduleId}/duplicate`, {});
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Post duplicated!",
+        description: "A new draft has been created",
+      });
+      
+      // Refetch calendar data
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/calendar";
+        }
+      });
+      
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to duplicate",
+        description: error.message || "Failed to duplicate post",
+        variant: "destructive",
+      });
+    },
+  });
+  
   const handleSchedule = () => {
     setValidationErrors([]);
     
@@ -136,7 +256,11 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
       return;
     }
     
-    schedulePostMutation.mutate();
+    if (mode === 'edit') {
+      updatePostMutation.mutate();
+    } else {
+      schedulePostMutation.mutate();
+    }
   };
   
   const handleSaveAsPending = () => {
@@ -148,7 +272,15 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
     }
     
     // Allow saving with 0 platforms - backend will mark as pending
-    schedulePostMutation.mutate();
+    if (mode === 'edit') {
+      updatePostMutation.mutate();
+    } else {
+      schedulePostMutation.mutate();
+    }
+  };
+  
+  const handleDuplicate = () => {
+    duplicatePostMutation.mutate();
   };
   
   const togglePlatform = (platform: Platform) => {
@@ -186,7 +318,7 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Schedule Post</h2>
+            <h2 className="text-lg font-semibold">{mode === 'edit' ? 'Edit Schedule' : 'Schedule Post'}</h2>
             <p className="text-sm text-muted-foreground">
               {format(selectedDate, "MMMM d, yyyy")}
             </p>
@@ -309,25 +441,50 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate }: ScheduleDrawer
         </div>
         
         {/* Footer */}
-        <div className="sticky bottom-0 bg-background border-t border-border p-4 flex gap-3">
-          <Button
-            variant="outline"
-            onClick={handleSaveAsPending}
-            disabled={schedulePostMutation.isPending}
-            className="flex-1"
-            data-testid="button-save-pending"
-          >
-            {schedulePostMutation.isPending ? "Saving..." : "Save as Pending"}
-          </Button>
-          <Button
-            onClick={handleSchedule}
-            disabled={schedulePostMutation.isPending || selectedPlatforms.length === 0}
-            className="flex-1"
-            data-testid="button-schedule-drawer"
-          >
-            <Send className="h-4 w-4 mr-2" />
-            {schedulePostMutation.isPending ? "Scheduling..." : "Schedule"}
-          </Button>
+        <div className="sticky bottom-0 bg-background border-t border-border p-4">
+          {mode === 'create' ? (
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleSaveAsPending}
+                disabled={schedulePostMutation.isPending}
+                className="flex-1"
+                data-testid="button-save-pending"
+              >
+                {schedulePostMutation.isPending ? "Saving..." : "Save as Pending"}
+              </Button>
+              <Button
+                onClick={handleSchedule}
+                disabled={schedulePostMutation.isPending || selectedPlatforms.length === 0}
+                className="flex-1"
+                data-testid="button-schedule-drawer"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {schedulePostMutation.isPending ? "Scheduling..." : "Schedule"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSchedule}
+                  disabled={updatePostMutation.isPending || selectedPlatforms.length === 0}
+                  className="flex-1"
+                  data-testid="button-update-schedule"
+                >
+                  {updatePostMutation.isPending ? "Updating..." : "Update & Retry"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDuplicate}
+                  disabled={duplicatePostMutation.isPending}
+                  data-testid="button-duplicate-schedule"
+                >
+                  {duplicatePostMutation.isPending ? "Duplicating..." : "Duplicate"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
