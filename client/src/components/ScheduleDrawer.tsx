@@ -157,7 +157,8 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     queryKey: ["/api/schedule", scheduleId],
     queryFn: async () => {
       if (!scheduleId) return null;
-      return await apiRequest("GET", `/api/schedule/${scheduleId}`);
+      const res = await apiRequest("GET", `/api/schedule/${scheduleId}`);
+      return await res.json();
     },
     enabled: isOpen && mode === 'edit' && !!scheduleId,
   });
@@ -444,9 +445,11 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
             mediaUrl={existingPost.media?.[0]?.url}
             category={existingPost.category}
             tone={existingPost.tone}
-            caption={existingPost.caption}
-            platforms={selectedPlatforms}
-            scheduledAt={existingPost.scheduledAt}
+            caption={existingPost.caption || ""}
+            platforms={(existingPost.platforms || []).map((p: any) => 
+              typeof p === 'string' ? p : p.provider
+            )}
+            scheduledAt={existingPost.scheduledAt || ""}
             onEditClick={() => setViewMode('edit')}
           />
         ) : (
