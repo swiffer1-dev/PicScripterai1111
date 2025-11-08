@@ -86,7 +86,8 @@ export default function Calendar() {
   const featureEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_PENDING === "true";
   
   // New interactive calendar feature
-  const scheduleUIEnabled = import.meta.env.VITE_FEATURE_SCHEDULE_UI === "true";
+  // Note: Hardcoded to true since .env variables aren't being picked up by Vite in this custom server setup
+  const scheduleUIEnabled = true;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerDate, setDrawerDate] = useState<Date>(new Date());
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
@@ -443,7 +444,8 @@ export default function Calendar() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Post Preview & Resolve Dialog */}
+      {/* Post Preview & Resolve Dialog (legacy - only when feature disabled) */}
+      {!scheduleUIEnabled && (
       <Dialog open={resolveDialogOpen} onOpenChange={(open) => {
         setResolveDialogOpen(open);
         if (!open) {
@@ -742,6 +744,7 @@ export default function Calendar() {
           )}
         </DialogContent>
       </Dialog>
+      )}
 
       {/* Scheduling Dialog */}
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
