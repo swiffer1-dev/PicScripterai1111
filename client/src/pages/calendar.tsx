@@ -125,9 +125,12 @@ export default function Calendar() {
   // Check for draft data from AI Studio on component mount
   useEffect(() => {
     const draftData = sessionStorage.getItem('schedule-draft');
+    console.log('📅 Calendar checking for draft data:', { hasDraft: !!draftData, hasConnections: !!connections, connectionsLength: connections?.length });
+    
     if (draftData && connections && connections.length > 0) {
       try {
         const parsed = JSON.parse(draftData);
+        console.log('📅 Parsed draft data:', parsed);
         
         // Calculate default schedule time (1 hour from now) in local timezone
         const defaultTime = new Date();
@@ -144,6 +147,15 @@ export default function Calendar() {
         const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
         const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
         
+        const draftDataForDrawer = {
+          caption: parsed.caption,
+          imageUrl: parsed.imageUrl,
+          platforms: parsed.platforms || [],
+          scheduledAt: localDateTimeString,
+        };
+        
+        console.log('📅 Opening drawer with data:', draftDataForDrawer);
+        
         // Use unified schedule drawer instead of old dialog
         setDrawerDate(defaultTime);
         setDrawerMode('create');
@@ -151,17 +163,14 @@ export default function Calendar() {
         setDrawerOpen(true);
         
         // Store draft data for the drawer to use, including platforms
-        sessionStorage.setItem('schedule-draft-data', JSON.stringify({
-          caption: parsed.caption,
-          imageUrl: parsed.imageUrl,
-          platforms: parsed.platforms || [], // Pass through selected platforms from AI Studio
-          scheduledAt: localDateTimeString,
-        }));
+        sessionStorage.setItem('schedule-draft-data', JSON.stringify(draftDataForDrawer));
         
         // Clear the trigger storage
         sessionStorage.removeItem('schedule-draft');
+        
+        console.log('📅 Drawer opened successfully');
       } catch (error) {
-        console.error('Failed to parse draft data:', error);
+        console.error('❌ Failed to parse draft data:', error);
       }
     }
   }, [connections]); // Keep connections as dependency so it runs when connections load

@@ -247,34 +247,48 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   
   // Check for draft data from AI Studio when drawer opens in create mode
   useEffect(() => {
+    console.log('🎯 ScheduleDrawer effect:', { isOpen, mode, hasConnections: !!connections });
+    
     if (isOpen && mode === 'create') {
       const draftData = sessionStorage.getItem('schedule-draft-data');
+      console.log('🎯 Draft data in drawer:', draftData);
+      
       if (draftData) {
         try {
           const parsed = JSON.parse(draftData);
+          console.log('🎯 Parsed draft data in drawer:', parsed);
+          
           if (parsed.caption) {
             setCaption(parsed.caption);
+            console.log('✅ Set caption:', parsed.caption.substring(0, 50) + '...');
           }
           if (parsed.imageUrl) {
             setImageUrl(parsed.imageUrl);
+            console.log('✅ Set imageUrl:', parsed.imageUrl);
           }
           if (parsed.scheduledAt) {
             setScheduledTime(parsed.scheduledAt);
+            console.log('✅ Set scheduledTime:', parsed.scheduledAt);
           }
           
           // Pre-select platforms: use provided platforms or default to first connected platform
           if (parsed.platforms && Array.isArray(parsed.platforms) && parsed.platforms.length > 0) {
             setSelectedPlatforms(parsed.platforms);
+            console.log('✅ Set platforms from draft:', parsed.platforms);
           } else if (connections && connections.length > 0) {
             // Default to first connected platform if no platforms specified
             setSelectedPlatforms([connections[0].platform]);
+            console.log('✅ Set default platform:', connections[0].platform);
           }
           
           // Clear the draft data after loading it
           sessionStorage.removeItem('schedule-draft-data');
+          console.log('✅ Cleared draft data from storage');
         } catch (error) {
-          console.error('Failed to parse draft data:', error);
+          console.error('❌ Failed to parse draft data in drawer:', error);
         }
+      } else {
+        console.log('⚠️ No draft data found in drawer');
       }
     }
   }, [isOpen, mode, connections]);
