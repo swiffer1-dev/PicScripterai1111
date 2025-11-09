@@ -973,34 +973,37 @@ export default function Calendar() {
             </div>
           </div>
 
-          <Card className="border-border shadow-sm p-4">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-4">
+          <Card className="border-border shadow-sm p-2 sm:p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => viewMode === "month" ? navigateMonth(-1) : navigateWeek(-1)}
                   data-testid="button-prev"
+                  className="h-8 w-8 sm:h-10 sm:w-10"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
-                <h2 className="text-xl font-semibold min-w-[200px] text-center">{monthName}</h2>
+                <h2 className="text-base sm:text-xl font-semibold text-center flex-1 sm:min-w-[200px]">{monthName}</h2>
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => viewMode === "month" ? navigateMonth(1) : navigateWeek(1)}
                   data-testid="button-next"
+                  className="h-8 w-8 sm:h-10 sm:w-10"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant={viewMode === "month" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setViewMode("month")}
                   data-testid="button-month-view"
+                  className="flex-1 sm:flex-initial"
                 >
                   Month
                 </Button>
@@ -1009,6 +1012,7 @@ export default function Calendar() {
                   size="sm"
                   onClick={() => setViewMode("week")}
                   data-testid="button-week-view"
+                  className="flex-1 sm:flex-initial"
                 >
                   Week
                 </Button>
