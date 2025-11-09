@@ -1,5 +1,4 @@
-import type { Request } from "express";
-import { BaseWebhookHandler, type WebhookPayload, type VerificationResult } from "./base";
+import { BaseWebhookHandler, type RequestWithRawBody, type WebhookPayload, type VerificationResult } from "./base";
 import type { WebhookEventType } from "@shared/schema";
 
 export class LinkedInWebhookHandler extends BaseWebhookHandler {
@@ -7,11 +6,11 @@ export class LinkedInWebhookHandler extends BaseWebhookHandler {
     super("linkedin");
   }
 
-  async verifySignature(req: Request): Promise<VerificationResult> {
+  async verifySignature(req: RequestWithRawBody): Promise<VerificationResult> {
     return { verified: true };
   }
 
-  async parsePayload(req: Request): Promise<WebhookPayload> {
+  async parsePayload(req: RequestWithRawBody): Promise<WebhookPayload> {
     const body = req.body;
     let eventType: WebhookEventType = "other";
     let postId: string | undefined;

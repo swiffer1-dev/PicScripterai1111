@@ -1,5 +1,4 @@
-import type { Request } from "express";
-import { BaseWebhookHandler, SignatureVerifier, type WebhookPayload, type VerificationResult } from "./base";
+import { BaseWebhookHandler, SignatureVerifier, type RequestWithRawBody, type WebhookPayload, type VerificationResult } from "./base";
 import type { WebhookEventType } from "@shared/schema";
 
 export class PinterestWebhookHandler extends BaseWebhookHandler {
@@ -15,22 +14,22 @@ export class PinterestWebhookHandler extends BaseWebhookHandler {
     this.appSecret = secret;
   }
 
-  async verifySignature(req: Request): Promise<VerificationResult> {
+  async verifySignature(req: RequestWithRawBody): Promise<VerificationResult> {
     const signature = req.headers["x-pinterest-signature"] as string;
     
     if (!signature) {
       return { verified: false, error: "Missing X-Pinterest-Signature header" };
     }
 
-    const rawBody = JSON.stringify(req.body);
-    const verified = SignatureVerifier.verifyHMACSHA256(this.appSecret, rawBody, signature);
+    const rawBody = this.getRawBody(req);
+    const verified = SignatureVerifier.verifyHMACSHA256Hex(this.appSecret, rawBody, signature);
     
     return verified 
       ? { verified: true } 
       : { verified: false, error: "Invalid signature" };
   }
 
-  async parsePayload(req: Request): Promise<WebhookPayload> {
+  async parsePayload(req: RequestWithRawBody): Promise<WebhookPayload> {
     const body = req.body;
     let eventType: WebhookEventType = "other";
     let postId: string | undefined;

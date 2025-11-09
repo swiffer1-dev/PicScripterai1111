@@ -12,6 +12,7 @@ import {
   postAnalytics,
   analyticsEvents,
   auditEvents,
+  webhookEvents,
   type User,
   type InsertUser,
   type Connection,
@@ -36,6 +37,8 @@ import {
   type InsertAnalyticsEvent,
   type AuditEvent,
   type InsertAuditEvent,
+  type WebhookEvent,
+  type InsertWebhookEvent,
   type Platform,
   type EcommercePlatform,
 } from "@shared/schema";
@@ -119,6 +122,23 @@ export interface IStorage {
     startDate?: Date;
     endDate?: Date;
   }): Promise<number>;
+  
+  // Webhook operations
+  createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
+  getWebhookEvents(filters: {
+    platform?: Platform;
+    eventType?: string;
+    status?: string;
+    userId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<WebhookEvent[]>;
+  getPendingWebhookEvents(limit?: number): Promise<WebhookEvent[]>;
+  updateWebhookEventStatus(id: string, status: string, errorMessage?: string | null): Promise<WebhookEvent>;
+  markWebhookProcessed(id: string): Promise<WebhookEvent>;
+  markWebhookFailed(id: string, errorMessage: string): Promise<WebhookEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -539,6 +559,132 @@ export class DatabaseStorage implements IStorage {
 
     const result = await query;
     return result[0]?.count || 0;
+  }
+
+  // Webhook operations
+  async createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent> {
+    const [webhookEvent] = await db
+      .insert(webhookEvents)
+      .values(event)
+      .returning();
+    return webhookEvent;
+  }
+
+  async getWebhookEvents(filters: {
+    platform?: Platform;
+    eventType?: string;
+    status?: string;
+    userId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<WebhookEvent[]> {
+    const conditions = [];
+
+    if (filters.platform) {
+      conditions.push(eq(webhookEvents.platform, filters.platform));
+    }
+
+    if (filters.eventType) {
+      conditions.push(eq(webhookEvents.eventType, filters.eventType as any));
+    }
+
+    if (filters.status) {
+      conditions.push(eq(webhookEvents.status, filters.status as any));
+    }
+
+    if (filters.userId) {
+      conditions.push(eq(webhookEvents.userId, filters.userId));
+    }
+
+    if (filters.startDate) {
+      conditions.push(sql`${webhookEvents.createdAt} >= ${filters.startDate}`);
+    }
+
+    if (filters.endDate) {
+      conditions.push(sql`${webhookEvents.createdAt} <= ${filters.endDate}`);
+    }
+
+    let query = db
+      .select()
+      .from(webhookEvents)
+      .orderBy(desc(webhookEvents.createdAt));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    if (filters.offset) {
+      query = query.offset(filters.offset) as any;
+    }
+
+    return await query;
+  }
+
+  async getPendingWebhookEvents(limit: number = 50): Promise<WebhookEvent[]> {
+    return await db
+      .select()
+      .from(webhookEvents)
+      .where(eq(webhookEvents.status, "pending"))
+      .orderBy(webhookEvents.createdAt)
+      .limit(limit);
+  }
+
+  async updateWebhookEventStatus(
+    id: string,
+    status: string,
+    errorMessage?: string | null
+  ): Promise<WebhookEvent> {
+    const updateData: any = { status };
+
+    if (status === "processed" || status === "failed") {
+      updateData.processedAt = new Date();
+    }
+
+    if (errorMessage !== undefined) {
+      updateData.errorMessage = errorMessage;
+    }
+
+    const [updated] = await db
+      .update(webhookEvents)
+      .set(updateData)
+      .where(eq(webhookEvents.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async markWebhookProcessed(id: string): Promise<WebhookEvent> {
+    const [updated] = await db
+      .update(webhookEvents)
+      .set({
+        status: "processed",
+        processedAt: new Date(),
+        errorMessage: null,
+      })
+      .where(eq(webhookEvents.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async markWebhookFailed(id: string, errorMessage: string): Promise<WebhookEvent> {
+    const [updated] = await db
+      .update(webhookEvents)
+      .set({
+        status: "failed",
+        processedAt: new Date(),
+        errorMessage,
+      })
+      .where(eq(webhookEvents.id, id))
+      .returning();
+
+    return updated;
   }
 }
 

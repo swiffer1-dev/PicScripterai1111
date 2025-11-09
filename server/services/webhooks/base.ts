@@ -2,6 +2,10 @@ import crypto from "crypto";
 import type { Request } from "express";
 import type { Platform, WebhookEventType, InsertWebhookEvent } from "@shared/schema";
 
+export interface RequestWithRawBody extends Request {
+  rawBody?: string | Buffer;
+}
+
 export interface WebhookPayload {
   platform: Platform;
   eventType: WebhookEventType;
@@ -23,13 +27,23 @@ export abstract class BaseWebhookHandler {
     this.platform = platform;
   }
 
-  abstract verifySignature(req: Request): Promise<VerificationResult>;
+  abstract verifySignature(req: RequestWithRawBody): Promise<VerificationResult>;
   
-  abstract parsePayload(req: Request): Promise<WebhookPayload>;
+  abstract parsePayload(req: RequestWithRawBody): Promise<WebhookPayload>;
   
   abstract shouldProcess(payload: WebhookPayload): boolean;
   
-  async handle(req: Request): Promise<InsertWebhookEvent | null> {
+  protected getRawBody(req: RequestWithRawBody): string {
+    if (req.rawBody) {
+      if (Buffer.isBuffer(req.rawBody)) {
+        return req.rawBody.toString('utf8');
+      }
+      return req.rawBody;
+    }
+    return JSON.stringify(req.body);
+  }
+  
+  async handle(req: RequestWithRawBody): Promise<InsertWebhookEvent | null> {
     const verification = await this.verifySignature(req);
     if (!verification.verified) {
       console.error(`[${this.platform}] Webhook verification failed:`, verification.error);
@@ -61,25 +75,34 @@ export class SignatureVerifier {
     secret: string,
     payload: string,
     signature: string,
-    algorithm: string = "sha256"
+    algorithm: string = "sha256",
+    encoding: "hex" | "base64" = "hex"
   ): boolean {
     const expectedSignature = crypto
       .createHmac(algorithm, secret)
       .update(payload)
-      .digest("hex");
+      .digest(encoding);
     
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(signature, encoding),
+        Buffer.from(expectedSignature, encoding)
+      );
+    } catch (error) {
+      return false;
+    }
   }
 
-  static verifyHMACSHA256(secret: string, payload: string, signature: string): boolean {
-    return this.verifyHMAC(secret, payload, signature, "sha256");
+  static verifyHMACSHA256Hex(secret: string, payload: string, signature: string): boolean {
+    return this.verifyHMAC(secret, payload, signature, "sha256", "hex");
+  }
+
+  static verifyHMACSHA256Base64(secret: string, payload: string, signature: string): boolean {
+    return this.verifyHMAC(secret, payload, signature, "sha256", "base64");
   }
 
   static verifyHMACSHA1(secret: string, payload: string, signature: string): boolean {
-    return this.verifyHMAC(secret, payload, signature, "sha1");
+    return this.verifyHMAC(secret, payload, signature, "sha1", "hex");
   }
 
   static extractSignatureFromHeader(

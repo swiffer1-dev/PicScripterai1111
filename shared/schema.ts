@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, pgEnum, jsonb, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, pgEnum, jsonb, integer, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -324,7 +324,7 @@ export const webhookEvents = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    platformEventIdx: uniqueIndex("webhook_events_platform_event_idx").on(table.platform, table.eventType),
+    platformEventIdx: index("webhook_events_platform_event_idx").on(table.platform, table.eventType),
   })
 );
 

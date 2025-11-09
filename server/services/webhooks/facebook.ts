@@ -1,5 +1,4 @@
-import type { Request } from "express";
-import { BaseWebhookHandler, SignatureVerifier, type WebhookPayload, type VerificationResult } from "./base";
+import { BaseWebhookHandler, SignatureVerifier, type RequestWithRawBody, type WebhookPayload, type VerificationResult } from "./base";
 import type { Platform, WebhookEventType } from "@shared/schema";
 
 export class FacebookWebhookHandler extends BaseWebhookHandler {
@@ -17,24 +16,24 @@ export class FacebookWebhookHandler extends BaseWebhookHandler {
     this.appSecret = secret;
   }
 
-  async verifySignature(req: Request): Promise<VerificationResult> {
+  async verifySignature(req: RequestWithRawBody): Promise<VerificationResult> {
     const signature = req.headers["x-hub-signature-256"] as string;
     
     if (!signature) {
       return { verified: false, error: "Missing X-Hub-Signature-256 header" };
     }
 
-    const rawBody = JSON.stringify(req.body);
+    const rawBody = this.getRawBody(req);
     const sig = SignatureVerifier.extractSignatureFromHeader(signature, "sha256=");
     
-    const verified = SignatureVerifier.verifyHMACSHA256(this.appSecret, rawBody, sig);
+    const verified = SignatureVerifier.verifyHMACSHA256Hex(this.appSecret, rawBody, sig);
     
     return verified 
       ? { verified: true } 
       : { verified: false, error: "Invalid signature" };
   }
 
-  async parsePayload(req: Request): Promise<WebhookPayload> {
+  async parsePayload(req: RequestWithRawBody): Promise<WebhookPayload> {
     const body = req.body;
     const entry = body.entry?.[0];
     const changes = entry?.changes?.[0];
@@ -65,7 +64,7 @@ export class FacebookWebhookHandler extends BaseWebhookHandler {
     return payload.eventType !== "other";
   }
 
-  static handleVerification(req: Request): string | null {
+  static handleVerification(req: RequestWithRawBody): string | null {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];

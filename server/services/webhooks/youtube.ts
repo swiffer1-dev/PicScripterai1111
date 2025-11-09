@@ -1,5 +1,4 @@
-import type { Request } from "express";
-import { BaseWebhookHandler, type WebhookPayload, type VerificationResult } from "./base";
+import { BaseWebhookHandler, type RequestWithRawBody, type WebhookPayload, type VerificationResult } from "./base";
 import type { WebhookEventType } from "@shared/schema";
 
 export class YouTubeWebhookHandler extends BaseWebhookHandler {
@@ -7,11 +6,11 @@ export class YouTubeWebhookHandler extends BaseWebhookHandler {
     super("youtube");
   }
 
-  async verifySignature(req: Request): Promise<VerificationResult> {
+  async verifySignature(req: RequestWithRawBody): Promise<VerificationResult> {
     return { verified: true };
   }
 
-  async parsePayload(req: Request): Promise<WebhookPayload> {
+  async parsePayload(req: RequestWithRawBody): Promise<WebhookPayload> {
     const body = req.body;
     let eventType: WebhookEventType = "other";
     let postId: string | undefined;
@@ -42,7 +41,7 @@ export class YouTubeWebhookHandler extends BaseWebhookHandler {
     return payload.eventType !== "other";
   }
 
-  static handleSubscriptionVerification(req: Request): string | null {
+  static handleSubscriptionVerification(req: RequestWithRawBody): string | null {
     const challenge = req.query["hub.challenge"] as string;
     const mode = req.query["hub.mode"] as string;
 

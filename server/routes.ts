@@ -31,6 +31,11 @@ import { isPlatformConfigured, getConfigurationError } from "./utils/platform-co
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, type Platform, type EcommercePlatform } from "@shared/schema";
+import { WebhookHandlerFactory } from "./services/webhooks/factory";
+import { FacebookWebhookHandler } from "./services/webhooks/facebook";
+import { TwitterWebhookHandler } from "./services/webhooks/twitter";
+import { YouTubeWebhookHandler } from "./services/webhooks/youtube";
+import type { RequestWithRawBody } from "./services/webhooks/base";
 
 // Metrics tracking
 const metrics = {
@@ -2251,6 +2256,62 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
         return res.status(400).json({ error: "Invalid query parameters", details: error.errors });
       }
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Webhook endpoints - handle platform callbacks
+  app.get("/webhooks/:platform", async (req: RequestWithRawBody, res) => {
+    try {
+      const platform = req.params.platform as Platform;
+      
+      // Handle verification challenges for specific platforms
+      if (platform === "facebook" || platform === "instagram") {
+        const challenge = FacebookWebhookHandler.handleVerification(req);
+        if (challenge) {
+          return res.status(200).send(challenge);
+        }
+      } else if (platform === "twitter") {
+        const responseToken = TwitterWebhookHandler.handleCRCChallenge(req);
+        if (responseToken) {
+          return res.status(200).json({ response_token: responseToken });
+        }
+      } else if (platform === "youtube") {
+        const challenge = YouTubeWebhookHandler.handleSubscriptionVerification(req);
+        if (challenge) {
+          return res.status(200).send(challenge);
+        }
+      }
+      
+      res.status(400).json({ error: "Invalid verification request" });
+    } catch (error: any) {
+      console.error(`Webhook verification error for ${req.params.platform}:`, error);
+      res.status(500).json({ error: "Verification failed" });
+    }
+  });
+
+  app.post("/webhooks/:platform", async (req: RequestWithRawBody, res) => {
+    try {
+      const platform = req.params.platform as Platform;
+      
+      const handler = WebhookHandlerFactory.getHandler(platform);
+      if (!handler) {
+        return res.status(404).json({ error: `No webhook handler for platform: ${platform}` });
+      }
+
+      const webhookEvent = await handler.handle(req);
+      
+      if (!webhookEvent) {
+        return res.status(400).json({ error: "Invalid webhook event" });
+      }
+
+      const stored = await storage.createWebhookEvent(webhookEvent);
+      
+      console.log(`[Webhook] Received ${platform} event:`, webhookEvent.eventType);
+      
+      res.status(200).json({ success: true, id: stored.id });
+    } catch (error: any) {
+      console.error(`Webhook processing error for ${req.params.platform}:`, error);
+      res.status(500).json({ error: "Webhook processing failed" });
     }
   });
 

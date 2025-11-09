@@ -1,6 +1,5 @@
-import type { Request } from "express";
 import crypto from "crypto";
-import { BaseWebhookHandler, type WebhookPayload, type VerificationResult } from "./base";
+import { BaseWebhookHandler, SignatureVerifier, type RequestWithRawBody, type WebhookPayload, type VerificationResult } from "./base";
 import type { WebhookEventType } from "@shared/schema";
 
 export class TwitterWebhookHandler extends BaseWebhookHandler {
@@ -16,27 +15,24 @@ export class TwitterWebhookHandler extends BaseWebhookHandler {
     this.consumerSecret = secret;
   }
 
-  async verifySignature(req: Request): Promise<VerificationResult> {
+  async verifySignature(req: RequestWithRawBody): Promise<VerificationResult> {
     const signature = req.headers["x-twitter-webhooks-signature"] as string;
     
     if (!signature) {
       return { verified: false, error: "Missing X-Twitter-Webhooks-Signature header" };
     }
 
-    const rawBody = JSON.stringify(req.body);
-    const expectedSignature = crypto
-      .createHmac("sha256", this.consumerSecret)
-      .update(rawBody)
-      .digest("base64");
+    const rawBody = this.getRawBody(req);
+    const sig = SignatureVerifier.extractSignatureFromHeader(signature, "sha256=");
     
-    const sig = signature.replace("sha256=", "");
+    const verified = SignatureVerifier.verifyHMACSHA256Base64(this.consumerSecret, rawBody, sig);
     
-    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSignature))
+    return verified
       ? { verified: true }
       : { verified: false, error: "Invalid signature" };
   }
 
-  async parsePayload(req: Request): Promise<WebhookPayload> {
+  async parsePayload(req: RequestWithRawBody): Promise<WebhookPayload> {
     const body = req.body;
     let eventType: WebhookEventType = "other";
     let postId: string | undefined;
@@ -64,7 +60,7 @@ export class TwitterWebhookHandler extends BaseWebhookHandler {
     return payload.eventType !== "other";
   }
 
-  static handleCRCChallenge(req: Request): string | null {
+  static handleCRCChallenge(req: RequestWithRawBody): string | null {
     const crcToken = req.query.crc_token as string;
     
     if (!crcToken) {
