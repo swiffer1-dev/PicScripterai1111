@@ -1040,10 +1040,10 @@ export default function Calendar() {
                 return (
                   <div
                     key={index}
-                    className={`min-h-[88px] sm:min-h-[120px] border border-border rounded-lg p-1 sm:p-2 ${
+                    className={`min-h-[88px] sm:min-h-[120px] border border-border rounded-lg p-1 sm:p-2 transition-all duration-200 ${
                       day ? "bg-card" : "bg-muted/30"
                     } ${isToday ? "ring-2 ring-primary" : ""} ${
-                      scheduleUIEnabled && day ? "cursor-pointer hover:bg-card/80 transition-colors" : ""
+                      scheduleUIEnabled && day ? "cursor-pointer hover:bg-accent hover:border-primary/50 hover:shadow-md hover:scale-[1.02]" : ""
                     }`}
                     onClick={() => handleDayClick(day)}
                     data-testid={day ? `calendar-day-${day.getDate()}` : undefined}
