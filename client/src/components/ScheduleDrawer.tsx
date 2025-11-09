@@ -245,6 +245,40 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
     }
   }, [mode, existingPost]);
   
+  // Check for draft data from AI Studio when drawer opens in create mode
+  useEffect(() => {
+    if (isOpen && mode === 'create') {
+      const draftData = sessionStorage.getItem('schedule-draft-data');
+      if (draftData) {
+        try {
+          const parsed = JSON.parse(draftData);
+          if (parsed.caption) {
+            setCaption(parsed.caption);
+          }
+          if (parsed.imageUrl) {
+            setImageUrl(parsed.imageUrl);
+          }
+          if (parsed.scheduledAt) {
+            setScheduledTime(parsed.scheduledAt);
+          }
+          
+          // Pre-select platforms: use provided platforms or default to first connected platform
+          if (parsed.platforms && Array.isArray(parsed.platforms) && parsed.platforms.length > 0) {
+            setSelectedPlatforms(parsed.platforms);
+          } else if (connections && connections.length > 0) {
+            // Default to first connected platform if no platforms specified
+            setSelectedPlatforms([connections[0].platform]);
+          }
+          
+          // Clear the draft data after loading it
+          sessionStorage.removeItem('schedule-draft-data');
+        } catch (error) {
+          console.error('Failed to parse draft data:', error);
+        }
+      }
+    }
+  }, [isOpen, mode, connections]);
+  
   // Cleanup blob URLs to prevent memory leaks
   useEffect(() => {
     return () => {

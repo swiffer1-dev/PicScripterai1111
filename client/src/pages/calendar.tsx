@@ -122,46 +122,49 @@ export default function Calendar() {
       : undefined, // Use default queryFn for legacy endpoint
   });
 
-  // Check for draft data from AI Studio
+  // Check for draft data from AI Studio on component mount
   useEffect(() => {
     const draftData = sessionStorage.getItem('schedule-draft');
-    if (draftData) {
+    if (draftData && connections && connections.length > 0) {
       try {
         const parsed = JSON.parse(draftData);
-        const firstConnection = connections?.[0];
         
-        if (firstConnection) {
-          // Calculate default schedule time (1 hour from now) in local timezone
-          const defaultTime = new Date();
-          defaultTime.setHours(defaultTime.getHours() + 1);
-          defaultTime.setMinutes(0);
-          defaultTime.setSeconds(0);
-          defaultTime.setMilliseconds(0);
-          
-          // Format for datetime-local input (YYYY-MM-DDTHH:mm) in local timezone
-          const year = defaultTime.getFullYear();
-          const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
-          const day = String(defaultTime.getDate()).padStart(2, '0');
-          const hours = String(defaultTime.getHours()).padStart(2, '0');
-          const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
-          const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-          
-          setScheduleData({
-            caption: parsed.caption,
-            imageUrl: parsed.imageUrl,
-            platform: firstConnection.platform,
-            scheduledAt: localDateTimeString,
-          });
-          setScheduleDialogOpen(true);
-          
-          // Clear session storage
-          sessionStorage.removeItem('schedule-draft');
-        }
+        // Calculate default schedule time (1 hour from now) in local timezone
+        const defaultTime = new Date();
+        defaultTime.setHours(defaultTime.getHours() + 1);
+        defaultTime.setMinutes(0);
+        defaultTime.setSeconds(0);
+        defaultTime.setMilliseconds(0);
+        
+        // Format for datetime-local input (YYYY-MM-DDTHH:mm) in local timezone
+        const year = defaultTime.getFullYear();
+        const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+        const day = String(defaultTime.getDate()).padStart(2, '0');
+        const hours = String(defaultTime.getHours()).padStart(2, '0');
+        const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+        const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Use unified schedule drawer instead of old dialog
+        setDrawerDate(defaultTime);
+        setDrawerMode('create');
+        setDrawerScheduleId(undefined);
+        setDrawerOpen(true);
+        
+        // Store draft data for the drawer to use, including platforms
+        sessionStorage.setItem('schedule-draft-data', JSON.stringify({
+          caption: parsed.caption,
+          imageUrl: parsed.imageUrl,
+          platforms: parsed.platforms || [], // Pass through selected platforms from AI Studio
+          scheduledAt: localDateTimeString,
+        }));
+        
+        // Clear the trigger storage
+        sessionStorage.removeItem('schedule-draft');
       } catch (error) {
         console.error('Failed to parse draft data:', error);
       }
     }
-  }, [connections]);
+  }, [connections]); // Keep connections as dependency so it runs when connections load
 
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, scheduledAt }: { id: string; scheduledAt: Date }) => {

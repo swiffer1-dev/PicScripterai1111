@@ -670,6 +670,7 @@ export default function AIStudio() {
     sessionStorage.setItem('schedule-draft', JSON.stringify({
       caption: generatedContent,
       imageUrl: uploadedImageUrls[0] || null,
+      platforms: selectedPlatforms.length > 0 ? selectedPlatforms : [], // Include selected platforms
       timestamp: Date.now(),
     }));
     
