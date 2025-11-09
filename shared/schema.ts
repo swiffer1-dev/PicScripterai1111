@@ -325,6 +325,7 @@ export const webhookEvents = pgTable(
   },
   (table) => ({
     platformEventIdx: index("webhook_events_platform_event_idx").on(table.platform, table.eventType),
+    statusCreatedIdx: index("webhook_events_status_created_idx").on(table.status, table.createdAt),
   })
 );
 
