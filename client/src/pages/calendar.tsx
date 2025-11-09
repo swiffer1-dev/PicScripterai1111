@@ -127,7 +127,8 @@ export default function Calendar() {
     const draftData = sessionStorage.getItem('schedule-draft');
     console.log('📅 Calendar checking for draft data:', { hasDraft: !!draftData, hasConnections: !!connections, connectionsLength: connections?.length });
     
-    if (draftData && connections && connections.length > 0) {
+    // Open drawer immediately if we have draft data, don't wait for connections
+    if (draftData) {
       try {
         const parsed = JSON.parse(draftData);
         console.log('📅 Parsed draft data:', parsed);
@@ -156,7 +157,7 @@ export default function Calendar() {
         
         console.log('📅 Opening drawer with data:', draftDataForDrawer);
         
-        // Use unified schedule drawer instead of old dialog
+        // Use unified schedule drawer - open immediately, don't wait for connections
         setDrawerDate(defaultTime);
         setDrawerMode('create');
         setDrawerScheduleId(undefined);
@@ -173,7 +174,7 @@ export default function Calendar() {
         console.error('❌ Failed to parse draft data:', error);
       }
     }
-  }, [connections]); // Keep connections as dependency so it runs when connections load
+  }, []); // Run only once on mount - don't wait for connections
 
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, scheduledAt }: { id: string; scheduledAt: Date }) => {
