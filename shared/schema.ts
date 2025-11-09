@@ -69,6 +69,24 @@ export const auditActionEnum = pgEnum("audit_action", [
   "draft.delete",
 ]);
 
+export const webhookEventTypeEnum = pgEnum("webhook_event_type", [
+  "post.published",
+  "post.failed",
+  "token.revoked",
+  "token.expired",
+  "account.deauthorized",
+  "media.processed",
+  "media.failed",
+  "other",
+]);
+
+export const webhookStatusEnum = pgEnum("webhook_status", [
+  "pending",
+  "processing",
+  "processed",
+  "failed",
+]);
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -289,6 +307,27 @@ export const auditEvents = pgTable("audit_events", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Webhook events table - tracks incoming webhook events from social platforms
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    platform: platformEnum("platform").notNull(),
+    eventType: webhookEventTypeEnum("event_type").notNull(),
+    payload: jsonb("payload").notNull(),
+    signature: text("signature"),
+    status: webhookStatusEnum("status").notNull().default("pending"),
+    processedAt: timestamp("processed_at"),
+    userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+    postId: varchar("post_id").references(() => posts.id, { onDelete: "set null" }),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    platformEventIdx: uniqueIndex("webhook_events_platform_event_idx").on(table.platform, table.eventType),
+  })
+);
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   connections: many(connections),
@@ -393,6 +432,17 @@ export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
   }),
 }));
 
+export const webhookEventsRelations = relations(webhookEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [webhookEvents.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [webhookEvents.postId],
+    references: [posts.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -472,6 +522,12 @@ export const insertAuditEventSchema = createInsertSchema(auditEvents).omit({
   createdAt: true,
 });
 
+export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -521,3 +577,8 @@ export type AnalyticsEventType = typeof analyticsEventTypeEnum.enumValues[number
 export type AuditEvent = typeof auditEvents.$inferSelect;
 export type InsertAuditEvent = z.infer<typeof insertAuditEventSchema>;
 export type AuditAction = typeof auditActionEnum.enumValues[number];
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+export type WebhookEventType = typeof webhookEventTypeEnum.enumValues[number];
+export type WebhookStatus = typeof webhookStatusEnum.enumValues[number];
