@@ -1015,15 +1015,16 @@ export default function Calendar() {
               </div>
             </div>
 
-            <div className={`grid ${viewMode === "month" ? "grid-cols-7" : "grid-cols-7"} gap-2 mb-2`}>
+            <div className={`grid ${viewMode === "month" ? "grid-cols-7" : "grid-cols-7"} gap-1 sm:gap-2 mb-2`}>
               {weekDays.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                  {day}
+                <div key={day} className="text-center text-xs sm:text-sm font-medium text-muted-foreground py-1 sm:py-2">
+                  <span className="sm:hidden">{day.charAt(0)}</span>
+                  <span className="hidden sm:inline">{day}</span>
                 </div>
               ))}
             </div>
 
-            <div className={`grid ${viewMode === "month" ? "grid-cols-7" : "grid-cols-7"} gap-2`}>
+            <div className={`grid ${viewMode === "month" ? "grid-cols-7" : "grid-cols-7"} gap-1 sm:gap-2`}>
               {days.map((day, index) => {
                 const dayPosts = getPostsForDate(day);
                 const statusDots = getStatusDotsForDay(day);
@@ -1035,7 +1036,7 @@ export default function Calendar() {
                 return (
                   <div
                     key={index}
-                    className={`min-h-[120px] border border-border rounded-lg p-2 ${
+                    className={`min-h-[88px] sm:min-h-[120px] border border-border rounded-lg p-1 sm:p-2 ${
                       day ? "bg-card" : "bg-muted/30"
                     } ${isToday ? "ring-2 ring-primary" : ""} ${
                       scheduleUIEnabled && day ? "cursor-pointer hover:bg-card/80 transition-colors" : ""
@@ -1062,7 +1063,7 @@ export default function Calendar() {
                             </div>
                           )}
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-1 sm:space-y-2">
                           {dayPosts.slice(0, 3).map(post => {
                             const isPending = post.status === 'scheduled_pending';
                             const platforms = (post as any).platforms;
@@ -1080,7 +1081,7 @@ export default function Calendar() {
                             return (
                               <div
                                 key={post.id}
-                                className={`text-xs p-2 rounded cursor-pointer transition-all hover:shadow-md border ${
+                                className={`text-xs p-1 sm:p-2 rounded cursor-pointer transition-all hover:shadow-md border ${
                                   isPending 
                                     ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-600'
                                     : `bg-card border-border`
