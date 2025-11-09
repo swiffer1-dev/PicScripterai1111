@@ -150,6 +150,8 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [category, setCategory] = useState<string | undefined>(undefined);
+  const [tone, setTone] = useState<string | undefined>(undefined);
   
   // Get connections to show which platforms are connected
   const { data: connections } = useQuery<any[]>({
@@ -269,6 +271,14 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
           if (parsed.scheduledAt) {
             setScheduledTime(parsed.scheduledAt);
             console.log('✅ Set scheduledTime:', parsed.scheduledAt);
+          }
+          if (parsed.category) {
+            setCategory(parsed.category);
+            console.log('✅ Set category:', parsed.category);
+          }
+          if (parsed.tone) {
+            setTone(parsed.tone);
+            console.log('✅ Set tone:', parsed.tone);
           }
           
           // Pre-select platforms: use provided platforms or default to first connected platform
@@ -552,13 +562,28 @@ export function ScheduleDrawer({ isOpen, onClose, selectedDate, mode = 'create',
       >
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h2 className="text-lg font-semibold">
               {viewMode === 'preview' ? 'Post Preview' : mode === 'edit' ? 'Edit Schedule' : 'Schedule Post'}
             </h2>
             <p className="text-sm text-muted-foreground">
               {format(selectedDate, "MMMM d, yyyy")}
             </p>
+            {/* Show category and tone badges if available */}
+            {(category || tone) && (
+              <div className="flex gap-2 flex-wrap mt-2">
+                {category && (
+                  <div className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-medium" data-testid="drawer-category-badge">
+                    {category}
+                  </div>
+                )}
+                {tone && (
+                  <div className="px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-medium" data-testid="drawer-tone-badge">
+                    {tone}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <Button
             variant="ghost"

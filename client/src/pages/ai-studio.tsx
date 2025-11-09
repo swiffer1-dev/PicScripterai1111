@@ -671,6 +671,8 @@ export default function AIStudio() {
       caption: generatedContent,
       imageUrl: uploadedImageUrls[0] || null,
       platforms: selectedPlatforms.length > 0 ? selectedPlatforms : [], // Include selected platforms
+      category, // Include category used for generation
+      tone, // Include tone used for generation
       timestamp: Date.now(),
     }));
     

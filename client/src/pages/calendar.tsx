@@ -152,6 +152,8 @@ export default function Calendar() {
           caption: parsed.caption,
           imageUrl: parsed.imageUrl,
           platforms: parsed.platforms || [],
+          category: parsed.category,
+          tone: parsed.tone,
           scheduledAt: localDateTimeString,
         };
         
