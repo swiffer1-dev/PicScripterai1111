@@ -77,10 +77,10 @@ export const generateDescription = async (
   imageParts: ImagePart[],
   prompt: string
 ): Promise<{ description: string; metadata: string; buzzwordsRemoved?: string[] }> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not set.");
+    throw new Error("VITE_GEMINI_API_KEY environment variable is not set.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -142,10 +142,10 @@ export const proofreadText = async (text: string): Promise<{
   changesSummary: string; 
   diff: DiffEntry[] | null; 
 }> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not set.");
+    throw new Error("VITE_GEMINI_API_KEY environment variable is not set.");
   }
   
   const ai = new GoogleGenAI({ apiKey });
