@@ -9,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
+import ModernEngagementChart from "@/components/dashboard/ModernEngagementChart";
 
 interface EngagementSummary {
   totals: {
@@ -294,8 +295,15 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Engagement Analytics (feature-flagged) */}
-          {engagementEnabled && (
+          {/* Modern Engagement Chart (feature-flagged) */}
+          {engagementEnabled && import.meta.env.VITE_UI_MODERN_CHART === "1" && (
+            <div className="mb-8">
+              <ModernEngagementChart />
+            </div>
+          )}
+
+          {/* Legacy Engagement Analytics (shown when modern chart is disabled) */}
+          {engagementEnabled && import.meta.env.VITE_UI_MODERN_CHART !== "1" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Engagement Time Series */}
               <Card className="border-border shadow-sm">

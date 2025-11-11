@@ -214,6 +214,7 @@ Picscripterai uses a dual-process architecture:
   - `FEATURE_TOKEN_REFRESH`: Enable cookie-based refresh tokens (default: true)
   - `METRICS_ENGAGEMENT`: Enable Twitter/X engagement analytics tracking and dashboard (default: 0/disabled, set to 1 to enable)
   - `VITE_METRICS_ENGAGEMENT`: Frontend feature flag for engagement analytics dashboard widgets (must match backend flag)
+  - `VITE_UI_MODERN_CHART`: Enable modern dark-friendly engagement chart design with interactive controls (default: 0/disabled, set to 1 to enable)
 
 ## Production Security Features
 
