@@ -1,10 +1,12 @@
 import { Worker, Job } from "bullmq";
 import Redis from "ioredis";
+import axios from "axios";
 import { storage } from "./storage";
 import { publishToPlatform } from "./services/publishers";
 import { ensureValidToken } from "./utils/token-refresh";
 import { trackEvent } from "./utils/analytics";
-import type { PublishJobData } from "./worker-queue";
+import type { PublishJobData, EngagementJobData } from "./worker-queue";
+import { engagementQueue } from "./worker-queue";
 
 // Redis connection
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -57,6 +59,7 @@ const worker = new Worker<PublishJobData>(
         status: "published",
         externalId: result.id,
         externalUrl: result.url,
+        publishedAt: new Date(),
       });
       
       await storage.createJobLog({
@@ -65,6 +68,53 @@ const worker = new Worker<PublishJobData>(
         message: `Successfully published to ${platform}`,
         raw: result,
       });
+      
+      // Schedule engagement metrics collection (if enabled for Twitter)
+      if (process.env.METRICS_ENGAGEMENT === '1' && platform === 'twitter' && result.id && engagementQueue) {
+        try {
+          // Schedule T+15 minutes
+          await engagementQueue.add(
+            'fetch-engagement',
+            {
+              postId,
+              userId,
+              platform,
+              externalId: result.id,
+              run: '15m',
+            },
+            {
+              delay: 15 * 60 * 1000, // 15 minutes in milliseconds
+              jobId: `engagement:${postId}:15m`,
+            }
+          );
+          
+          // Schedule T+24 hours
+          await engagementQueue.add(
+            'fetch-engagement',
+            {
+              postId,
+              userId,
+              platform,
+              externalId: result.id,
+              run: '24h',
+            },
+            {
+              delay: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+              jobId: `engagement:${postId}:24h`,
+            }
+          );
+          
+          await storage.createJobLog({
+            postId,
+            level: "info",
+            message: "Scheduled engagement metrics collection (15m, 24h)",
+            raw: { platform, externalId: result.id },
+          });
+        } catch (error: any) {
+          // Log error but don't fail the publish
+          console.warn(`Failed to schedule engagement jobs for ${postId}:`, error.message);
+        }
+      }
       
       // Track post_published event
       await trackEvent(
@@ -107,6 +157,107 @@ const worker = new Worker<PublishJobData>(
   }
 );
 
+// Engagement metrics worker (if feature enabled)
+let engagementWorker: Worker<EngagementJobData> | null = null;
+
+if (process.env.METRICS_ENGAGEMENT === '1' && connection) {
+  engagementWorker = new Worker<EngagementJobData>(
+    "engagement",
+    async (job: Job<EngagementJobData>) => {
+      const { postId, userId, platform, externalId, run } = job.data;
+      
+      try {
+        console.log(`[Engagement] Fetching metrics for ${platform} post ${externalId} (${run})`);
+        
+        // Get connection for the user
+        const connectionRecord = await storage.getConnection(userId, platform);
+        if (!connectionRecord) {
+          console.warn(`[Engagement] No ${platform} connection found for user ${userId}`);
+          return { skipped: true, reason: 'No connection found' };
+        }
+        
+        // Get access token (try to refresh if expired)
+        let accessToken: string;
+        try {
+          accessToken = await ensureValidToken(connectionRecord);
+        } catch (error: any) {
+          console.warn(`[Engagement] Token refresh failed for ${platform} user ${userId}:`, error.message);
+          return { skipped: true, reason: 'Token expired/invalid' };
+        }
+        
+        // Fetch Twitter metrics
+        if (platform === 'twitter') {
+          const response = await axios.get(
+            `https://api.twitter.com/2/tweets/${externalId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+              params: {
+                'tweet.fields': 'public_metrics',
+              },
+            }
+          );
+          
+          const metrics = response.data.data?.public_metrics;
+          if (!metrics) {
+            console.warn(`[Engagement] No metrics returned for tweet ${externalId}`);
+            return { skipped: true, reason: 'No metrics available' };
+          }
+          
+          // Save metrics to database
+          await storage.createPostMetrics({
+            userId,
+            postId,
+            platform,
+            externalId,
+            likes: metrics.like_count || 0,
+            reposts: metrics.retweet_count || 0,
+            replies: metrics.reply_count || 0,
+            quotes: metrics.quote_count || 0,
+            impressions: metrics.impression_count || 0,
+          });
+          
+          console.log(`[Engagement] Saved metrics for tweet ${externalId}: ${metrics.like_count} likes, ${metrics.retweet_count} retweets`);
+          
+          return {
+            success: true,
+            metrics,
+            run,
+          };
+        }
+        
+        return { skipped: true, reason: 'Platform not supported yet' };
+      } catch (error: any) {
+        // Log error but don't retry aggressively
+        console.error(`[Engagement] Error fetching metrics for ${postId}:`, error.message);
+        
+        // If rate limited or auth error, don't retry
+        if (error.response?.status === 429 || error.response?.status === 401) {
+          console.warn(`[Engagement] Skipping retries for ${postId} due to ${error.response.status}`);
+          return { skipped: true, reason: `HTTP ${error.response.status}` };
+        }
+        
+        throw error;
+      }
+    },
+    {
+      connection,
+      concurrency: 2, // Lower concurrency for API rate limits
+    }
+  );
+  
+  engagementWorker.on("completed", (job) => {
+    console.log(`[Engagement] Job ${job.id} completed`);
+  });
+  
+  engagementWorker.on("failed", (job, error) => {
+    console.error(`[Engagement] Job ${job?.id} failed:`, error.message);
+  });
+  
+  console.log("✅ Engagement metrics worker started");
+}
+
 // Worker event handlers
 worker.on("completed", (job) => {
   console.log(`Job ${job.id} completed successfully`);
@@ -122,15 +273,17 @@ worker.on("error", (error) => {
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, closing worker...");
+  console.log("SIGTERM received, closing workers...");
   await worker.close();
+  if (engagementWorker) await engagementWorker.close();
   await connection.quit();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  console.log("SIGINT received, closing worker...");
+  console.log("SIGINT received, closing workers...");
   await worker.close();
+  if (engagementWorker) await engagementWorker.close();
   await connection.quit();
   process.exit(0);
 });

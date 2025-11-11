@@ -10,6 +10,7 @@ import {
   mediaLibrary,
   templates,
   postAnalytics,
+  postMetrics,
   analyticsEvents,
   auditEvents,
   webhookEvents,
@@ -33,6 +34,8 @@ import {
   type InsertTemplate,
   type PostAnalytics,
   type InsertPostAnalytics,
+  type PostMetrics,
+  type InsertPostMetrics,
   type AnalyticsEvent,
   type InsertAnalyticsEvent,
   type AuditEvent,
@@ -105,6 +108,9 @@ export interface IStorage {
   getAnalyticsSummary(userId: string): Promise<any>;
   createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
   getAnalyticsEvents(userId: string, days?: number): Promise<AnalyticsEvent[]>;
+  
+  // Post metrics operations
+  createPostMetrics(metrics: InsertPostMetrics): Promise<PostMetrics>;
   
   // Audit operations
   createAuditEvent(event: InsertAuditEvent): Promise<AuditEvent>;
@@ -468,6 +474,15 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(analyticsEvents.createdAt));
+  }
+
+  // Post metrics operations
+  async createPostMetrics(metrics: InsertPostMetrics): Promise<PostMetrics> {
+    const [newMetrics] = await db
+      .insert(postMetrics)
+      .values(metrics)
+      .returning();
+    return newMetrics;
   }
 
   // Audit operations

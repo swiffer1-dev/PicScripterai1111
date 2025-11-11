@@ -1,0 +1,85 @@
+Implement Engagement Analytics v1 (X first) — additive, safe
+
+Goal
+Add post engagement tracking without breaking existing flows. Start with X/Twitter only, then we can extend to Pinterest/IG. Everything behind a feature flag.
+
+Feature flag
+- .env.example: METRICS_ENGAGEMENT=0
+- Use process.env.METRICS_ENGAGEMENT === '1' to enable worker + routes.
+
+1) DB changes (Drizzle)
+- Add columns if missing on posts:
+  - external_id TEXT NULL           // provider’s post id (e.g., tweet id)
+  - published_at TIMESTAMP NULL
+- New table post_metrics:
+  - id UUID PK
+  - user_id UUID
+  - post_id UUID
+  - platform TEXT                   // 'twitter'
+  - external_id TEXT                // tweet id
+  - likes INT DEFAULT 0
+  - reposts INT DEFAULT 0
+  - replies INT DEFAULT 0
+  - quotes INT DEFAULT 0
+  - impressions INT DEFAULT 0       // may be 0 if scope not granted
+  - collected_at TIMESTAMP DEFAULT now()
+  - UNIQUE(post_id, collected_at)   // optional to prevent dup rows
+
+Add a Drizzle migration for this. Don’t modify existing schema beyond adding columns; keep it backward compatible.
+
+2) Save external_id on publish
+- In the part of the worker that publishes to Twitter, capture the tweet id from the API response and PATCH the post row with:
+  - external_id
+  - published_at = now() (if not set)
+- Do not change queue behavior; just store these fields when available.
+
+3) Schedule engagement fetch jobs
+- When a post transitions to 'published' for twitter with an external_id, enqueue jobs to fetch engagement at:
+  - T+15 minutes
+  - T+24 hours
+- Reuse BullMQ. New queue name: 'engagement'
+- Job data: { postId, platform: 'twitter', externalId, userId, run: '15m' | '24h' }
+- Ensure idempotency key: engagement:<postId>:<run>
+
+4) Worker: fetch X metrics
+- In server/worker.ts, if METRICS_ENGAGEMENT=1, register a processor for 'engagement':
+  - Call Twitter v2 endpoints with the stored access token for that user/account:
+    GET https://api.twitter.com/2/tweets/:id?tweet.fields=public_metrics
+  - public_metrics → { like_count, retweet_count, reply_count, quote_count }
+  - Save a row in post_metrics with those numbers.
+- If token expired, log and skip (no retries storm). This must not break other queues.
+
+5) API endpoints (backend)
+- GET /api/metrics/engagement/summary?days=7
+  Returns totals and time series for the current user:
+  {
+    totals: { likes, reposts, replies, quotes },
+    daily:  [{ date: 'YYYY-MM-DD', likes, reposts, replies, quotes }]
+  }
+- GET /api/metrics/tones/performance?days=30
+  For posts that have tone AND have at least one post_metrics row, return:
+  [{ tone, avg_engagement: (likes+reposts+replies+quotes)/N, samples: N }]
+
+6) Frontend (dashboard)
+- Add a new card on Dashboard (feature-flagged) 'Engagement (Last 7 Days)'
+  - Small bar or line chart showing likes/reposts/replies stacked by day
+  - If empty, show “No engagement yet—publish a post to see stats.”
+- Add a small table or list under it: “Top Tones by Engagement (30d)”
+  - Shows tone and avg engagement (rounded), samples.
+
+7) Safety & constraints
+- Do not alter existing publish logic apart from saving external_id/published_at when available.
+- All new code must be gated by METRICS_ENGAGEMENT.
+- If the Twitter scope doesn’t allow impressions, set impressions=0 and proceed.
+- API routes must require auth and only return current user’s data.
+- If a request fails (rate limit/401), log and mark job as completed without retries flood.
+
+8) Acceptance
+- After posting to X via PicScripter, the post row has external_id and published_at.
+- 15 minutes later, a post_metrics row appears for that post with counts.
+- 24 hours later, another row appears with updated counts.
+- /api/metrics/engagement/summary?days=7 returns non-empty data.
+- Dashboard shows the new chart (when METRICS_ENGAGEMENT=1).
+- /api/metrics/tones/performance aggregates tones across published posts.
+
+Commit: feat(analytics): engagement tracking v1 (X), metrics endpoints, dashboard widgets (flagged)

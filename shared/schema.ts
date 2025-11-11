@@ -172,6 +172,7 @@ export const posts = pgTable("posts", {
   mediaType: text("media_type"),
   mediaUrl: text("media_url"),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
   status: postStatusEnum("status").notNull().default("queued"),
   externalId: text("external_id"),
   externalUrl: text("external_url"),
@@ -243,6 +244,32 @@ export const postAnalytics = pgTable("post_analytics", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Post metrics table - stores time-series engagement metrics snapshots
+export const postMetrics = pgTable(
+  "post_metrics",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    postId: varchar("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    platform: text("platform").notNull(),
+    externalId: text("external_id").notNull(),
+    likes: integer("likes").default(0).notNull(),
+    reposts: integer("reposts").default(0).notNull(),
+    replies: integer("replies").default(0).notNull(),
+    quotes: integer("quotes").default(0).notNull(),
+    impressions: integer("impressions").default(0).notNull(),
+    collectedAt: timestamp("collected_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    postCollectedIdx: uniqueIndex("post_metrics_post_collected_idx").on(table.postId, table.collectedAt),
+    userPlatformIdx: index("post_metrics_user_platform_idx").on(table.userId, table.platform),
+  })
+);
 
 // Jobs table - tracks BullMQ job metadata
 export const jobs = pgTable("jobs", {
@@ -501,6 +528,11 @@ export const insertPostAnalyticsSchema = createInsertSchema(postAnalytics).omit(
   updatedAt: true,
 });
 
+export const insertPostMetricsSchema = createInsertSchema(postMetrics).omit({
+  id: true,
+  collectedAt: true,
+});
+
 export const insertJobSchema = createInsertSchema(jobs).omit({
   id: true,
   createdAt: true,
@@ -556,6 +588,9 @@ export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 
 export type PostAnalytics = typeof postAnalytics.$inferSelect;
 export type InsertPostAnalytics = z.infer<typeof insertPostAnalyticsSchema>;
+
+export type PostMetrics = typeof postMetrics.$inferSelect;
+export type InsertPostMetrics = z.infer<typeof insertPostMetricsSchema>;
 
 export type Job = typeof jobs.$inferSelect;
 export type InsertJob = z.infer<typeof insertJobSchema>;

@@ -42,7 +42,7 @@ if (redisUrl) {
   console.warn("⚠️  REDIS_URL not set - scheduled posts disabled (posts will publish immediately)");
 }
 
-// Job data interface
+// Job data interfaces
 export interface PublishJobData {
   postId: string;
   userId: string;
@@ -53,7 +53,15 @@ export interface PublishJobData {
   options?: any;
 }
 
-// Create queue with error handling
+export interface EngagementJobData {
+  postId: string;
+  userId: string;
+  platform: Platform;
+  externalId: string;
+  run: '15m' | '24h';
+}
+
+// Create queues with error handling
 export const publishQueue = connection ? new Queue<PublishJobData>("publish-queue", {
   connection,
   defaultJobOptions: {
@@ -68,6 +76,24 @@ export const publishQueue = connection ? new Queue<PublishJobData>("publish-queu
     },
     removeOnFail: {
       count: 500,
+    },
+  },
+}) : null;
+
+export const engagementQueue = connection ? new Queue<EngagementJobData>("engagement", {
+  connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: {
+      type: "exponential",
+      delay: 10000,
+    },
+    removeOnComplete: {
+      count: 1000,
+      age: 7 * 24 * 3600,
+    },
+    removeOnFail: {
+      count: 100,
     },
   },
 }) : null;

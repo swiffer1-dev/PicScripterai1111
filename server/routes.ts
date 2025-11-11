@@ -2254,6 +2254,132 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
     }
   });
 
+  // Engagement Metrics endpoints (feature-flagged)
+  app.get("/api/metrics/engagement/summary", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      // Check if feature is enabled
+      if (process.env.METRICS_ENGAGEMENT !== '1') {
+        return res.status(404).json({ error: "Engagement metrics not enabled" });
+      }
+
+      const days = req.query.days ? parseInt(req.query.days as string) : 7;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Get latest snapshot per post using window function
+      const latestMetrics = await db.execute(sql`
+        WITH latest_snapshots AS (
+          SELECT DISTINCT ON (post_id)
+            user_id,
+            post_id,
+            platform,
+            external_id,
+            likes,
+            reposts,
+            replies,
+            quotes,
+            impressions,
+            collected_at,
+            DATE(collected_at) as metric_date
+          FROM post_metrics
+          WHERE user_id = ${req.userId!}
+            AND collected_at >= ${startDate}
+          ORDER BY post_id, collected_at DESC
+        )
+        SELECT
+          metric_date,
+          SUM(likes) as likes,
+          SUM(reposts) as reposts,
+          SUM(replies) as replies,
+          SUM(quotes) as quotes
+        FROM latest_snapshots
+        GROUP BY metric_date
+        ORDER BY metric_date
+      `);
+
+      // Calculate totals from latest snapshots
+      const dailyData = latestMetrics.rows as Array<{
+        metric_date: string;
+        likes: number;
+        reposts: number;
+        replies: number;
+        quotes: number;
+      }>;
+
+      const totals = dailyData.reduce(
+        (acc, row) => ({
+          likes: acc.likes + Number(row.likes),
+          reposts: acc.reposts + Number(row.reposts),
+          replies: acc.replies + Number(row.replies),
+          quotes: acc.quotes + Number(row.quotes),
+        }),
+        { likes: 0, reposts: 0, replies: 0, quotes: 0 }
+      );
+
+      const daily = dailyData.map(row => ({
+        date: row.metric_date,
+        likes: Number(row.likes),
+        reposts: Number(row.reposts),
+        replies: Number(row.replies),
+        quotes: Number(row.quotes),
+      }));
+
+      res.json({ totals, daily });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/metrics/tones/performance", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      // Check if feature is enabled
+      if (process.env.METRICS_ENGAGEMENT !== '1') {
+        return res.status(404).json({ error: "Engagement metrics not enabled" });
+      }
+
+      const days = req.query.days ? parseInt(req.query.days as string) : 30;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Get latest snapshot per post and calculate tone averages
+      const toneMetrics = await db.execute(sql`
+        WITH latest_snapshots AS (
+          SELECT DISTINCT ON (pm.post_id)
+            pm.post_id,
+            pm.likes,
+            pm.reposts,
+            pm.replies,
+            pm.quotes,
+            (p.options->>'tone') as tone
+          FROM post_metrics pm
+          INNER JOIN posts p ON pm.post_id = p.id
+          WHERE pm.user_id = ${req.userId!}
+            AND pm.collected_at >= ${startDate}
+            AND p.options->>'tone' IS NOT NULL
+          ORDER BY pm.post_id, pm.collected_at DESC
+        )
+        SELECT
+          tone,
+          ROUND(AVG(likes + reposts + replies + quotes)) as avg_engagement,
+          COUNT(*) as samples
+        FROM latest_snapshots
+        WHERE tone IS NOT NULL
+        GROUP BY tone
+        ORDER BY avg_engagement DESC
+      `);
+
+      const result = toneMetrics.rows.map(row => ({
+        tone: row.tone as string,
+        avg_engagement: Number(row.avg_engagement),
+        samples: Number(row.samples),
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin Audit Log endpoint
   app.get("/admin/audit", requireAuth, async (req: AuthRequest, res) => {
     try {
