@@ -138,10 +138,20 @@ Picscripterai uses a dual-process architecture:
 - Single instance recommended (BullMQ handles internal concurrency)
 
 **Process Management:**
-- **Development**: Separate terminals or PM2
+- **Development (Replit)**: Both processes run automatically via `npm run dev` using concurrently
+  - `npm run dev:web` - Runs web server with auto-reload
+  - `npm run dev:worker` - Runs worker process with auto-reload
+  - `npm run dev` - Runs both processes together (default)
+  - Workflow "Start application" automatically runs both processes
 - **Production**: PM2 (VPS/EC2), Procfile (Render/Fly)
 - **Health Checks**: `/healthz` (liveness), `/readyz` (readiness)
 - **Metrics**: `/metrics` endpoint (protected by METRICS_TOKEN)
+
+**Timezone Handling:**
+- Database uses `timestamptz` for all timestamp columns (UTC storage with timezone awareness)
+- Frontend datetime-local inputs automatically convert to UTC ISO strings
+- Backend calculates job delays using UTC timestamps
+- Display times formatted in user's local timezone via date-fns
 
 ## External Dependencies
 
