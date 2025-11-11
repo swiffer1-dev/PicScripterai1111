@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import logoImage from "@assets/picscripterai-logo.svg";
+import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 interface SidebarProps {
   isOpen?: boolean;

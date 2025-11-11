@@ -173,7 +173,6 @@ export class ObjectStorageService {
       "image/webp",
       "image/heic",
       "image/heif",
-      "image/svg+xml",
       // Videos
       "video/mp4",
       "video/quicktime",
