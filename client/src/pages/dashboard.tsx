@@ -8,7 +8,7 @@ import { Share2, Clock, CheckCircle2, AlertCircle, Menu, Activity } from "lucide
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
-import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
+import logoImage from "@assets/picscripterai-logo.svg";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
