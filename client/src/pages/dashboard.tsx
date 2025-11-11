@@ -4,11 +4,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Share2, Clock, CheckCircle2, AlertCircle, Menu, Activity } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Share2, Clock, CheckCircle2, AlertCircle, Menu, Activity, TrendingUp } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
+
+interface EngagementSummary {
+  totals: {
+    likes: number;
+    reposts: number;
+    replies: number;
+    quotes: number;
+  };
+  daily: Array<{
+    date: string;
+    likes: number;
+    reposts: number;
+    replies: number;
+    quotes: number;
+  }>;
+}
+
+interface TonePerformance {
+  tone: string;
+  avg_engagement: number;
+  samples: number;
+}
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -53,6 +75,41 @@ export default function Dashboard() {
   });
 
   const currentAnalytics = analyticsDays === 7 ? analytics7Day : analytics30Day;
+
+  // Engagement analytics (feature-flagged)
+  const engagementEnabled = import.meta.env.VITE_METRICS_ENGAGEMENT === '1';
+  
+  const { data: engagementSummary } = useQuery<EngagementSummary>({
+    queryKey: ["/api/metrics/engagement/summary", { days: 7 }],
+    queryFn: async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/metrics/engagement/summary?days=7", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch engagement metrics");
+      return res.json();
+    },
+    enabled: engagementEnabled,
+  });
+
+  const { data: tonePerformance } = useQuery<TonePerformance[]>({
+    queryKey: ["/api/metrics/tones/performance", { days: 30 }],
+    queryFn: async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/metrics/tones/performance?days=30", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch tone performance");
+      return res.json();
+    },
+    enabled: engagementEnabled,
+  });
 
   const connectedPlatforms = connections?.length || 0;
   const scheduledPosts = posts?.filter(p => p.status === "queued").length || 0;
@@ -236,6 +293,109 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Engagement Analytics (feature-flagged) */}
+          {engagementEnabled && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Engagement Time Series */}
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Engagement Analytics (7 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="text-center" data-testid="engagement-total-likes">
+                      <div className="text-2xl font-bold">{engagementSummary?.totals.likes || 0}</div>
+                      <div className="text-xs text-muted-foreground">Likes</div>
+                    </div>
+                    <div className="text-center" data-testid="engagement-total-reposts">
+                      <div className="text-2xl font-bold">{engagementSummary?.totals.reposts || 0}</div>
+                      <div className="text-xs text-muted-foreground">Reposts</div>
+                    </div>
+                    <div className="text-center" data-testid="engagement-total-replies">
+                      <div className="text-2xl font-bold">{engagementSummary?.totals.replies || 0}</div>
+                      <div className="text-xs text-muted-foreground">Replies</div>
+                    </div>
+                    <div className="text-center" data-testid="engagement-total-quotes">
+                      <div className="text-2xl font-bold">{engagementSummary?.totals.quotes || 0}</div>
+                      <div className="text-xs text-muted-foreground">Quotes</div>
+                    </div>
+                  </div>
+
+                  {engagementSummary && engagementSummary.daily.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={engagementSummary.daily}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="date" 
+                          className="text-xs"
+                          tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis className="text-xs" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--background))', 
+                            border: '1px solid hsl(var(--border))' 
+                          }}
+                          labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                        />
+                        <Legend />
+                        <Bar dataKey="likes" fill="hsl(var(--primary))" stackId="a" data-testid="engagement-chart-likes" />
+                        <Bar dataKey="reposts" fill="#10b981" stackId="a" data-testid="engagement-chart-reposts" />
+                        <Bar dataKey="replies" fill="#f59e0b" stackId="a" data-testid="engagement-chart-replies" />
+                        <Bar dataKey="quotes" fill="#8b5cf6" stackId="a" data-testid="engagement-chart-quotes" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground" data-testid="engagement-no-data">
+                      No engagement data yet. Publish some Twitter posts to see metrics!
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Top Performing Tones */}
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Top Performing Tones (30 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {tonePerformance && tonePerformance.length > 0 ? (
+                    <div className="space-y-3">
+                      {tonePerformance.slice(0, 5).map((tone, index) => (
+                        <div 
+                          key={tone.tone} 
+                          className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                          data-testid={`tone-performance-${index}`}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium capitalize">{tone.tone}</div>
+                            <div className="text-xs text-muted-foreground">{tone.samples} posts</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold" data-testid={`tone-avg-engagement-${index}`}>
+                              {tone.avg_engagement}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Avg. Engagement</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground" data-testid="tones-no-data">
+                      No tone data yet. Create posts with different tones to see performance insights!
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Recent Posts */}
           <Card className="border-border shadow-sm">
