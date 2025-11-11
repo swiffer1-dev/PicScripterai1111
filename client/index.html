@@ -29,6 +29,28 @@
     <meta name="apple-mobile-web-app-title" content="Picscripterai" />
     <meta name="application-name" content="Picscripterai" />
     <meta name="theme-color" content="#6366f1" />
+    
+    <!-- Suppress browser extension errors (MetaMask, etc.) -->
+    <script>
+      window.addEventListener('error', function(e) {
+        if (e.filename && (e.filename.includes('chrome-extension') || e.filename.includes('moz-extension'))) {
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }, true);
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && (
+          (e.reason.message && e.reason.message.includes('MetaMask')) ||
+          (e.reason.stack && (e.reason.stack.includes('chrome-extension') || e.reason.stack.includes('moz-extension')))
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    </script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- only the fonts used are downloaded, ref: https://www.w3.org/TR/css-fonts-3/#font-face-loading  -->
