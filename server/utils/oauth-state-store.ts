@@ -21,6 +21,8 @@ class OAuthStateStore {
           }
           return Math.min(times * 100, 3000);
         },
+        // Enable TLS for Upstash Redis
+        tls: redisUrl.includes('upstash.io') ? {} : undefined,
       });
 
       this.redis.on("ready", () => {

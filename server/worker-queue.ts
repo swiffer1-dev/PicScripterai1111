@@ -20,6 +20,8 @@ if (redisUrl) {
       return Math.min(times * 100, 3000);
     },
     enableReadyCheck: true,
+    // Enable TLS for Upstash Redis
+    tls: redisUrl.includes('upstash.io') ? {} : undefined,
   });
 
   connection.on("ready", () => {

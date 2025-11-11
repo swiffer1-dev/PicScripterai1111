@@ -10,6 +10,8 @@ import type { PublishJobData } from "./worker-queue";
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
+  // Enable TLS for Upstash Redis
+  tls: redisUrl.includes('upstash.io') ? {} : undefined,
 });
 
 // Create worker
