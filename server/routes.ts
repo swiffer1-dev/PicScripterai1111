@@ -36,6 +36,7 @@ import { FacebookWebhookHandler } from "./services/webhooks/facebook";
 import { TwitterWebhookHandler } from "./services/webhooks/twitter";
 import { YouTubeWebhookHandler } from "./services/webhooks/youtube";
 import type { RequestWithRawBody } from "./services/webhooks/base";
+import { generateDescription, proofreadText, type ImagePart } from "./services/gemini";
 
 // Metrics tracking
 const metrics = {
@@ -2061,6 +2062,73 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
         return res.sendStatus(404);
       }
       return res.sendStatus(500);
+    }
+  });
+
+  // AI Generation endpoints (secure backend proxies)
+  app.post("/api/ai/generate", requireAuth, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
+    try {
+      const schema = z.object({
+        imageParts: z.array(z.object({
+          inlineData: z.object({
+            mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']),
+            data: z.string(), // base64
+          })
+        })).min(1).max(10), // Max 10 images
+        prompt: z.string().min(1).max(10000), // Max 10k chars
+      });
+
+      const data = schema.parse(req.body);
+
+      // Validate base64 image size (decoded size should be < 20MB each)
+      const maxSizeBytes = 20 * 1024 * 1024;
+      for (const imagePart of data.imageParts) {
+        const base64Size = imagePart.inlineData.data.length * 0.75; // Approximate decoded size
+        if (base64Size > maxSizeBytes) {
+          return res.status(400).json({ 
+            error: `Image too large. Maximum size is 20MB (got ${(base64Size / 1024 / 1024).toFixed(2)}MB)` 
+          });
+        }
+      }
+
+      const result = await generateDescription(data.imageParts as ImagePart[], data.prompt);
+
+      metrics.ai.generations++;
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      metrics.ai.errors++;
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request format", details: error.errors });
+      }
+      
+      res.status(500).json({ error: error.message || "Failed to generate description" });
+    }
+  });
+
+  app.post("/api/ai/proofread", requireAuth, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
+    try {
+      const schema = z.object({
+        text: z.string().min(1).max(50000), // Max 50k chars
+      });
+
+      const data = schema.parse(req.body);
+      const result = await proofreadText(data.text);
+
+      metrics.ai.generations++;
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("AI proofread error:", error);
+      metrics.ai.errors++;
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request format", details: error.errors });
+      }
+      
+      res.status(500).json({ error: error.message || "Failed to proofread text" });
     }
   });
 

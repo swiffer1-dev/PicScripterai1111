@@ -27,7 +27,6 @@ import EXIF from 'exif-js';
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 
 console.log("🔥 AI STUDIO PAGE LOADED - NEW CODE", new Date().toISOString());
-console.log("🔑 GEMINI API KEY:", import.meta.env.VITE_GEMINI_API_KEY ? `SET (${import.meta.env.VITE_GEMINI_API_KEY.length} chars)` : 'NOT SET');
 
 const platformCharLimits: Record<Platform, number> = {
   instagram: 2200,
@@ -297,23 +296,10 @@ export default function AIStudio() {
     },
   });
 
-  const testApiKey = () => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    console.log("=== API KEY TEST ===");
-    console.log("API Key exists:", !!apiKey);
-    console.log("API Key length:", apiKey?.length || 0);
-    console.log("API Key first 10 chars:", apiKey?.substring(0, 10) || 'N/A');
-    toast({
-      title: "API Key Check",
-      description: apiKey ? `API Key is set (${apiKey.length} chars)` : "API Key is NOT set",
-      variant: apiKey ? "default" : "destructive",
-    });
-  };
 
   const handleGenerate = async () => {
     console.log("=== GENERATE CAPTION CLICKED ===");
     console.log("Image files:", imageFiles.length);
-    console.log("API Key exists:", !!import.meta.env.VITE_GEMINI_API_KEY);
     
     if (imageFiles.length === 0) {
       toast({
@@ -422,7 +408,6 @@ export default function AIStudio() {
       console.error("Error details:", {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        apiKey: import.meta.env.VITE_GEMINI_API_KEY ? 'SET (length: ' + import.meta.env.VITE_GEMINI_API_KEY.length + ')' : 'NOT SET',
       });
       
       // Check if session was reset
