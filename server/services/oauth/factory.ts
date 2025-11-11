@@ -8,7 +8,25 @@ import { LinkedInOAuthProvider } from "./linkedin";
 import { PinterestOAuthProvider } from "./pinterest";
 import { YouTubeOAuthProvider } from "./youtube";
 
-const BASE_URL = process.env.CORS_ORIGIN || "http://localhost:5000";
+// Use dedicated OAuth callback base URL
+// Falls back to first CORS origin or localhost for development
+const getOAuthBaseUrl = (): string => {
+  // Prefer dedicated OAuth URL for security
+  if (process.env.OAUTH_CALLBACK_BASE_URL) {
+    return process.env.OAUTH_CALLBACK_BASE_URL;
+  }
+  
+  // Fallback: use first CORS origin (split comma-separated list)
+  if (process.env.CORS_ORIGIN) {
+    const origins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+    return origins[0];
+  }
+  
+  // Development fallback
+  return "http://localhost:5000";
+};
+
+const BASE_URL = getOAuthBaseUrl();
 
 export function getOAuthProvider(platform: Platform): OAuthProvider {
   const redirectUri = `${BASE_URL}/api/callback/${platform}`;

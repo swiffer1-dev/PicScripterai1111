@@ -177,11 +177,12 @@ Picscripterai uses a dual-process architecture:
 
 **Environment Configuration:**
 - Client IDs and secrets for all social media and e-commerce platforms
-- Core secrets: `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`
+- Core secrets: `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `GEMINI_API_KEY`
 - **Security settings:**
   - `ENCRYPTION_KEYS_JSON`: JSON mapping of key IDs to key values (e.g., `{"v1":"key1","v2":"key2"}`)
   - `ENCRYPTION_KEY_CURRENT`: Active encryption key ID (default: "v1")
   - `CORS_ORIGIN`: Comma-separated origin allowlist (no wildcards in production)
+  - `OAUTH_CALLBACK_BASE_URL`: Dedicated base URL for OAuth callbacks (recommended for production, falls back to first CORS_ORIGIN)
   - `ACCESS_TOKEN_TTL`: Access token expiration (default: 15m)
   - `REFRESH_TOKEN_TTL`: Refresh token expiration (default: 30d)
   - `ADMIN_USER_IDS`: Comma-separated admin user IDs for audit access
