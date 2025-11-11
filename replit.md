@@ -29,6 +29,14 @@ Preferred communication style: Simple, everyday language.
 **Key Features:**
 - **AI Studio:** AI-powered content creation with multi-image upload, AI caption generation (Google Gemini), "Human Authenticity Engine" to refine tone and remove buzzwords, emoji generation, proofreading, regeneration, and direct posting. Includes real-time character counter showing which platforms are within/over limits, with frontend validation preventing posts that exceed platform limits. **Image-category verification** uses Gemini Vision to detect image content and prevent mismatched captions (e.g., food description for real estate photo) - shows friendly warning if detected category doesn't match user's selection.
 - **Content Calendar:** Month/week views with enhanced post cards showing scheduled time (e.g., "3:30 PM"), tone badge (if set), platform icon, and caption preview. Includes character limit validation for scheduled posts. **Unified Schedule Drawer** (enabled by default): Single drawer interface for both creating and editing scheduled posts. Create mode accessible via "Schedule Post" button or day cell clicks. **Post Preview Mode:** Clicking existing posts opens a visual preview showing the complete post (uploaded image, category badge, tone badge, AI description, platform icons, formatted date/time). "Edit Post" button toggles to edit form with update/duplicate/delete actions and intelligent job rescheduling.
+- **Engagement Analytics (v1):** **Feature-flagged** Twitter/X engagement tracking with automated metrics collection. When METRICS_ENGAGEMENT=1, the system:
+  - Captures tweet IDs and published timestamps for all Twitter posts
+  - Schedules automated metrics collection at T+15min and T+24h after publishing
+  - Fetches Twitter API v2 public metrics (likes, reposts, replies, quotes, impressions)
+  - Stores time-series snapshots in post_metrics table with proper deduplication
+  - Displays 7-day engagement dashboard with stacked bar chart and totals
+  - Shows top 5 performing tones with average engagement and sample counts
+  - Uses DISTINCT ON queries to prevent double-counting when multiple snapshots exist
 - **Connections Management:** OAuth-based connection management for social media and e-commerce platforms, including product sync functionality.
 - **Post Management:** View all posts with status tracking, quick actions (duplicate, edit & repost, send to AI Studio).
 
@@ -98,6 +106,9 @@ Preferred communication style: Simple, everyday language.
   - PATCH `/api/schedule/:id` - Update existing scheduled post (caption, media, platforms, scheduledAt) with automatic job cancellation/re-enqueueing
   - POST `/api/schedule/:id/duplicate` - Clone post to new draft
   - POST `/api/schedule/:id/resolve` - Legacy endpoint for resolving connection issues
+- **Engagement Metrics Endpoints (feature-flagged):**
+  - GET `/api/metrics/engagement/summary?days=7` - Returns engagement totals and daily time-series (likes, reposts, replies, quotes)
+  - GET `/api/metrics/tones/performance?days=30` - Returns tone-based engagement analysis with averages and sample counts
 
 **OAuth Integration:**
 - Factory pattern for platform-specific OAuth providers.
@@ -105,10 +116,11 @@ Preferred communication style: Simple, everyday language.
 - Encrypted storage of access and refresh tokens.
 
 **Job Queue Architecture:**
-- BullMQ workers for asynchronous post publishing.
+- BullMQ workers for asynchronous post publishing and engagement metrics collection.
 - Redis-backed queue with exponential backoff retry.
 - Comprehensive job logging.
 - Status tracking for publishing jobs.
+- **Engagement Queue:** Automated metrics collection jobs scheduled at T+15min and T+24h after Twitter posts publish, with idempotent job keys to prevent duplicates.
 
 **Publishing Flow:**
 - Platform-specific publisher modules handling API requirements.
@@ -117,7 +129,8 @@ Preferred communication style: Simple, everyday language.
 
 **Database Schema:**
 - Drizzle ORM with PostgreSQL
-- Tables: users, connections (social and e-commerce), posts, jobs, analytics events, products, job logs, media library, templates, post analytics, and **audit_events**
+- Tables: users, connections (social and e-commerce), posts (with published_at timestamp), jobs, analytics events, products, job logs, media library, templates, post analytics, **post_metrics** (time-series engagement snapshots), and **audit_events**
+- **post_metrics table:** Stores Twitter engagement snapshots with postId+collectedAt unique index for efficient deduplication
 - Enums for platform types, post status, log levels, and audit actions
 - Cascade deletes for data integrity
 
@@ -199,6 +212,8 @@ Picscripterai uses a dual-process architecture:
 - **Feature Flags:**
   - Unified Schedule Drawer: Enabled by default (hardcoded in calendar.tsx)
   - `FEATURE_TOKEN_REFRESH`: Enable cookie-based refresh tokens (default: true)
+  - `METRICS_ENGAGEMENT`: Enable Twitter/X engagement analytics tracking and dashboard (default: 0/disabled, set to 1 to enable)
+  - `VITE_METRICS_ENGAGEMENT`: Frontend feature flag for engagement analytics dashboard widgets (must match backend flag)
 
 ## Production Security Features
 
