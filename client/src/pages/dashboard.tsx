@@ -94,12 +94,22 @@ export default function Dashboard() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <img 
-            src={logoImage} 
-            alt="Picscripterai" 
-            className="h-20 w-auto object-contain"
-            data-testid="img-logo-mobile-dashboard"
-          />
+          <div className="flex items-center h-full">
+            <img 
+              src={logoImage} 
+              alt="PicScripterAI" 
+              loading="lazy"
+              className="
+                px-3
+                h-auto
+                w-[150px]
+                sm:w-[200px]
+                lg:w-[260px]
+                max-w-full
+              "
+              data-testid="img-logo-mobile-dashboard"
+            />
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto p-4 lg:p-8">

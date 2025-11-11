@@ -79,12 +79,22 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       
       <aside className={`fixed lg:sticky top-0 h-screen w-64 border-r border-border bg-sidebar flex flex-col z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center justify-between">
-          <img 
-            src={logoImage} 
-            alt="Picscripterai" 
-            className="h-24 md:h-20 w-auto object-contain"
-            data-testid="img-logo-sidebar"
-          />
+          <div className="flex items-center h-full">
+            <img 
+              src={logoImage} 
+              alt="PicScripterAI" 
+              loading="lazy"
+              className="
+                px-3
+                h-auto
+                w-[150px]
+                sm:w-[200px]
+                lg:w-[260px]
+                max-w-full
+              "
+              data-testid="img-logo-sidebar"
+            />
+          </div>
           {onClose && (
             <Button
               variant="ghost"
