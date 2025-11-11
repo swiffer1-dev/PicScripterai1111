@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, db, sql } from "./storage";
 import { type AuthRequest } from "./middleware/auth";
 import { 
   requireAuth, 
@@ -2368,7 +2368,7 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
         ORDER BY avg_engagement DESC
       `);
 
-      const result = toneMetrics.rows.map(row => ({
+      const result = toneMetrics.rows.map((row: any) => ({
         tone: row.tone as string,
         avg_engagement: Number(row.avg_engagement),
         samples: Number(row.samples),

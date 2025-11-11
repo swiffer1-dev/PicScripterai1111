@@ -704,3 +704,7 @@ export class DatabaseStorage implements IStorage {
 }
 
 export const storage = new DatabaseStorage();
+
+// Re-export db and sql for direct database queries (e.g., engagement metrics)
+export { db } from "./db";
+export { sql } from "drizzle-orm";
