@@ -4,13 +4,15 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "concurrently -n web,worker -c cyan,magenta \"npm:dev:web\" \"npm:dev:worker\"",
     "build": "vite build && esbuild server/index.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "npm:dev",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "dev:web": "NODE_ENV=development tsx watch server/index.ts",
+    "dev:worker": "NODE_ENV=development tsx watch server/worker.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.2",
