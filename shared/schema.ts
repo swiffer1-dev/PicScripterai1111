@@ -171,7 +171,7 @@ export const posts = pgTable("posts", {
   caption: text("caption").notNull(),
   mediaType: text("media_type"),
   mediaUrl: text("media_url"),
-  scheduledAt: timestamp("scheduled_at"),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   status: postStatusEnum("status").notNull().default("queued"),
   externalId: text("external_id"),
   externalUrl: text("external_url"),
@@ -180,8 +180,8 @@ export const posts = pgTable("posts", {
   platforms: jsonb("platforms"),
   preflightIssues: jsonb("preflight_issues"),
   jobId: text("job_id"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Job logs table
@@ -259,12 +259,12 @@ export const jobs = pgTable("jobs", {
   error: text("error"),
   attempts: integer("attempts").default(0),
   maxAttempts: integer("max_attempts").default(3),
-  scheduledAt: timestamp("scheduled_at"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  failedAt: timestamp("failed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Drafts table - stores AI-generated content before posting
