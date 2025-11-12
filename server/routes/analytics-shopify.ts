@@ -12,7 +12,7 @@ async function fetchShopifyDaily(userId: string, from: string, to: string): Prom
   
   const result = await db
     .select({
-      posts: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} IN ('pending', 'published', 'failed'))`,
+      posts: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} IN ('scheduled', 'published', 'failed'))`,
       published: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} = 'published')`,
       failed: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} = 'failed')`,
     })
