@@ -11,6 +11,9 @@ import AIStudio from "@/pages/ai-studio";
 import Calendar from "@/pages/calendar";
 import Drafts from "@/pages/drafts";
 import TwitterAnalytics from "@/pages/analytics/Twitter";
+import InstagramAnalytics from "@/pages/analytics/Instagram";
+import PinterestAnalytics from "@/pages/analytics/Pinterest";
+import ShopifyAnalytics from "@/pages/analytics/Shopify";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 
@@ -50,6 +53,19 @@ function Router() {
         <Route path="/analytics/twitter">
           {() => <ProtectedRoute component={TwitterAnalytics} />}
         </Route>
+      )}
+      {import.meta.env.VITE_FEATURE_PER_PLATFORM_ANALYTICS === "true" && (
+        <>
+          <Route path="/analytics/instagram">
+            {() => <ProtectedRoute component={InstagramAnalytics} />}
+          </Route>
+          <Route path="/analytics/pinterest">
+            {() => <ProtectedRoute component={PinterestAnalytics} />}
+          </Route>
+          <Route path="/analytics/shopify">
+            {() => <ProtectedRoute component={ShopifyAnalytics} />}
+          </Route>
+        </>
       )}
       <Route component={NotFound} />
     </Switch>

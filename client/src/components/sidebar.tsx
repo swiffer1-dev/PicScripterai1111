@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3 } from "lucide-react";
+import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3, Instagram, PinIcon as Pinterest, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -62,6 +62,13 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { href: "/posts", icon: FileText, label: "Posts" },
     ...(import.meta.env.VITE_METRICS_ENGAGEMENT === "1" 
       ? [{ href: "/analytics/twitter", icon: BarChart3, label: "Twitter Analytics" }] 
+      : []),
+    ...(import.meta.env.VITE_FEATURE_PER_PLATFORM_ANALYTICS === "true"
+      ? [
+          { href: "/analytics/instagram", icon: Instagram, label: "Instagram Analytics" },
+          { href: "/analytics/pinterest", icon: Pinterest, label: "Pinterest Analytics" },
+          { href: "/analytics/shopify", icon: ShoppingBag, label: "Shopify Analytics" }
+        ]
       : []),
   ];
 
