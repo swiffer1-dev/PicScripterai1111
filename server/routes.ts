@@ -38,6 +38,9 @@ import { YouTubeWebhookHandler } from "./services/webhooks/youtube";
 import type { RequestWithRawBody } from "./services/webhooks/base";
 import { generateDescription, proofreadText, type ImagePart } from "./services/gemini";
 import twitterAnalyticsRouter from "./routes/analytics-twitter";
+import instagramAnalyticsRouter from "./routes/analytics-instagram";
+import pinterestAnalyticsRouter from "./routes/analytics-pinterest";
+import shopifyAnalyticsRouter from "./routes/analytics-shopify";
 
 // Metrics tracking
 const metrics = {
@@ -2326,6 +2329,13 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
   // Twitter-specific analytics (feature-flagged)
   if (process.env.METRICS_ENGAGEMENT === "1") {
     app.use("/api/analytics/twitter", twitterAnalyticsRouter);
+  }
+
+  // Per-platform analytics (feature-flagged)
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS === "true") {
+    app.use("/api/analytics/instagram", instagramAnalyticsRouter);
+    app.use("/api/analytics/pinterest", pinterestAnalyticsRouter);
+    app.use("/api/analytics/shopify", shopifyAnalyticsRouter);
   }
 
   app.get("/api/analytics/top-tones", requireAuth, async (req: AuthRequest, res) => {
