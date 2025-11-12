@@ -63,12 +63,14 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     ...(import.meta.env.VITE_METRICS_ENGAGEMENT === "1" 
       ? [{ href: "/analytics/twitter", icon: BarChart3, label: "Twitter Analytics" }] 
       : []),
-    ...(import.meta.env.VITE_FEATURE_PER_PLATFORM_ANALYTICS === "true"
-      ? [
-          { href: "/analytics/instagram", icon: Instagram, label: "Instagram Analytics" },
-          { href: "/analytics/pinterest", icon: Pinterest, label: "Pinterest Analytics" },
-          { href: "/analytics/shopify", icon: ShoppingBag, label: "Shopify Analytics" }
-        ]
+    ...(import.meta.env.VITE_ANALYTICS_INSTAGRAM === "1"
+      ? [{ href: "/analytics/instagram", icon: Instagram, label: "Instagram Analytics" }]
+      : []),
+    ...(import.meta.env.VITE_ANALYTICS_PINTEREST === "1"
+      ? [{ href: "/analytics/pinterest", icon: Pinterest, label: "Pinterest Analytics" }]
+      : []),
+    ...(import.meta.env.VITE_ANALYTICS_SHOPIFY === "1"
+      ? [{ href: "/analytics/shopify", icon: ShoppingBag, label: "Shopify Analytics" }]
       : []),
   ];
 

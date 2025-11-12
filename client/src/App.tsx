@@ -54,18 +54,20 @@ function Router() {
           {() => <ProtectedRoute component={TwitterAnalytics} />}
         </Route>
       )}
-      {import.meta.env.VITE_FEATURE_PER_PLATFORM_ANALYTICS === "true" && (
-        <>
-          <Route path="/analytics/instagram">
-            {() => <ProtectedRoute component={InstagramAnalytics} />}
-          </Route>
-          <Route path="/analytics/pinterest">
-            {() => <ProtectedRoute component={PinterestAnalytics} />}
-          </Route>
-          <Route path="/analytics/shopify">
-            {() => <ProtectedRoute component={ShopifyAnalytics} />}
-          </Route>
-        </>
+      {import.meta.env.VITE_ANALYTICS_INSTAGRAM === "1" && (
+        <Route path="/analytics/instagram">
+          {() => <ProtectedRoute component={InstagramAnalytics} />}
+        </Route>
+      )}
+      {import.meta.env.VITE_ANALYTICS_PINTEREST === "1" && (
+        <Route path="/analytics/pinterest">
+          {() => <ProtectedRoute component={PinterestAnalytics} />}
+        </Route>
+      )}
+      {import.meta.env.VITE_ANALYTICS_SHOPIFY === "1" && (
+        <Route path="/analytics/shopify">
+          {() => <ProtectedRoute component={ShopifyAnalytics} />}
+        </Route>
       )}
       <Route component={NotFound} />
     </Switch>
