@@ -3,39 +3,14 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Share2, Clock, CheckCircle2, AlertCircle, Menu, Activity, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
-import ModernEngagementChart from "@/components/dashboard/ModernEngagementChart";
-
-interface EngagementSummary {
-  totals: {
-    likes: number;
-    reposts: number;
-    replies: number;
-    quotes: number;
-  };
-  daily: Array<{
-    date: string;
-    likes: number;
-    reposts: number;
-    replies: number;
-    quotes: number;
-  }>;
-}
-
-interface TonePerformance {
-  tone: string;
-  avg_engagement: number;
-  samples: number;
-}
+import PerformanceOverview from "@/components/PerformanceOverview";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [analyticsDays, setAnalyticsDays] = useState<7 | 30>(7);
   
   const { data: connections, isLoading: connectionsLoading } = useQuery<Connection[]>({
     queryKey: ["/api/connections"],
@@ -45,98 +20,12 @@ export default function Dashboard() {
     queryKey: ["/api/posts"],
   });
 
-  const { data: analytics7Day } = useQuery<Record<string, number>>({
-    queryKey: ["/api/analytics/summary", { days: 7 }],
-    queryFn: async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/analytics/summary?days=7", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch analytics");
-      return res.json();
-    },
-  });
-
-  const { data: analytics30Day } = useQuery<Record<string, number>>({
-    queryKey: ["/api/analytics/summary", { days: 30 }],
-    queryFn: async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/analytics/summary?days=30", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch analytics");
-      return res.json();
-    },
-  });
-
-  const currentAnalytics = analyticsDays === 7 ? analytics7Day : analytics30Day;
-
-  // Engagement analytics (feature-flagged)
-  const engagementEnabled = import.meta.env.VITE_METRICS_ENGAGEMENT === '1';
-  
-  const { data: engagementSummary } = useQuery<EngagementSummary>({
-    queryKey: ["/api/metrics/engagement/summary", { days: 7 }],
-    queryFn: async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/metrics/engagement/summary?days=7", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch engagement metrics");
-      return res.json();
-    },
-    enabled: engagementEnabled,
-  });
-
-  const { data: tonePerformance } = useQuery<TonePerformance[]>({
-    queryKey: ["/api/metrics/tones/performance", { days: 30 }],
-    queryFn: async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/metrics/tones/performance?days=30", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch tone performance");
-      return res.json();
-    },
-    enabled: engagementEnabled,
-  });
-
   const connectedPlatforms = connections?.length || 0;
   const scheduledPosts = posts?.filter(p => p.status === "queued").length || 0;
   const publishedPosts = posts?.filter(p => p.status === "published").length || 0;
   const failedPosts = posts?.filter(p => p.status === "failed").length || 0;
 
   const recentPosts = posts?.slice(0, 5) || [];
-
-  const chartData = [
-    {
-      name: "Captions Generated",
-      count: currentAnalytics?.caption_generated || 0,
-    },
-    {
-      name: "Posts Scheduled",
-      count: currentAnalytics?.post_scheduled || 0,
-    },
-    {
-      name: "Posts Published",
-      count: currentAnalytics?.post_published || 0,
-    },
-    {
-      name: "Publish Failed",
-      count: currentAnalytics?.publish_failed || 0,
-    },
-  ];
 
   return (
     <div className="flex h-screen bg-background">
@@ -235,175 +124,10 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Analytics Chart */}
-          <Card className="border-border shadow-sm mb-8">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Activity Analytics
-                </CardTitle>
-                <Tabs value={analyticsDays.toString()} onValueChange={(val) => setAnalyticsDays(parseInt(val) as 7 | 30)}>
-                  <TabsList>
-                    <TabsTrigger value="7" data-testid="tab-7-days">Last 7 Days</TabsTrigger>
-                    <TabsTrigger value="30" data-testid="tab-30-days">Last 30 Days</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))' 
-                    }}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="count" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))' }}
-                    data-testid="analytics-chart-line"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center" data-testid="analytics-caption-generated">
-                  <div className="text-2xl font-bold">{currentAnalytics?.caption_generated || 0}</div>
-                  <div className="text-xs text-muted-foreground">Captions Generated</div>
-                </div>
-                <div className="text-center" data-testid="analytics-post-scheduled">
-                  <div className="text-2xl font-bold">{currentAnalytics?.post_scheduled || 0}</div>
-                  <div className="text-xs text-muted-foreground">Posts Scheduled</div>
-                </div>
-                <div className="text-center" data-testid="analytics-post-published">
-                  <div className="text-2xl font-bold">{currentAnalytics?.post_published || 0}</div>
-                  <div className="text-xs text-muted-foreground">Posts Published</div>
-                </div>
-                <div className="text-center" data-testid="analytics-publish-failed">
-                  <div className="text-2xl font-bold text-destructive">{currentAnalytics?.publish_failed || 0}</div>
-                  <div className="text-xs text-muted-foreground">Publish Failed</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Modern Engagement Chart (feature-flagged) */}
-          {engagementEnabled && import.meta.env.VITE_UI_MODERN_CHART === "1" && (
-            <div className="mb-8">
-              <ModernEngagementChart />
-            </div>
-          )}
-
-          {/* Legacy Engagement Analytics (shown when modern chart is disabled) */}
-          {engagementEnabled && import.meta.env.VITE_UI_MODERN_CHART !== "1" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Engagement Time Series */}
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Engagement Analytics (7 Days)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center" data-testid="engagement-total-likes">
-                      <div className="text-2xl font-bold">{engagementSummary?.totals.likes || 0}</div>
-                      <div className="text-xs text-muted-foreground">Likes</div>
-                    </div>
-                    <div className="text-center" data-testid="engagement-total-reposts">
-                      <div className="text-2xl font-bold">{engagementSummary?.totals.reposts || 0}</div>
-                      <div className="text-xs text-muted-foreground">Reposts</div>
-                    </div>
-                    <div className="text-center" data-testid="engagement-total-replies">
-                      <div className="text-2xl font-bold">{engagementSummary?.totals.replies || 0}</div>
-                      <div className="text-xs text-muted-foreground">Replies</div>
-                    </div>
-                    <div className="text-center" data-testid="engagement-total-quotes">
-                      <div className="text-2xl font-bold">{engagementSummary?.totals.quotes || 0}</div>
-                      <div className="text-xs text-muted-foreground">Quotes</div>
-                    </div>
-                  </div>
-
-                  {engagementSummary && engagementSummary.daily.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={engagementSummary.daily}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="date" 
-                          className="text-xs"
-                          tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis className="text-xs" />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--background))', 
-                            border: '1px solid hsl(var(--border))' 
-                          }}
-                          labelFormatter={(date) => new Date(date).toLocaleDateString()}
-                        />
-                        <Legend />
-                        <Bar dataKey="likes" fill="hsl(var(--primary))" stackId="a" data-testid="engagement-chart-likes" />
-                        <Bar dataKey="reposts" fill="#10b981" stackId="a" data-testid="engagement-chart-reposts" />
-                        <Bar dataKey="replies" fill="#f59e0b" stackId="a" data-testid="engagement-chart-replies" />
-                        <Bar dataKey="quotes" fill="#8b5cf6" stackId="a" data-testid="engagement-chart-quotes" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground" data-testid="engagement-no-data">
-                      No engagement data yet. Publish some Twitter posts to see metrics!
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Top Performing Tones */}
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Top Performing Tones (30 Days)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {tonePerformance && tonePerformance.length > 0 ? (
-                    <div className="space-y-3">
-                      {tonePerformance.slice(0, 5).map((tone, index) => (
-                        <div 
-                          key={tone.tone} 
-                          className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-                          data-testid={`tone-performance-${index}`}
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium capitalize">{tone.tone}</div>
-                            <div className="text-xs text-muted-foreground">{tone.samples} posts</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold" data-testid={`tone-avg-engagement-${index}`}>
-                              {tone.avg_engagement}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Avg. Engagement</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground" data-testid="tones-no-data">
-                      No tone data yet. Create posts with different tones to see performance insights!
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Analytics Section */}
+          <section className="space-y-6 mb-8">
+            <PerformanceOverview />
+          </section>
 
           {/* Recent Posts */}
           <Card className="border-border shadow-sm">
