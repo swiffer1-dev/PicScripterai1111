@@ -16,7 +16,7 @@ async function fetchShopifyDaily(userId: number, from: string, to: string): Prom
     FROM posts
     WHERE user_id = ${userId}
       AND created_at::date BETWEEN ${from} AND ${to}
-      AND 'shopify' = ANY(platforms)
+      AND platforms @> '["shopify"]'::jsonb
   `;
 
   const result = await db.execute(postCountsQuery);
