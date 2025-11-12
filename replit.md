@@ -53,8 +53,8 @@ Preferred communication style: Simple, everyday language.
 - Facebook: Graph API
 
 **E-commerce Platform APIs:**
-- Shopify: Admin API (REST Orders endpoint for revenue/order data)
-- Etsy: OpenAPI v3 (Receipts API for revenue/order data)
+- Shopify: Admin API (REST Orders endpoint with cursor-based pagination, 250 orders/page, max 20 pages, fetches revenue/order data with true first-time customer detection via orders_count field)
+- Etsy: OpenAPI v3 (Receipts API with offset pagination, 100 receipts/page, max 20 pages, calculates revenue from grandtotal field with unique buyer approximation for new customers)
 - Squarespace: Commerce API
 
 **Environment Configuration:**
