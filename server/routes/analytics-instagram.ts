@@ -17,7 +17,7 @@ async function fetchInstagramDaily(userId: string, from: string, to: string) {
     .where(
       and(
         eq(posts.userId, userId),
-        sql`'instagram' = ANY(${posts.platforms}::text[])`,
+        sql`${posts.platforms} @> '["instagram"]'::jsonb`,
         gte(sql`DATE(${posts.createdAt})`, from),
         lte(sql`DATE(${posts.createdAt})`, to)
       )

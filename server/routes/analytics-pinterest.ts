@@ -17,7 +17,7 @@ async function fetchPinterestDaily(userId: string, from: string, to: string) {
     .where(
       and(
         eq(posts.userId, userId),
-        sql`'pinterest' = ANY(${posts.platforms}::text[])`,
+        sql`${posts.platforms} @> '["pinterest"]'::jsonb`,
         gte(sql`DATE(${posts.createdAt})`, from),
         lte(sql`DATE(${posts.createdAt})`, to)
       )
