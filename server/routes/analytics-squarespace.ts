@@ -84,7 +84,7 @@ squarespaceAnalyticsRouter.get("/overview", async (req: AuthRequest, res) => {
     return res.status(404).send("Feature not enabled");
   }
   
-  const userId = req.user?.id!;
+  const userId = req.userId!;
   const { from, to } = req.query as any;
   const today = new Date();
   const toIso = to ?? today.toISOString().slice(0, 10);

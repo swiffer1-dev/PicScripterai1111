@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Key Features:**
     - **AI Studio:** AI-powered content creation (Google Gemini for captions, "Human Authenticity Engine"), multi-image upload, emoji generation, proofreading, regeneration, direct posting. Includes real-time character counter, frontend validation, and AI image-category verification.
     - **Content Calendar:** Month/week views with enhanced post cards, unified schedule drawer for creating and editing, and a post preview mode with visual post details and editing capabilities.
-    - **Engagement Analytics:** Feature-flagged Twitter/X engagement tracking (likes, reposts, replies, quotes, impressions) with automated metrics collection and a dedicated dashboard. Also includes feature-flagged per-platform analytics dashboards for Instagram, Pinterest, and Shopify, utilizing shared UI components and read-only SQL adapters.
+    - **Engagement Analytics:** Feature-flagged Twitter/X engagement tracking (likes, reposts, replies, quotes, impressions) with automated metrics collection and a dedicated dashboard. Also includes feature-flagged per-platform analytics dashboards for Instagram, Pinterest, Shopify, Etsy, and Squarespace, utilizing shared UI components. **Real Revenue Integration:** Shopify and Etsy analytics fetch live revenue and order data from platform APIs, including daily revenue/order series, total revenue, order count, average order value (AOV), and new customer tracking.
     - **Connections Management:** OAuth-based management for social media and e-commerce platforms, including product sync.
     - **Post Management:** Overview of all posts with status tracking and quick actions.
 
@@ -53,8 +53,8 @@ Preferred communication style: Simple, everyday language.
 - Facebook: Graph API
 
 **E-commerce Platform APIs:**
-- Shopify: Admin API
-- Etsy: OpenAPI v3
+- Shopify: Admin API (REST Orders endpoint for revenue/order data)
+- Etsy: OpenAPI v3 (Receipts API for revenue/order data)
 - Squarespace: Commerce API
 
 **Environment Configuration:**
