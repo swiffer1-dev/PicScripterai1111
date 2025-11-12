@@ -1,0 +1,340 @@
+Implement per-platform analytics pages for Instagram, Pinterest, and Shopify using shared analytics types.
+Keep existing posting/scheduler code untouched. Adapters are READ-ONLY and SELECT from current metric sources.
+If a metric doesn’t exist yet, return 0/empty arrays so UI still renders.
+
+=====================================
+1) SERVER — read-only adapter routes
+=====================================
+Create 3 files:
+
+// server/routes/analytics-instagram.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/requireAuth";
+import type { AnalyticsOverview } from "../../shared/analytics";
+
+// IMPLEMENT: replace with real SELECTs that your dashboard already uses.
+// Return rows: [{date, posts, published, failed, likes, comments, saves?}]
+async function fetchInstagramDaily(userId: string, from: string, to: string) {
+  return [];
+}
+function seriesFrom(rows:any[], key:string, label:string){
+  return { id:key, label, points: rows.map(r => ({ date:r.date, value: Number(r[key])||0 })) };
+}
+async function buildOverview(userId:string, from:string, to:string): Promise<AnalyticsOverview> {
+  const rows = await fetchInstagramDaily(userId, from, to);
+  const sum = (k:string)=> rows.reduce((a,r)=> a + (Number(r[k])||0), 0);
+  const kpis = {
+    posts: sum("posts"),
+    published: sum("published"),
+    failed: sum("failed"),
+    likes: sum("likes"),
+    replies: sum("comments"), // map IG comments -> replies label
+    quotes: 0, // IG has no quotes; safe placeholder
+  };
+  const series = [
+    seriesFrom(rows,"posts","Posts"),
+    seriesFrom(rows,"published","Published"),
+    seriesFrom(rows,"likes","Likes"),
+    seriesFrom(rows,"comments","Comments"),
+  ];
+  return { platform:"instagram", kpis, series };
+}
+export const instagramAnalyticsRouter = Router();
+instagramAnalyticsRouter.use(requireAuth);
+instagramAnalyticsRouter.get("/overview", async (req,res)=>{
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as any;
+  const today = new Date(); const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate()-6); const fromIso = (from ?? d.toISOString().slice(0,10));
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+export default instagramAnalyticsRouter;
+
+
+// server/routes/analytics-pinterest.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/requireAuth";
+import type { AnalyticsOverview } from "../../shared/analytics";
+
+// Return rows: [{date, posts, published, failed, saves, outbound_clicks}]
+async function fetchPinterestDaily(userId: string, from: string, to: string) {
+  return [];
+}
+function s(rows:any[], key:string, label:string){
+  return { id:key, label, points: rows.map((r:any)=>({ date:r.date, value:Number(r[key])||0 })) };
+}
+async function buildOverview(userId:string, from:string, to:string): Promise<AnalyticsOverview> {
+  const rows = await fetchPinterestDaily(userId, from, to);
+  const sum = (k:string)=> rows.reduce((a,r)=> a + (Number(r[k])||0), 0);
+  const kpis = {
+    posts: sum("posts"),
+    published: sum("published"),
+    failed: sum("failed"),
+    likes: sum("saves"),     // map saves as “likes” equivalent for now
+    replies: 0,              // Pinterest has comments but often limited; safe default
+    reposts: sum("outbound_clicks"), // use clicks as a secondary KPI
+  };
+  const series = [
+    s(rows,"posts","Pins"),
+    s(rows,"published","Published"),
+    s(rows,"saves","Saves"),
+    s(rows,"outbound_clicks","Outbound Clicks"),
+  ];
+  return { platform:"pinterest", kpis, series };
+}
+export const pinterestAnalyticsRouter = Router();
+pinterestAnalyticsRouter.use(requireAuth);
+pinterestAnalyticsRouter.get("/overview", async (req,res)=>{
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as any;
+  const today = new Date(); const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate()-6); const fromIso = (from ?? d.toISOString().slice(0,10));
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+export default pinterestAnalyticsRouter;
+
+
+// server/routes/analytics-shopify.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/requireAuth";
+import type { AnalyticsOverview } from "../../shared/analytics";
+
+// Return rows: [{date, revenue_cents, orders, new_customers, repeat_customers}]
+async function fetchShopifyDaily(userId: string, from: string, to: string) {
+  return [];
+}
+function toSeries(rows:any[], key:string, label:string){
+  return { id:key, label, points: rows.map((r:any)=>({ date:r.date, value:Number(r[key])||0 })) };
+}
+async function buildOverview(userId:string, from:string, to:string): Promise<AnalyticsOverview> {
+  const rows = await fetchShopifyDaily(userId, from, to);
+  const sum = (k:string)=> rows.reduce((a,r)=> a+(Number(r[k])||0), 0);
+  const revenue = sum("revenue_cents");
+  const orders  = sum("orders");
+  const kpis = {
+    revenue,
+    orders,
+    aov: Math.round(revenue / Math.max(1, orders)),
+    newCustomers: sum("new_customers"),
+    repeatRate: (() => {
+      const repeat = sum("repeat_customers");
+      return orders ? repeat / orders : 0;
+    })(),
+  };
+  const series = [
+    toSeries(rows,"revenue_cents","Revenue"),
+    toSeries(rows,"orders","Orders"),
+  ];
+  return { platform:"shopify", kpis, series };
+}
+export const shopifyAnalyticsRouter = Router();
+shopifyAnalyticsRouter.use(requireAuth);
+shopifyAnalyticsRouter.get("/overview", async (req,res)=>{
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as any;
+  const today = new Date(); const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate()-6); const fromIso = (from ?? d.toISOString().slice(0,10));
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+export default shopifyAnalyticsRouter;
+
+Register in server/index.ts (behind flag):
+import instagramAnalyticsRouter from "./routes/analytics-instagram";
+import pinterestAnalyticsRouter from "./routes/analytics-pinterest";
+import shopifyAnalyticsRouter from "./routes/analytics-shopify";
+if (process.env.FEATURE_PER_PLATFORM_ANALYTICS === "true") {
+  app.use("/api/analytics/instagram", instagramAnalyticsRouter);
+  app.use("/api/analytics/pinterest", pinterestAnalyticsRouter);
+  app.use("/api/analytics/shopify", shopifyAnalyticsRouter);
+}
+
+=====================================
+2) CLIENT — services (thin fetchers)
+=====================================
+Create:
+
+// client/src/services/instagramAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+export async function getInstagramOverview(params:{from:string; to:string}): Promise<AnalyticsOverview> {
+  const u = new URL("/api/analytics/instagram/overview", window.location.origin);
+  u.searchParams.set("from", params.from); u.searchParams.set("to", params.to);
+  const r = await fetch(u, { credentials:"include" }); if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// client/src/services/pinterestAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+export async function getPinterestOverview(params:{from:string; to:string}): Promise<AnalyticsOverview> {
+  const u = new URL("/api/analytics/pinterest/overview", window.location.origin);
+  u.searchParams.set("from", params.from); u.searchParams.set("to", params.to);
+  const r = await fetch(u, { credentials:"include" }); if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// client/src/services/shopifyAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+export async function getShopifyOverview(params:{from:string; to:string}): Promise<AnalyticsOverview> {
+  const u = new URL("/api/analytics/shopify/overview", window.location.origin);
+  u.searchParams.set("from", params.from); u.searchParams.set("to", params.to);
+  const r = await fetch(u, { credentials:"include" }); if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+=====================================
+3) CLIENT — wouter pages (UI)
+=====================================
+Create 3 pages under client/src/pages/analytics:
+
+// client/src/pages/analytics/Instagram.tsx
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Bar } from "recharts";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+import { getInstagramOverview } from "@/services/instagramAnalytics";
+
+function useRange(p:"7d"|"30d"|"90d"="7d"){ const n=p==="30d"?30:p==="90d"?90:7; const now=new Date(); const to=now.toISOString().slice(0,10); const s=new Date(now); s.setDate(s.getDate()-(n-1)); const from=s.toISOString().slice(0,10); return { from,to,preset:p }; }
+
+export default function InstagramAnalytics(){
+  const [preset,setPreset]=useState<"7d"|"30d"|"90d">("7d");
+  const {from,to}=useRange(preset);
+  const [data,setData]=useState<AnalyticsOverview|null>(null);
+  useEffect(()=>{ let off=false; getInstagramOverview({from,to}).then(d=>!off&&setData(d)); return ()=>{off=true}; },[from,to]);
+  const posts  = useMemo(()=>data?.series.find(s=>s.id==="posts")?.points ?? [],[data]);
+  const publ   = useMemo(()=>data?.series.find(s=>s.id==="published")?.points ?? [],[data]);
+  const likes  = useMemo(()=>data?.series.find(s=>s.id==="likes")?.points ?? [],[data]);
+  const comm   = useMemo(()=>data?.series.find(s=>s.id==="comments")?.points ?? [],[data]);
+  const barData = useMemo(()=>{ const m=new Map<string,any>(); posts.forEach(p=>m.set(p.date,{date:p.date,posts:p.value,published:0})); publ.forEach(p=>m.set(p.date,{...(m.get(p.date)||{date:p.date,posts:0}),published:p.value})); return Array.from(m.values()).sort((a,b)=>a.date.localeCompare(b.date)); },[posts,publ]);
+  const lineData = useMemo(()=>{ const keys=new Set<string>([...likes.map(d=>d.date),...comm.map(d=>d.date)]); const dates=Array.from(keys).sort(); return dates.map(date=>({date,likes:likes.find(x=>x.date===date)?.value??0,comments:comm.find(x=>x.date===date)?.value??0})); },[likes,comm]);
+
+  return (
+    <div className="space-y-6">
+      <Header title="Instagram Analytics" preset={preset} setPreset={setPreset}/>
+      <Kpis k={data?.kpis} map={[["Posts","posts"],["Published","published"],["Failed","failed"],["Likes","likes"]]}/>
+      <TwoCharts barData={barData} lineData={lineData} lineKeys={[["likes","#60a5fa"],["comments","#f59e0b"]]}/>
+    </div>
+  );
+}
+
+// client/src/pages/analytics/Pinterest.tsx
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Bar } from "recharts";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+import { getPinterestOverview } from "@/services/pinterestAnalytics";
+function useRange(p:"7d"|"30d"|"90d"="7d"){ const n=p==="30d"?30:p==="90d"?90:7; const now=new Date(); const to=now.toISOString().slice(0,10); const s=new Date(now); s.setDate(s.getDate()-(n-1)); const from=s.toISOString().slice(0,10); return { from,to,preset:p }; }
+export default function PinterestAnalytics(){
+  const [preset,setPreset]=useState<"7d"|"30d"|"90d">("7d");
+  const {from,to}=useRange(preset);
+  const [data,setData]=useState<AnalyticsOverview|null>(null);
+  useEffect(()=>{ let off=false; getPinterestOverview({from,to}).then(d=>!off&&setData(d)); return ()=>{off=true}; },[from,to]);
+  const posts  = useMemo(()=>data?.series.find(s=>s.id==="posts")?.points ?? [],[data]);
+  const publ   = useMemo(()=>data?.series.find(s=>s.id==="published")?.points ?? [],[data]);
+  const saves  = useMemo(()=>data?.series.find(s=>s.id==="saves")?.points ?? [],[data]);
+  const clicks = useMemo(()=>data?.series.find(s=>s.id==="outbound_clicks")?.points ?? [],[data]);
+  const barData = useMemo(()=>{ const m=new Map<string,any>(); posts.forEach(p=>m.set(p.date,{date:p.date,posts:p.value,published:0})); publ.forEach(p=>m.set(p.date,{...(m.get(p.date)||{date:p.date,posts:0}),published:p.value})); return Array.from(m.values()).sort((a,b)=>a.date.localeCompare(b.date)); },[posts,publ]);
+  const lineData = useMemo(()=>{ const keys=new Set<string>([...saves.map(d=>d.date),...clicks.map(d=>d.date)]); const dates=Array.from(keys).sort(); return dates.map(date=>({date,saves:saves.find(x=>x.date===date)?.value??0,clicks:clicks.find(x=>x.date===date)?.value??0})); },[saves,clicks]);
+  return (
+    <div className="space-y-6">
+      <Header title="Pinterest Analytics" preset={preset} setPreset={setPreset}/>
+      <Kpis k={data?.kpis} map={[["Pins","posts"],["Published","published"],["Failed","failed"],["Saves","likes"],["Outbound Clicks","reposts"]]}/>
+      <TwoCharts barData={barData} lineData={lineData} lineKeys={[["saves","#60a5fa"],["clicks","#34d399"]]}/>
+    </div>
+  );
+}
+
+// client/src/pages/analytics/Shopify.tsx
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LineChart, Line } from "recharts";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+import { getShopifyOverview } from "@/services/shopifyAnalytics";
+function useRange(p:"7d"|"30d"|"90d"="7d"){ const n=p==="30d"?30:p==="90d"?90:7; const now=new Date(); const to=now.toISOString().slice(0,10); const s=new Date(now); s.setDate(s.getDate()-(n-1)); const from=s.toISOString().slice(0,10); return { from,to,preset:p }; }
+export default function ShopifyAnalytics(){
+  const [preset,setPreset]=useState<"7d"|"30d"|"90d">("7d");
+  const {from,to}=useRange(preset);
+  const [data,setData]=useState<AnalyticsOverview|null>(null);
+  useEffect(()=>{ let off=false; getShopifyOverview({from,to}).then(d=>!off&&setData(d)); return ()=>{off=true}; },[from,to]);
+  const revenue = useMemo(()=>data?.series.find(s=>s.id==="revenue_cents"||s.id==="revenue")?.points ?? [],[data]);
+  const orders  = useMemo(()=>data?.series.find(s=>s.id==="orders")?.points ?? [],[data]);
+  return (
+    <div className="space-y-6">
+      <Header title="Shopify Analytics" preset={preset} setPreset={setPreset}/>
+      <KpisMoney k={data?.kpis}/>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Revenue (cumulative)</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <AreaChart data={revenue}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="value" name="Revenue" stroke="#60a5fa" fill="#60a5fa22" strokeWidth={2}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Orders</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <LineChart data={orders}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="value" name="Orders" stroke="#34d399" strokeWidth={2} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Shared mini bits for these pages:
+function Header({title,preset,setPreset}:{title:string; preset:"7d"|"30d"|"90d"; setPreset:(p:any)=>void}){
+  return (
+    <div className="flex items-center justify-between">
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <div className="inline-flex rounded-xl border p-1">
+        {(["7d","30d","90d"] as const).map(p=>(
+          <Button key={p} size="sm" variant={preset===p?"default":"secondary"} onClick={()=>setPreset(p)}>{p.toUpperCase()}</Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+function Kpis({k,map}:{k:any; map:[string,string][]}){
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {map.map(([label,key])=>(
+        <Card key={key} className="p-4">
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-2xl font-semibold">{Number(k?.[key]||0).toLocaleString()}</div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+function KpisMoney({k}:{k:any}){
+  const money = (c:number)=> `$${(c/100).toLocaleString()}`;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Revenue</div><div className="text-2xl font-semibold">{money(Number(k?.revenue||0))}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Orders</div><div className="text-2xl font-semibold">{Number(k?.orders||0).toLocaleString()}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">AOV</div><div className="text-2xl font-semibold">{money(Number(k?.aov||0))}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">New Customers</div><div className="text-2xl font-semibold">{Number(k?.newCustomers||0).toLocaleString()}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Repeat Rate</div><div className="text-2xl font-semibold">{((Number(k?.repeatRate||0))*100).toFixed(1)}%</div></Card>
+    </div>
+  );
+}
