@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { AnalyticsOverview } from "../../../../shared/analytics";
-import { getInstagramOverview } from "@/services/instagramAnalytics";
 import { Header, Kpis, TwoCharts } from "@/components/analytics/shared";
 
 function useRange(p: "7d" | "30d" | "90d" = "7d") {
@@ -16,25 +16,15 @@ function useRange(p: "7d" | "30d" | "90d" = "7d") {
 export default function InstagramAnalytics() {
   const [preset, setPreset] = useState<"7d" | "30d" | "90d">("7d");
   const { from, to } = useRange(preset);
-  const [data, setData] = useState<AnalyticsOverview | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let off = false;
-    setLoading(true);
-    setError(null);
-    getInstagramOverview({ from, to })
-      .then(d => { if (!off) setData(d); })
-      .catch(err => { if (!off) setError(err.message); })
-      .finally(() => !off && setLoading(false));
-    return () => { off = true; };
-  }, [from, to]);
+  const { data, isLoading, error } = useQuery<AnalyticsOverview>({
+    queryKey: ['/api/analytics/instagram/overview', { from, to }],
+  });
 
   const posts = useMemo(() => data?.series.find(s => s.id === "posts")?.points ?? [], [data]);
   const publ = useMemo(() => data?.series.find(s => s.id === "published")?.points ?? [], [data]);
   const likes = useMemo(() => data?.series.find(s => s.id === "likes")?.points ?? [], [data]);
-  const comm = useMemo(() => data?.series.find(s => s.id === "comments")?.points ?? [], [data]);
+  const comm = useMemo(() => data?.series.find(s => s.id === "comments" || s.id === "replies")?.points ?? [], [data]);
 
   const barData = useMemo(() => {
     const m = new Map<string, any>();
@@ -54,12 +44,12 @@ export default function InstagramAnalytics() {
   }, [likes, comm]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6" data-testid="page-instagram-analytics">
       <Header title="Instagram Analytics" preset={preset} setPreset={setPreset} />
       
       {error && (
-        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-          Error: {error}
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive" data-testid="error-message">
+          Error: {(error as Error).message}
         </div>
       )}
 
@@ -72,17 +62,17 @@ export default function InstagramAnalytics() {
           ["Likes", "likes"],
           ["Comments", "replies"]
         ]}
-        loading={loading}
+        loading={isLoading}
       />
 
       <TwoCharts
         barData={barData}
         lineData={lineData}
         lineKeys={[
-          ["likes", "#60a5fa"],
-          ["comments", "#f59e0b"]
+          ["likes", "#f87171"],
+          ["comments", "#a78bfa"]
         ]}
-        loading={loading}
+        loading={isLoading}
       />
     </div>
   );

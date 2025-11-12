@@ -14,6 +14,8 @@ import TwitterAnalytics from "@/pages/analytics/Twitter";
 import InstagramAnalytics from "@/pages/analytics/Instagram";
 import PinterestAnalytics from "@/pages/analytics/Pinterest";
 import ShopifyAnalytics from "@/pages/analytics/Shopify";
+import EtsyAnalytics from "@/pages/analytics/Etsy";
+import SquarespaceAnalytics from "@/pages/analytics/Squarespace";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 
@@ -67,6 +69,16 @@ function Router() {
       {import.meta.env.VITE_ANALYTICS_SHOPIFY === "1" && (
         <Route path="/analytics/shopify">
           {() => <ProtectedRoute component={ShopifyAnalytics} />}
+        </Route>
+      )}
+      {import.meta.env.VITE_ANALYTICS_ETSY === "1" && (
+        <Route path="/analytics/etsy">
+          {() => <ProtectedRoute component={EtsyAnalytics} />}
+        </Route>
+      )}
+      {import.meta.env.VITE_ANALYTICS_SQUARESPACE === "1" && (
+        <Route path="/analytics/squarespace">
+          {() => <ProtectedRoute component={SquarespaceAnalytics} />}
         </Route>
       )}
       <Route component={NotFound} />

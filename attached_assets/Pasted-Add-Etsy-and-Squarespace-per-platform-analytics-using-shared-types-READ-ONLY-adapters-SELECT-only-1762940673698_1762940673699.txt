@@ -1,0 +1,276 @@
+Add Etsy and Squarespace per-platform analytics using shared types.
+READ-ONLY adapters (SELECT-only). If data doesn’t exist yet, return empty arrays/zeros so UI renders.
+
+=====================================
+1) SERVER — read-only adapter routes
+=====================================
+Create two files:
+
+// server/routes/analytics-etsy.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/requireAuth";
+import type { AnalyticsOverview } from "../../shared/analytics";
+
+// Expect rows like: [{ date, revenue_cents, orders, new_customers, repeat_customers }]
+async function fetchEtsyDaily(userId: string, from: string, to: string) {
+  // TODO: SELECT from your commerce rollups/tables when ready.
+  return [];
+}
+function series(rows:any[], key:string, label:string){
+  return { id:key, label, points: rows.map((r:any)=>({ date:r.date, value:Number(r[key])||0 })) };
+}
+async function buildOverview(userId:string, from:string, to:string): Promise<AnalyticsOverview> {
+  const rows = await fetchEtsyDaily(userId, from, to);
+  const sum = (k:string)=> rows.reduce((a:number,r:any)=> a+(Number(r[k])||0), 0);
+  const revenue = sum("revenue_cents");
+  const orders  = sum("orders");
+  const kpis = {
+    revenue,
+    orders,
+    aov: Math.round(revenue / Math.max(1, orders)),
+    newCustomers: sum("new_customers"),
+    repeatRate: (() => {
+      const repeat = sum("repeat_customers");
+      return orders ? repeat / orders : 0;
+    })(),
+  };
+  const seriesList = [
+    series(rows,"revenue_cents","Revenue"),
+    series(rows,"orders","Orders"),
+  ];
+  return { platform:"etsy", kpis, series: seriesList };
+}
+export const etsyAnalyticsRouter = Router();
+etsyAnalyticsRouter.use(requireAuth);
+etsyAnalyticsRouter.get("/overview", async (req,res)=>{
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as any;
+  const today = new Date(); const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate()-6); const fromIso = (from ?? d.toISOString().slice(0,10));
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+export default etsyAnalyticsRouter;
+
+
+// server/routes/analytics-squarespace.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/requireAuth";
+import type { AnalyticsOverview } from "../../shared/analytics";
+
+// Expect rows like: [{ date, revenue_cents, orders, sessions, new_customers, repeat_customers }]
+async function fetchSquarespaceDaily(userId: string, from: string, to: string) {
+  // TODO: SELECT from your commerce rollups/tables when ready.
+  return [];
+}
+function toSeries(rows:any[], key:string, label:string){
+  return { id:key, label, points: rows.map((r:any)=>({ date:r.date, value:Number(r[key])||0 })) };
+}
+async function buildOverview(userId:string, from:string, to:string): Promise<AnalyticsOverview> {
+  const rows = await fetchSquarespaceDaily(userId, from, to);
+  const sum = (k:string)=> rows.reduce((a:number,r:any)=> a+(Number(r[k])||0), 0);
+  const revenue = sum("revenue_cents");
+  const orders  = sum("orders");
+  const sessions = sum("sessions"); // optional if you store it
+  const kpis = {
+    revenue,
+    orders,
+    aov: Math.round(revenue / Math.max(1, orders)),
+    newCustomers: sum("new_customers"),
+    repeatRate: (() => {
+      const repeat = sum("repeat_customers");
+      return orders ? repeat / orders : 0;
+    })(),
+    // Optional proxy: conversion = orders / sessions (if sessions available)
+    conversionRate: sessions ? (orders / Math.max(1, sessions)) : undefined,
+  };
+  const seriesList = [
+    toSeries(rows,"revenue_cents","Revenue"),
+    toSeries(rows,"orders","Orders"),
+  ];
+  return { platform:"squarespace", kpis, series: seriesList };
+}
+export const squarespaceAnalyticsRouter = Router();
+squarespaceAnalyticsRouter.use(requireAuth);
+squarespaceAnalyticsRouter.get("/overview", async (req,res)=>{
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as any;
+  const today = new Date(); const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate()-6); const fromIso = (from ?? d.toISOString().slice(0,10));
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+export default squarespaceAnalyticsRouter;
+
+Register both in server/index.ts (behind flag):
+import etsyAnalyticsRouter from "./routes/analytics-etsy";
+import squarespaceAnalyticsRouter from "./routes/analytics-squarespace";
+if (process.env.FEATURE_PER_PLATFORM_ANALYTICS === "true") {
+  app.use("/api/analytics/etsy", etsyAnalyticsRouter);
+  app.use("/api/analytics/squarespace", squarespaceAnalyticsRouter);
+}
+
+=====================================
+2) CLIENT — thin fetchers
+=====================================
+Create:
+
+// client/src/services/etsyAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+export async function getEtsyOverview(params:{from:string; to:string}): Promise<AnalyticsOverview> {
+  const u = new URL("/api/analytics/etsy/overview", window.location.origin);
+  u.searchParams.set("from", params.from); u.searchParams.set("to", params.to);
+  const r = await fetch(u, { credentials:"include" }); if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// client/src/services/squarespaceAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+export async function getSquarespaceOverview(params:{from:string; to:string}): Promise<AnalyticsOverview> {
+  const u = new URL("/api/analytics/squarespace/overview", window.location.origin);
+  u.searchParams.set("from", params.from); u.searchParams.set("to", params.to);
+  const r = await fetch(u, { credentials:"include" }); if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+=====================================
+3) CLIENT — wouter pages
+=====================================
+Create two pages under client/src/pages/analytics:
+
+// client/src/pages/analytics/Etsy.tsx
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+import { getEtsyOverview } from "@/services/etsyAnalytics";
+
+function useRange(p:"7d"|"30d"|"90d"="7d"){ const n=p==="30d"?30:p==="90d"?90:7; const now=new Date(); const to=now.toISOString().slice(0,10); const s=new Date(now); s.setDate(s.getDate()-(n-1)); const from=s.toISOString().slice(0,10); return { from,to,preset:p }; }
+
+export default function EtsyAnalytics(){
+  const [preset,setPreset]=useState<"7d"|"30d"|"90d">("7d");
+  const {from,to}=useRange(preset);
+  const [data,setData]=useState<AnalyticsOverview|null>(null);
+  useEffect(()=>{ let off=false; getEtsyOverview({from,to}).then(d=>!off&&setData(d)); return ()=>{off=true}; },[from,to]);
+  const revenue = useMemo(()=>data?.series.find(s=>s.id==="revenue_cents"||s.id==="revenue")?.points ?? [],[data]);
+  const orders  = useMemo(()=>data?.series.find(s=>s.id==="orders")?.points ?? [],[data]);
+
+  const money = (c:number)=> `$${(c/100).toLocaleString()}`;
+
+  return (
+    <div className="space-y-6">
+      <Header title="Etsy Analytics" preset={preset} setPreset={setPreset}/>
+      <KpisMoney k={data?.kpis}/>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Revenue</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <AreaChart data={revenue}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="value" name="Revenue" stroke="#60a5fa" fill="#60a5fa22" strokeWidth={2}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Orders</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <LineChart data={orders}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="value" name="Orders" stroke="#34d399" strokeWidth={2} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Header({title,preset,setPreset}:{title:string; preset:"7d"|"30d"|"90d"; setPreset:(p:any)=>void}){
+  return (
+    <div className="flex items-center justify-between">
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <div className="inline-flex rounded-xl border p-1">
+        {(["7d","30d","90d"] as const).map(p=>(
+          <Button key={p} size="sm" variant={preset===p?"default":"secondary"} onClick={()=>setPreset(p)}>{p.toUpperCase()}</Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+function KpisMoney({k}:{k:any}){
+  const money = (c:number)=> `$${(c/100).toLocaleString()}`;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Revenue</div><div className="text-2xl font-semibold">{money(Number(k?.revenue||0))}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Orders</div><div className="text-2xl font-semibold">{Number(k?.orders||0).toLocaleString()}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">AOV</div><div className="text-2xl font-semibold">{money(Number(k?.aov||0))}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">New Customers</div><div className="text-2xl font-semibold">{Number(k?.newCustomers||0).toLocaleString()}</div></Card>
+      <Card className="p-4"><div className="text-xs text-muted-foreground">Repeat Rate</div><div className="text-2xl font-semibold">{((Number(k?.repeatRate||0))*100).toFixed(1)}%</div></Card>
+    </div>
+  );
+}
+
+
+// client/src/pages/analytics/Squarespace.tsx
+import { useState, useEffect, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+import { getSquarespaceOverview } from "@/services/squarespaceAnalytics";
+function useRange(p:"7d"|"30d"|"90d"="7d"){ const n=p==="30d"?30:p==="90d"?90:7; const now=new Date(); const to=now.toISOString().slice(0,10); const s=new Date(now); s.setDate(s.getDate()-(n-1)); const from=s.toISOString().slice(0,10); return { from,to,preset:p }; }
+
+export default function SquarespaceAnalytics(){
+  const [preset,setPreset]=useState<"7d"|"30d"|"90d">("7d");
+  const {from,to}=useRange(preset);
+  const [data,setData]=useState<AnalyticsOverview|null>(null);
+  useEffect(()=>{ let off=false; getSquarespaceOverview({from,to}).then(d=>!off&&setData(d)); return ()=>{off=true}; },[from,to]);
+  const revenue = useMemo(()=>data?.series.find(s=>s.id==="revenue_cents"||s.id==="revenue")?.points ?? [],[data]);
+  const orders  = useMemo(()=>data?.series.find(s=>s.id==="orders")?.points ?? [],[data]);
+
+  return (
+    <div className="space-y-6">
+      <Header title="Squarespace Analytics" preset={preset} setPreset={setPreset}/>
+      <KpisMoney k={data?.kpis}/>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Revenue</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <AreaChart data={revenue}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="value" name="Revenue" stroke="#60a5fa" fill="#60a5fa22" strokeWidth={2}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="font-medium mb-2">Orders</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <LineChart data={orders}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{fontSize:12}}/><YAxis tick={{fontSize:12}}/>
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="value" name="Orders" stroke="#34d399" strokeWidth={2} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}

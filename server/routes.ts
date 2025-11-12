@@ -41,6 +41,8 @@ import twitterAnalyticsRouter from "./routes/analytics-twitter";
 import instagramAnalyticsRouter from "./routes/analytics-instagram";
 import pinterestAnalyticsRouter from "./routes/analytics-pinterest";
 import shopifyAnalyticsRouter from "./routes/analytics-shopify";
+import etsyAnalyticsRouter from "./routes/analytics-etsy";
+import squarespaceAnalyticsRouter from "./routes/analytics-squarespace";
 
 // Metrics tracking
 const metrics = {
@@ -2336,6 +2338,8 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
     app.use("/api/analytics/instagram", instagramAnalyticsRouter);
     app.use("/api/analytics/pinterest", pinterestAnalyticsRouter);
     app.use("/api/analytics/shopify", shopifyAnalyticsRouter);
+    app.use("/api/analytics/etsy", etsyAnalyticsRouter);
+    app.use("/api/analytics/squarespace", squarespaceAnalyticsRouter);
   }
 
   app.get("/api/analytics/top-tones", requireAuth, async (req: AuthRequest, res) => {

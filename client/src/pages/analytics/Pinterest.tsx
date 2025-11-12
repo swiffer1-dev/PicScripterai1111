@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { AnalyticsOverview } from "../../../../shared/analytics";
-import { getPinterestOverview } from "@/services/pinterestAnalytics";
 import { Header, Kpis, TwoCharts } from "@/components/analytics/shared";
 
 function useRange(p: "7d" | "30d" | "90d" = "7d") {
@@ -16,20 +16,10 @@ function useRange(p: "7d" | "30d" | "90d" = "7d") {
 export default function PinterestAnalytics() {
   const [preset, setPreset] = useState<"7d" | "30d" | "90d">("7d");
   const { from, to } = useRange(preset);
-  const [data, setData] = useState<AnalyticsOverview | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let off = false;
-    setLoading(true);
-    setError(null);
-    getPinterestOverview({ from, to })
-      .then(d => { if (!off) setData(d); })
-      .catch(err => { if (!off) setError(err.message); })
-      .finally(() => !off && setLoading(false));
-    return () => { off = true; };
-  }, [from, to]);
+  const { data, isLoading, error } = useQuery<AnalyticsOverview>({
+    queryKey: ['/api/analytics/pinterest/overview', { from, to }],
+  });
 
   const posts = useMemo(() => data?.series.find(s => s.id === "posts")?.points ?? [], [data]);
   const publ = useMemo(() => data?.series.find(s => s.id === "published")?.points ?? [], [data]);
@@ -54,25 +44,25 @@ export default function PinterestAnalytics() {
   }, [saves, clicks]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6" data-testid="page-pinterest-analytics">
       <Header title="Pinterest Analytics" preset={preset} setPreset={setPreset} />
-
+      
       {error && (
-        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-          Error: {error}
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive" data-testid="error-message">
+          Error: {(error as Error).message}
         </div>
       )}
 
       <Kpis
         k={data?.kpis}
         map={[
-          ["Pins", "posts"],
+          ["Posts", "posts"],
           ["Published", "published"],
           ["Failed", "failed"],
-          ["Saves", "likes"],
-          ["Outbound Clicks", "reposts"]
+          ["Likes", "likes"],
+          ["Comments", "replies"]
         ]}
-        loading={loading}
+        loading={isLoading}
       />
 
       <TwoCharts
@@ -82,7 +72,7 @@ export default function PinterestAnalytics() {
           ["saves", "#60a5fa"],
           ["clicks", "#34d399"]
         ]}
-        loading={loading}
+        loading={isLoading}
       />
     </div>
   );

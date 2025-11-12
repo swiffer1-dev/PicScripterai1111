@@ -26,20 +26,20 @@ function useRange(p: "7d" | "30d" | "90d" = "7d") {
   return { from, to, preset: p };
 }
 
-export default function ShopifyAnalytics() {
+export default function EtsyAnalytics() {
   const [preset, setPreset] = useState<"7d" | "30d" | "90d">("7d");
   const { from, to } = useRange(preset);
 
   const { data, isLoading, error } = useQuery<AnalyticsOverview>({
-    queryKey: ['/api/analytics/shopify/overview', { from, to }],
+    queryKey: ['/api/analytics/etsy/overview', { from, to }],
   });
 
   const revenue = useMemo(() => data?.series.find(s => s.id === "revenue_cents" || s.id === "revenue")?.points ?? [], [data]);
   const orders = useMemo(() => data?.series.find(s => s.id === "orders")?.points ?? [], [data]);
 
   return (
-    <div className="space-y-6 p-6" data-testid="page-shopify-analytics">
-      <Header title="Shopify Analytics" preset={preset} setPreset={setPreset} />
+    <div className="space-y-6 p-6" data-testid="page-etsy-analytics">
+      <Header title="Etsy Analytics" preset={preset} setPreset={setPreset} />
 
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive" data-testid="error-message">

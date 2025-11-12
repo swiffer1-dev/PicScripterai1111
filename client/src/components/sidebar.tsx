@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3, Instagram, PinIcon as Pinterest, ShoppingBag } from "lucide-react";
+import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3, Instagram, PinIcon as Pinterest, ShoppingBag, ShoppingCart, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -71,6 +71,12 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       : []),
     ...(import.meta.env.VITE_ANALYTICS_SHOPIFY === "1"
       ? [{ href: "/analytics/shopify", icon: ShoppingBag, label: "Shopify Analytics" }]
+      : []),
+    ...(import.meta.env.VITE_ANALYTICS_ETSY === "1"
+      ? [{ href: "/analytics/etsy", icon: ShoppingCart, label: "Etsy Analytics" }]
+      : []),
+    ...(import.meta.env.VITE_ANALYTICS_SQUARESPACE === "1"
+      ? [{ href: "/analytics/squarespace", icon: Square, label: "Squarespace Analytics" }]
       : []),
   ];
 
