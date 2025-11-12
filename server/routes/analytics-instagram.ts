@@ -17,7 +17,7 @@ async function fetchInstagramDaily(userId: string, from: string, to: string) {
     .where(
       and(
         eq(posts.userId, userId),
-        sql`'instagram' = ANY(${posts.platforms})`,
+        sql`${sql.raw("'instagram'")} = ANY(${posts.platforms})`,
         gte(sql`DATE(${posts.createdAt})`, from),
         lte(sql`DATE(${posts.createdAt})`, to)
       )

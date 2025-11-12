@@ -19,7 +19,8 @@ async function fetchShopifyDaily(userId: number, from: string, to: string): Prom
       AND 'shopify' = ANY(platforms)
   `;
 
-  const [stats] = await db.execute(postCountsQuery);
+  const result = await db.execute(postCountsQuery);
+  const stats = result.rows?.[0] as any;
   
   // Generate date series for charts (empty values for now)
   const dates: string[] = [];
@@ -45,10 +46,10 @@ async function fetchShopifyDaily(userId: number, from: string, to: string): Prom
       repeatRate: 0 // Would be calculated: repeat / total customers
     },
     series: [
-      { id: "posts", points: dates.map(date => ({ date, value: 0 })) },
-      { id: "published", points: dates.map(date => ({ date, value: 0 })) },
-      { id: "revenue", points: dates.map(date => ({ date, value: 0 })) },
-      { id: "orders", points: dates.map(date => ({ date, value: 0 })) }
+      { id: "posts", label: "Posts", points: dates.map(date => ({ date, value: 0 })) },
+      { id: "published", label: "Published", points: dates.map(date => ({ date, value: 0 })) },
+      { id: "revenue", label: "Revenue", points: dates.map(date => ({ date, value: 0 })) },
+      { id: "orders", label: "Orders", points: dates.map(date => ({ date, value: 0 })) }
     ]
   };
 }
