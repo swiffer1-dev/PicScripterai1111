@@ -1,26 +1,32 @@
 import { Router } from "express";
 import { requireAuth, type AuthRequest } from "../middleware/cookie-auth";
 import type { AnalyticsOverview } from "../../shared/analytics";
-import { db, sql } from "../storage";
+import { db } from "../db";
+import { posts } from "../../shared/schema";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 
-async function fetchShopifyDaily(userId: number, from: string, to: string): Promise<AnalyticsOverview> {
+async function fetchShopifyDaily(userId: string, from: string, to: string): Promise<AnalyticsOverview> {
   // NOTE: This is a read-only adapter querying the posts table
   // Real Shopify metrics (revenue, orders, etc.) would come from the Shopify API or products table
   // For now, we return structured empty data to demonstrate the UI
   
-  const postCountsQuery = sql`
-    SELECT
-      COUNT(*) FILTER (WHERE status IN ('pending', 'published', 'failed')) AS posts,
-      COUNT(*) FILTER (WHERE status = 'published') AS published,
-      COUNT(*) FILTER (WHERE status = 'failed') AS failed
-    FROM posts
-    WHERE user_id = ${userId}
-      AND created_at::date BETWEEN ${from} AND ${to}
-      AND platforms @> '["shopify"]'::jsonb
-  `;
+  const result = await db
+    .select({
+      posts: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} IN ('pending', 'published', 'failed'))`,
+      published: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} = 'published')`,
+      failed: sql<number>`COUNT(*) FILTER (WHERE ${posts.status} = 'failed')`,
+    })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.userId, userId),
+        sql`${posts.platforms} @> '["shopify"]'::jsonb`,
+        gte(sql`DATE(${posts.createdAt})`, from),
+        lte(sql`DATE(${posts.createdAt})`, to)
+      )
+    );
 
-  const result = await db.execute(postCountsQuery);
-  const stats = result.rows?.[0] as any;
+  const stats = result[0];
   
   // Generate date series for charts (empty values for now)
   const dates: string[] = [];
