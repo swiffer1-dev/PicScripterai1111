@@ -88,6 +88,35 @@ export async function apiRequest(
   return res;
 }
 
+/**
+ * Build URL from queryKey array
+ * Handles: ['/api/users'] or ['/api/analytics/etsy/overview', { from, to }]
+ */
+function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
+  if (queryKey.length === 0) return "";
+  
+  // First element is always the path
+  const path = String(queryKey[0]);
+  
+  // If there's a second element and it's an object, treat it as query params
+  if (queryKey.length > 1 && typeof queryKey[1] === "object" && queryKey[1] !== null) {
+    const params = queryKey[1] as Record<string, unknown>;
+    const searchParams = new URLSearchParams();
+    
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    }
+    
+    const queryString = searchParams.toString();
+    return queryString ? `${path}?${queryString}` : path;
+  }
+  
+  // No params, just return the path
+  return path;
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
@@ -101,7 +130,8 @@ export const getQueryFn: <T>(options: {
       headers["Authorization"] = `Bearer ${token}`;
     }
     
-    const res = await apiFetch(queryKey.join("/") as string, {
+    const url = buildUrlFromQueryKey(queryKey);
+    const res = await apiFetch(url, {
       headers,
     });
 
