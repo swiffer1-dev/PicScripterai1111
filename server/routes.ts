@@ -2207,9 +2207,14 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
   app.get("/api/analytics/summary", requireAuth, async (req: AuthRequest, res) => {
     try {
       const days = req.query.days ? parseInt(req.query.days as string) : 30;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      // Get event counts
       const events = await storage.getAnalyticsEvents(req.userId!, days);
       
-      const summary: Record<string, number> = {
+      type CountKey = 'caption_generated' | 'post_scheduled' | 'post_published' | 'publish_failed';
+      const counts: Record<CountKey, number> = {
         caption_generated: 0,
         post_scheduled: 0,
         post_published: 0,
@@ -2217,12 +2222,23 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       };
       
       events.forEach(event => {
-        if (event.eventType in summary) {
-          summary[event.eventType]++;
+        if (event.eventType in counts) {
+          counts[event.eventType as CountKey]++;
         }
       });
       
-      res.json(summary);
+      // Get connected platforms count (all connections in this table are social media)
+      const connections = await storage.getConnections(req.userId!);
+      const connectedPlatforms = connections.length;
+      
+      // Return in camelCase format expected by frontend
+      res.json({
+        connectedPlatforms,
+        postsScheduled: counts.post_scheduled,
+        postsPublished: counts.post_published,
+        publishFailed: counts.publish_failed,
+        captionsGenerated: counts.caption_generated,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2251,6 +2267,102 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // PerformanceOverview analytics endpoints
+  app.get("/api/analytics/engagement", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const days = req.query.days ? parseInt(req.query.days as string) : 7;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Get daily engagement data from post_metrics
+      const dailyMetrics = await db.execute(sql`
+        WITH latest_snapshots AS (
+          SELECT DISTINCT ON (post_id)
+            user_id,
+            post_id,
+            platform,
+            external_id,
+            likes,
+            reposts,
+            replies,
+            quotes,
+            impressions,
+            collected_at,
+            DATE(collected_at) as metric_date
+          FROM post_metrics
+          WHERE user_id = ${req.userId!}
+            AND collected_at >= ${startDate}
+          ORDER BY post_id, collected_at DESC
+        )
+        SELECT
+          metric_date as date,
+          SUM(likes) as likes,
+          SUM(reposts) as reposts,
+          SUM(replies) as replies,
+          SUM(quotes) as quotes
+        FROM latest_snapshots
+        GROUP BY metric_date
+        ORDER BY metric_date
+      `);
+
+      const result = (dailyMetrics.rows as any[]).map(row => ({
+        date: row.date,
+        likes: Number(row.likes),
+        reposts: Number(row.reposts),
+        replies: Number(row.replies),
+        quotes: Number(row.quotes),
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/analytics/top-tones", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const days = req.query.days ? parseInt(req.query.days as string) : 30;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Get tone performance from post_metrics
+      const toneData = await db.execute(sql`
+        WITH latest_snapshots AS (
+          SELECT DISTINCT ON (pm.post_id)
+            pm.post_id,
+            pm.likes,
+            pm.reposts,
+            pm.replies,
+            pm.quotes,
+            (p.options->>'tone') as tone
+          FROM post_metrics pm
+          INNER JOIN posts p ON pm.post_id = p.id
+          WHERE pm.user_id = ${req.userId!}
+            AND pm.collected_at >= ${startDate}
+            AND p.options->>'tone' IS NOT NULL
+          ORDER BY pm.post_id, pm.collected_at DESC
+        )
+        SELECT
+          tone,
+          COUNT(*) as count
+        FROM latest_snapshots
+        WHERE tone IS NOT NULL
+        GROUP BY tone
+        ORDER BY count DESC
+        LIMIT 5
+      `);
+
+      const result = (toneData.rows as any[]).map(row => ({
+        tone: row.tone as string,
+        count: Number(row.count),
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
