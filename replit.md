@@ -55,7 +55,7 @@ Preferred communication style: Simple, everyday language.
 **E-commerce Platform APIs:**
 - Shopify: Admin API (REST Orders endpoint with cursor-based pagination, 250 orders/page, max 20 pages, fetches revenue/order data with true first-time customer detection via orders_count field)
 - Etsy: OpenAPI v3 (Receipts API with offset pagination, 100 receipts/page, max 20 pages, calculates revenue from grandtotal field with unique buyer approximation for new customers)
-- Squarespace: Commerce API
+- Squarespace: Commerce API (Orders endpoint with cursor-based pagination, 50 orders/page, max 20 pages, fetches by modifiedOn and filters by createdOn for accurate date scoping, calculates revenue from grandTotal.value with unique email approximation for new customers, null-safe email handling for POS/guest orders)
 
 **Environment Configuration:**
 - Client IDs and secrets for all integrated platforms.
