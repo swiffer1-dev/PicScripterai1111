@@ -1,5 +1,13 @@
 import * as React from "react";
-import { getSummary, getEngagement, getTopTones, type EngagementPoint, type SummaryKpis } from "@/services/analytics";
+import {
+  getSummary,
+  getEngagement,
+  getTopTones,
+  toSharedOverview,
+  type EngagementPoint,
+  type SummaryKpis,
+} from "@/services/analytics";
+import type { AnalyticsOverview } from "@shared/analytics";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,10 +18,19 @@ import {
 const ranges = [7, 30] as const;
 type Range = typeof ranges[number];
 
+const USE_SHARED = import.meta.env.VITE_USE_SHARED_ANALYTICS === "1";
+
+type NormalizedData = {
+  connectedPlatforms: number;
+  postsScheduled: number;
+  postsPublished: number;
+  publishFailed: number;
+  chartData: { date: string; likes: number; reposts: number; replies: number; quotes: number }[];
+  tones: { tone: string; count: number }[] | null;
+};
+
 function useAnalytics(range: Range) {
-  const [kpis, setKpis] = React.useState<SummaryKpis | null>(null);
-  const [series, setSeries] = React.useState<EngagementPoint[] | null>(null);
-  const [tones, setTones] = React.useState<{ tone: string; count: number }[] | null | undefined>(undefined);
+  const [data, setData] = React.useState<NormalizedData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -30,14 +47,46 @@ function useAnalytics(range: Range) {
       if (!mounted) return;
 
       const [k, s, t] = results;
-      if (k.status === "fulfilled") setKpis(k.value);
-      else setError(k.reason?.message ?? "Failed to load KPIs");
+      
+      if (k.status === "rejected" || s.status === "rejected") {
+        setError("Failed to load analytics data");
+        setLoading(false);
+        return;
+      }
 
-      if (s.status === "fulfilled") setSeries(s.value);
-      else setError(s.reason?.message ?? "Failed to load engagement");
+      const summary = k.value;
+      const engagement = s.value;
+      const tones = t.status === "fulfilled" ? t.value : null;
 
-      if (t.status === "fulfilled") setTones(t.value);
-      else setTones(undefined);
+      if (USE_SHARED) {
+        const shared: AnalyticsOverview = toSharedOverview(summary, engagement);
+        
+        const chartData = shared.series[0]?.points.map((point, idx) => ({
+          date: point.date,
+          likes: shared.series.find(s => s.id === "likes")?.points[idx]?.value ?? 0,
+          reposts: shared.series.find(s => s.id === "reposts")?.points[idx]?.value ?? 0,
+          replies: shared.series.find(s => s.id === "replies")?.points[idx]?.value ?? 0,
+          quotes: shared.series.find(s => s.id === "quotes")?.points[idx]?.value ?? 0,
+        })) ?? [];
+
+        setData({
+          connectedPlatforms: summary.connectedPlatforms,
+          postsScheduled: shared.kpis.posts ?? 0,
+          postsPublished: shared.kpis.published ?? 0,
+          publishFailed: shared.kpis.failed ?? 0,
+          chartData,
+          tones,
+        });
+      } else {
+        setData({
+          connectedPlatforms: summary.connectedPlatforms,
+          postsScheduled: summary.postsScheduled,
+          postsPublished: summary.postsPublished,
+          publishFailed: summary.publishFailed,
+          chartData: engagement,
+          tones,
+        });
+      }
 
       setLoading(false);
     });
@@ -45,7 +94,7 @@ function useAnalytics(range: Range) {
     return () => { mounted = false; };
   }, [range]);
 
-  return { kpis, series, tones, error, loading };
+  return { data, error, loading };
 }
 
 function Kpi({ label, value, className }: { label: string; value: number | string; className?: string }) {
@@ -59,7 +108,7 @@ function Kpi({ label, value, className }: { label: string; value: number | strin
 
 export default function PerformanceOverview() {
   const [range, setRange] = React.useState<Range>(7);
-  const { kpis, series, tones, error, loading } = useAnalytics(range);
+  const { data, error, loading } = useAnalytics(range);
 
   return (
     <Card className="overflow-hidden border-white/10 bg-gradient-to-b from-zinc-900/50 to-zinc-900/20">
@@ -92,10 +141,10 @@ export default function PerformanceOverview() {
             </>
           ) : (
             <>
-              <Kpi label="Connected Platforms" value={kpis?.connectedPlatforms ?? 0} />
-              <Kpi label="Posts Scheduled" value={kpis?.postsScheduled ?? 0} />
-              <Kpi label="Posts Published" value={kpis?.postsPublished ?? 0} />
-              <Kpi label="Publish Failed" value={kpis?.publishFailed ?? 0} />
+              <Kpi label="Connected Platforms" value={data?.connectedPlatforms ?? 0} />
+              <Kpi label="Posts Scheduled" value={data?.postsScheduled ?? 0} />
+              <Kpi label="Posts Published" value={data?.postsPublished ?? 0} />
+              <Kpi label="Publish Failed" value={data?.publishFailed ?? 0} />
             </>
           )}
         </div>
@@ -109,7 +158,7 @@ export default function PerformanceOverview() {
           )}
           {!error && (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={data?.chartData ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gLikes" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.6} />
@@ -146,11 +195,11 @@ export default function PerformanceOverview() {
         </div>
 
         {/* Top tones (optional) */}
-        {tones !== undefined && tones !== null && tones.length > 0 && (
+        {data?.tones && data.tones.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">Top Performing Tones</div>
             <div className="flex flex-wrap gap-2">
-              {tones.map((t) => (
+              {data.tones.map((t) => (
                 <span
                   key={t.tone}
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs"
