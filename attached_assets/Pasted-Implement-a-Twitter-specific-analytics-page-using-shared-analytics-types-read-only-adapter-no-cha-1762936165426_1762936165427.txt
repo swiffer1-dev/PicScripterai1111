@@ -1,0 +1,243 @@
+Implement a Twitter-specific analytics page using shared analytics types — read-only adapter (no changes to existing X posting/scheduler/metrics).
+
+Goals
+- Add a server adapter: GET /api/analytics/twitter/overview?from=&to=
+- Adapter must ONLY SELECT from current metrics sources (whatever the existing dashboard uses).
+- Add a new client page at /analytics/twitter that consumes shared types.
+- Keep all existing X logic untouched. Feature-flag UI exposure.
+- If some fields don’t exist yet, map missing values to 0 so the page still renders.
+
+Prereqs
+- shared/analytics.ts already exists (Platform, Kpis, Timeseries, AnalyticsOverview, TimeRange).
+- Do not change DB schema or existing routes.
+
+---------------------------------
+1) SERVER — read-only adapter route
+---------------------------------
+Create: server/routes/analytics-twitter.ts
+
+// server/routes/analytics-twitter.ts
+import { Router } from "express";
+import type { AnalyticsOverview } from "../../shared/analytics";
+import { requireAuth } from "../middleware/requireAuth";
+
+// NOTE: Replace these with whatever helpers/queries your current dashboard already uses
+// so we don't alter logic — we just reshape the results.
+async function fetchTwitterDaily(userId: string, from: string, to: string) {
+  // Return array of { date: 'YYYY-MM-DD', posts, published, failed, likes, replies, reposts, quotes }
+  // Implement by selecting from your existing tables or views.
+  // TEMP fallback: return empty array; frontend will render zeros.
+  return [];
+}
+
+async function buildOverview(userId: string, from: string, to: string): Promise<AnalyticsOverview> {
+  const rows = await fetchTwitterDaily(userId, from, to);
+
+  const sum = (key: string) => rows.reduce((a, r) => a + (Number((r as any)[key]) || 0), 0);
+
+  const kpis = {
+    posts: sum("posts"),
+    published: sum("published"),
+    failed: sum("failed"),
+    likes: sum("likes"),
+    replies: sum("replies"),
+    reposts: sum("reposts"),
+    quotes: sum("quotes"),
+  };
+
+  const makeSeries = (id: string, label: string) => ({
+    id, label,
+    points: rows.map(r => ({ date: r.date, value: Number((r as any)[id]) || 0 })),
+  });
+
+  const series = [
+    makeSeries("posts", "Posts"),
+    makeSeries("published", "Published"),
+    makeSeries("likes", "Likes"),
+    makeSeries("replies", "Replies"),
+    makeSeries("reposts", "Reposts"),
+    // quotes is optional — include if you collect it:
+    makeSeries("quotes", "Quotes"),
+  ];
+
+  return { platform: "twitter", kpis, series };
+}
+
+export const twitterAnalyticsRouter = Router();
+twitterAnalyticsRouter.use(requireAuth);
+
+twitterAnalyticsRouter.get("/overview", async (req, res) => {
+  if (process.env.FEATURE_PER_PLATFORM_ANALYTICS !== "true") return res.status(404).send("disabled");
+  const userId = req.user!.id;
+  const { from, to } = req.query as { from?: string; to?: string };
+  // Default to last 7 days if not provided (keeps it easy)
+  const today = new Date();
+  const toIso = (to ?? today.toISOString().slice(0,10));
+  const d = new Date(today); d.setDate(d.getDate() - 6);
+  const fromIso = (from ?? d.toISOString().slice(0,10));
+
+  const data = await buildOverview(userId, fromIso, toIso);
+  res.json(data);
+});
+
+export default twitterAnalyticsRouter;
+
+Register the router (behind flag) in server/index.ts:
+import twitterAnalyticsRouter from "./routes/analytics-twitter";
+if (process.env.FEATURE_PER_PLATFORM_ANALYTICS === "true") {
+  app.use("/api/analytics/twitter", twitterAnalyticsRouter);
+}
+
+---------------------------------
+2) CLIENT — fetch helper (read-only)
+---------------------------------
+Create: client/src/services/twitterAnalytics.ts
+
+// client/src/services/twitterAnalytics.ts
+import type { AnalyticsOverview } from "../../../shared/analytics";
+
+export async function getTwitterOverview(params: { from: string; to: string }): Promise<AnalyticsOverview> {
+  const url = new URL("/api/analytics/twitter/overview", window.location.origin);
+  url.searchParams.set("from", params.from);
+  url.searchParams.set("to", params.to);
+  const res = await fetch(url.toString(), { credentials: "include" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<AnalyticsOverview>;
+}
+
+---------------------------------
+3) CLIENT — Twitter Analytics page
+---------------------------------
+Create: client/src/pages/analytics/Twitter.tsx
+
+// client/src/pages/analytics/Twitter.tsx
+import { useEffect, useState, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Bar } from "recharts";
+import { getTwitterOverview } from "@/services/twitterAnalytics";
+import type { AnalyticsOverview } from "../../../../shared/analytics";
+
+function useRange(preset: "7d"|"30d"|"90d" = "7d") {
+  const now = new Date();
+  const to = now.toISOString().slice(0,10);
+  const n = preset === "30d" ? 30 : preset === "90d" ? 90 : 7;
+  const start = new Date(now); start.setDate(start.getDate() - (n - 1));
+  const from = start.toISOString().slice(0,10);
+  return { preset, from, to };
+}
+
+export default function TwitterAnalyticsPage() {
+  const [preset, setPreset] = useState<"7d"|"30d"|"90d">("7d");
+  const { from, to } = useRange(preset);
+  const [data, setData] = useState<AnalyticsOverview | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let off = false;
+    setLoading(true);
+    getTwitterOverview({ from, to }).then((d) => { if (!off) setData(d); }).finally(()=>!off && setLoading(false));
+    return () => { off = true; };
+  }, [from, to]);
+
+  const postsSeries = useMemo(() => data?.series.find(s => s.id === "posts")?.points ?? [], [data]);
+  const publishedSeries = useMemo(() => data?.series.find(s => s.id === "published")?.points ?? [], [data]);
+  const likesSeries = useMemo(() => data?.series.find(s => s.id === "likes")?.points ?? [], [data]);
+  const repliesSeries = useMemo(() => data?.series.find(s => s.id === "replies")?.points ?? [], [data]);
+  const repostsSeries = useMemo(() => data?.series.find(s => s.id === "reposts")?.points ?? [], [data]);
+
+  // Merge posts/published for bar chart
+  const barData = useMemo(() => {
+    const byDate = new Map<string, any>();
+    for (const p of postsSeries) byDate.set(p.date, { date: p.date, posts: p.value, published: 0 });
+    for (const p of publishedSeries) byDate.set(p.date, { ...(byDate.get(p.date) ?? { date: p.date, posts: 0 }), published: p.value });
+    return Array.from(byDate.values()).sort((a,b)=>a.date.localeCompare(b.date));
+  }, [postsSeries, publishedSeries]);
+
+  // Merge engagement lines
+  const lineData = useMemo(() => {
+    const keys = new Set<string>([
+      ...likesSeries.map(d=>d.date),
+      ...repliesSeries.map(d=>d.date),
+      ...repostsSeries.map(d=>d.date),
+    ]);
+    const dates = Array.from(keys).sort();
+    return dates.map(date => ({
+      date,
+      likes: likesSeries.find(x=>x.date===date)?.value ?? 0,
+      replies: repliesSeries.find(x=>x.date===date)?.value ?? 0,
+      reposts: repostsSeries.find(x=>x.date===date)?.value ?? 0,
+    }));
+  }, [likesSeries, repliesSeries, repostsSeries]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Twitter Analytics</h1>
+        <div className="inline-flex rounded-xl border p-1">
+          {(["7d","30d","90d"] as const).map(p => (
+            <Button key={p} size="sm" variant={preset===p ? "default" : "secondary"} onClick={()=>setPreset(p)}>
+              {p.toUpperCase()}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        <Kpi title="Posts" value={data?.kpis.posts}/>
+        <Kpi title="Published" value={data?.kpis.published}/>
+        <Kpi title="Failed" value={data?.kpis.failed}/>
+        <Kpi title="Likes" value={data?.kpis.likes}/>
+        <Kpi title="Replies" value={data?.kpis.replies}/>
+        <Kpi title="Reposts" value={data?.kpis.reposts}/>
+      </div>
+
+      {/* Posts vs Published */}
+      <Card className="p-4">
+        <div className="font-medium mb-2">Posts vs Published</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <BarChart data={barData}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{ fontSize: 12 }}/>
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false}/>
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="posts" fill="#60a5fa" radius={[4,4,0,0]} />
+              <Bar dataKey="published" fill="#34d399" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Engagement over time */}
+      <Card className="p-4">
+        <div className="font-medium mb-2">Engagement (Likes / Replies / Reposts)</div>
+        <div className="h-[280px]">
+          <ResponsiveContainer>
+            <LineChart data={lineData}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1}/>
+              <XAxis dataKey="date" tick={{ fontSize: 12 }}/>
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false}/>
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="likes" stroke="#60a5fa" strokeWidth={2} dot={false}/>
+              <Line type="monotone" dataKey="replies" stroke="#f59e0b" strokeWidth={2} dot={false}/>
+              <Line type="monotone" dataKey="reposts" stroke="#a78bfa" strokeWidth={2} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Kpi({ title, value }:{title:string; value:number|undefined}) {
+  return (
+    <Card className="p-4">
+      <div className="text-xs text-muted-foreground">{title}</div>
+      <div className="text-2xl font-semibold">{(value ?? 0).toLocaleString()}</div>
+    </Card>
+  );
+}

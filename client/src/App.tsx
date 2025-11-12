@@ -10,6 +10,7 @@ import Posts from "@/pages/posts";
 import AIStudio from "@/pages/ai-studio";
 import Calendar from "@/pages/calendar";
 import Drafts from "@/pages/drafts";
+import TwitterAnalytics from "@/pages/analytics/Twitter";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 
@@ -45,6 +46,11 @@ function Router() {
       <Route path="/drafts">
         {() => <ProtectedRoute component={Drafts} />}
       </Route>
+      {import.meta.env.VITE_METRICS_ENGAGEMENT === "1" && (
+        <Route path="/analytics/twitter">
+          {() => <ProtectedRoute component={TwitterAnalytics} />}
+        </Route>
+      )}
       <Route component={NotFound} />
     </Switch>
   );

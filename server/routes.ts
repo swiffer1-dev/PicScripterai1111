@@ -37,6 +37,7 @@ import { TwitterWebhookHandler } from "./services/webhooks/twitter";
 import { YouTubeWebhookHandler } from "./services/webhooks/youtube";
 import type { RequestWithRawBody } from "./services/webhooks/base";
 import { generateDescription, proofreadText, type ImagePart } from "./services/gemini";
+import twitterAnalyticsRouter from "./routes/analytics-twitter";
 
 // Metrics tracking
 const metrics = {
@@ -2321,6 +2322,11 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Twitter-specific analytics (feature-flagged)
+  if (process.env.METRICS_ENGAGEMENT === "1") {
+    app.use("/api/analytics/twitter", twitterAnalyticsRouter);
+  }
 
   app.get("/api/analytics/top-tones", requireAuth, async (req: AuthRequest, res) => {
     try {

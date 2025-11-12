@@ -37,6 +37,13 @@ Preferred communication style: Simple, everyday language.
   - Displays 7-day engagement dashboard with stacked bar chart and totals
   - Shows top 5 performing tones with average engagement and sample counts
   - Uses DISTINCT ON queries to prevent double-counting when multiple snapshots exist
+  - **Twitter Analytics Page:** Dedicated `/analytics/twitter` page consuming shared `AnalyticsOverview` types, showing:
+    - KPI cards: Posts, Published, Failed, Likes, Replies, Reposts, Quotes
+    - Posts vs Published bar chart with date-based time series
+    - Engagement line chart (likes/replies/reposts/quotes over time)
+    - Date range toggles: 7d, 30d, 90d
+    - Read-only SQL adapter combining `posts` and `post_metrics` tables
+    - Feature-flagged via `METRICS_ENGAGEMENT=1` and `VITE_METRICS_ENGAGEMENT=1`
 - **Connections Management:** OAuth-based connection management for social media and e-commerce platforms, including product sync functionality.
 - **Post Management:** View all posts with status tracking, quick actions (duplicate, edit & repost, send to AI Studio).
 
