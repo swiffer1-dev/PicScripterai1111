@@ -33,19 +33,36 @@ export interface BestTimesData {
   }>;
 }
 
+// Helper to parse JSON and check response status
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return (await res.json()) as T;
+}
+
 // Default export for use with TanStack Query default fetcher
 export const insightsService = {
-  getSummary: (days: number = 7): Promise<InsightsSummary> =>
-    fetch(`/api/insights/summary?days=${days}`).then(res => res.json()),
+  getSummary: async (days: number = 7): Promise<InsightsSummary> => {
+    const res = await fetch(`/api/insights/summary?days=${days}`, { credentials: "include" });
+    return json<InsightsSummary>(res);
+  },
 
-  getEngagement: (days: number = 7): Promise<EngagementDataPoint[]> =>
-    fetch(`/api/insights/engagement?days=${days}`).then(res => res.json()),
+  getEngagement: async (days: number = 7): Promise<EngagementDataPoint[]> => {
+    const res = await fetch(`/api/insights/engagement?days=${days}`, { credentials: "include" });
+    return json<EngagementDataPoint[]>(res);
+  },
 
-  getTones: (days: number = 7): Promise<TonePerformance[]> =>
-    fetch(`/api/insights/tones?days=${days}`).then(res => res.json()),
+  getTones: async (days: number = 7): Promise<TonePerformance[]> => {
+    const res = await fetch(`/api/insights/tones?days=${days}`, { credentials: "include" });
+    return json<TonePerformance[]>(res);
+  },
 
-  getBestTimes: (days: number = 30): Promise<BestTimesData> =>
-    fetch(`/api/insights/best-times?days=${days}`).then(res => res.json()),
+  getBestTimes: async (days: number = 30): Promise<BestTimesData> => {
+    const res = await fetch(`/api/insights/best-times?days=${days}`, { credentials: "include" });
+    return json<BestTimesData>(res);
+  },
 };
 
 export default insightsService;
