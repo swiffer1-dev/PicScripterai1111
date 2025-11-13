@@ -162,6 +162,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Post not found" });
       }
       
+      // SECURITY: Verify post belongs to current user
+      if (post.userId !== req.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       if (!post.mediaUrl) {
         return res.status(400).json({ error: "Post has no media URL" });
       }
@@ -178,9 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accessToken = decryptToken(connection.accessTokenEnc);
       
       const result: any = {
-        originalUrl: post.mediaUrl,
-        normalizedUrl: null,
-        signedUrl: null,
+        // Note: URLs omitted from response for security
         downloadOk: false,
         downloadStatus: null,
         downloadSize: null,
@@ -193,34 +196,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Step 1: Normalize URL
         console.log("[DEBUG] Step 1: Normalizing URL...");
         const objectStorageService = new ObjectStorageService();
-        result.normalizedUrl = objectStorageService.normalizeObjectEntityPath(post.mediaUrl);
-        console.log("[DEBUG] Normalized URL:", result.normalizedUrl);
+        const normalizedUrl = objectStorageService.normalizeObjectEntityPath(post.mediaUrl);
+        console.log("[DEBUG] Normalized URL:", normalizedUrl);
         
         // Step 2: Sign URL if it's an object storage path
-        if (result.normalizedUrl.startsWith("/objects/")) {
+        let urlToDownload: string;
+        if (normalizedUrl.startsWith("/objects/")) {
           console.log("[DEBUG] Step 2: Signing URL...");
-          const file = await objectStorageService.getObjectEntityFile(result.normalizedUrl);
+          const file = await objectStorageService.getObjectEntityFile(normalizedUrl);
           const metadata = await file.getMetadata();
           const bucketName = file.bucket.name;
           const objectName = file.name;
           
           const { signObjectURL } = await import("./objectStorage");
-          result.signedUrl = await signObjectURL({
+          const signedUrl = await signObjectURL({
             bucketName,
             objectName,
             method: "GET",
             ttlSec: 900,
           });
-          console.log("[DEBUG] Signed URL generated (first 100 chars):", result.signedUrl.substring(0, 100));
+          console.log("[DEBUG] Signed URL generated (first 100 chars):", signedUrl.substring(0, 100));
+          
+          // Use signedUrl for download but don't expose in response
+          urlToDownload = signedUrl;
         } else {
-          result.signedUrl = result.normalizedUrl;
           console.log("[DEBUG] URL doesn't need signing, using as-is");
+          urlToDownload = normalizedUrl;
         }
         
         // Step 3: Download image
         console.log("[DEBUG] Step 3: Downloading image...");
         const axios = await import("axios");
-        const imageResponse = await axios.default.get(result.signedUrl, {
+        const imageResponse = await axios.default.get(urlToDownload, {
           responseType: "arraybuffer",
           timeout: 30000,
         });
