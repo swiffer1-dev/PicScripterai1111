@@ -7,6 +7,7 @@ import { ensureValidToken } from "./utils/token-refresh";
 import { trackEvent } from "./utils/analytics";
 import type { PublishJobData, EngagementJobData } from "./worker-queue";
 import { engagementQueue } from "./worker-queue";
+import { ObjectStorageService } from "./objectStorage";
 
 // Redis connection
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -44,12 +45,33 @@ const worker = new Worker<PublishJobData>(
       // Ensure token is valid (refresh if needed)
       const accessToken = await ensureValidToken(connectionRecord);
       
+      // Convert object storage paths to signed URLs
+      let resolvedMediaUrl = mediaUrl;
+      if (mediaUrl && mediaUrl.startsWith("/objects/")) {
+        try {
+          const objectStorageService = new ObjectStorageService();
+          const file = await objectStorageService.getObjectEntityFile(mediaUrl);
+          
+          // Generate signed URL for GET request (valid for 15 minutes)
+          const [signedUrl] = await file.getSignedUrl({
+            action: "read",
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+          });
+          
+          resolvedMediaUrl = signedUrl;
+          console.log(`Converted object storage path to signed URL for ${platform}`);
+        } catch (error: any) {
+          console.error(`Failed to generate signed URL for media: ${error.message}`);
+          throw new Error(`Failed to access media file: ${error.message}`);
+        }
+      }
+      
       // Publish to platform
       const result = await publishToPlatform(
         platform,
         accessToken,
         caption,
-        mediaUrl,
+        resolvedMediaUrl,
         mediaType,
         options
       );
