@@ -16,6 +16,7 @@ import PinterestAnalytics from "@/pages/analytics/Pinterest";
 import ShopifyAnalytics from "@/pages/analytics/Shopify";
 import EtsyAnalytics from "@/pages/analytics/Etsy";
 import SquarespaceAnalytics from "@/pages/analytics/Squarespace";
+import InsightsPage from "@/pages/analytics/Insights";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 
@@ -50,6 +51,9 @@ function Router() {
       </Route>
       <Route path="/drafts">
         {() => <ProtectedRoute component={Drafts} />}
+      </Route>
+      <Route path="/analytics/insights">
+        {() => <ProtectedRoute component={InsightsPage} />}
       </Route>
       {import.meta.env.VITE_METRICS_ENGAGEMENT === "1" && (
         <Route path="/analytics/twitter">
