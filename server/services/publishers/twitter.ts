@@ -54,6 +54,7 @@ async function uploadMediaToTwitter(
       filename,
       contentType,
     });
+    formData.append("media_category", "tweet_image");
 
     const uploadResponse = await axios.post(uploadEndpoint, formData, {
       headers: {
