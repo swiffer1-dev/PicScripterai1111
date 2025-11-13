@@ -7,7 +7,7 @@ import { ensureValidToken } from "./utils/token-refresh";
 import { trackEvent } from "./utils/analytics";
 import type { PublishJobData, EngagementJobData } from "./worker-queue";
 import { engagementQueue } from "./worker-queue";
-import { ObjectStorageService } from "./objectStorage";
+import { ObjectStorageService, parseObjectPath, signObjectURL } from "./objectStorage";
 
 // Redis connection
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -52,10 +52,17 @@ const worker = new Worker<PublishJobData>(
           const objectStorageService = new ObjectStorageService();
           const file = await objectStorageService.getObjectEntityFile(mediaUrl);
           
-          // Generate signed URL for GET request (valid for 15 minutes)
-          const [signedUrl] = await file.getSignedUrl({
-            action: "read",
-            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+          // Get bucket and object names from the file
+          const metadata = await file.getMetadata();
+          const bucketName = file.bucket.name;
+          const objectName = file.name;
+          
+          // Generate signed URL using Replit sidecar (valid for 15 minutes)
+          const signedUrl = await signObjectURL({
+            bucketName,
+            objectName,
+            method: "GET",
+            ttlSec: 900, // 15 minutes
           });
           
           resolvedMediaUrl = signedUrl;
