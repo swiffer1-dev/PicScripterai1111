@@ -145,6 +145,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // DEBUG: X Media Upload Test Endpoint
+  app.post("/api/debug/x-media-test", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { postId } = req.body;
+      
+      if (!postId) {
+        return res.status(400).json({ error: "postId is required" });
+      }
+      
+      console.log("[DEBUG] Starting X media upload test for post:", postId);
+      
+      // Get post
+      const post = await storage.getPost(postId);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (!post.mediaUrl) {
+        return res.status(400).json({ error: "Post has no media URL" });
+      }
+      
+      console.log("[DEBUG] Post media URL:", post.mediaUrl);
+      
+      // Get Twitter connection
+      const connection = await storage.getConnection(req.userId!, 'twitter');
+      if (!connection) {
+        return res.status(400).json({ error: "No Twitter connection found" });
+      }
+      
+      // Decrypt access token
+      const accessToken = decryptToken(connection.accessTokenEnc);
+      
+      const result: any = {
+        originalUrl: post.mediaUrl,
+        normalizedUrl: null,
+        signedUrl: null,
+        downloadOk: false,
+        downloadStatus: null,
+        downloadSize: null,
+        mediaUploadOk: false,
+        mediaId: null,
+        mediaUploadError: null,
+      };
+      
+      try {
+        // Step 1: Normalize URL
+        console.log("[DEBUG] Step 1: Normalizing URL...");
+        const objectStorageService = new ObjectStorageService();
+        result.normalizedUrl = objectStorageService.normalizeObjectEntityPath(post.mediaUrl);
+        console.log("[DEBUG] Normalized URL:", result.normalizedUrl);
+        
+        // Step 2: Sign URL if it's an object storage path
+        if (result.normalizedUrl.startsWith("/objects/")) {
+          console.log("[DEBUG] Step 2: Signing URL...");
+          const file = await objectStorageService.getObjectEntityFile(result.normalizedUrl);
+          const metadata = await file.getMetadata();
+          const bucketName = file.bucket.name;
+          const objectName = file.name;
+          
+          const { signObjectURL } = await import("./objectStorage");
+          result.signedUrl = await signObjectURL({
+            bucketName,
+            objectName,
+            method: "GET",
+            ttlSec: 900,
+          });
+          console.log("[DEBUG] Signed URL generated (first 100 chars):", result.signedUrl.substring(0, 100));
+        } else {
+          result.signedUrl = result.normalizedUrl;
+          console.log("[DEBUG] URL doesn't need signing, using as-is");
+        }
+        
+        // Step 3: Download image
+        console.log("[DEBUG] Step 3: Downloading image...");
+        const axios = await import("axios");
+        const imageResponse = await axios.default.get(result.signedUrl, {
+          responseType: "arraybuffer",
+          timeout: 30000,
+        });
+        
+        result.downloadOk = true;
+        result.downloadStatus = imageResponse.status;
+        result.downloadSize = Buffer.from(imageResponse.data).length;
+        console.log("[DEBUG] Download successful - Status:", result.downloadStatus, "Size:", result.downloadSize);
+        
+        // Step 4: Upload to Twitter
+        console.log("[DEBUG] Step 4: Uploading to Twitter...");
+        const { publishToTwitter } = await import("./services/publishers/twitter");
+        const FormData = (await import("form-data")).default;
+        
+        const imageBuffer = Buffer.from(imageResponse.data);
+        const contentType = imageResponse.headers["content-type"] || "image/jpeg";
+        const ext = contentType.split("/")[1] || "jpg";
+        const filename = `image.${ext}`;
+        
+        const formData = new FormData();
+        formData.append("media", imageBuffer, {
+          filename,
+          contentType,
+        });
+        
+        const uploadEndpoint = "https://api.twitter.com/2/media/upload";
+        const uploadResponse = await axios.default.post(uploadEndpoint, formData, {
+          headers: {
+            ...formData.getHeaders(),
+            Authorization: `Bearer ${accessToken}`,
+          },
+          timeout: 60000,
+        });
+        
+        const mediaId = uploadResponse.data.data?.id || uploadResponse.data.media_id_string;
+        if (mediaId) {
+          result.mediaUploadOk = true;
+          result.mediaId = mediaId;
+          console.log("[DEBUG] ✓ Media upload successful - Media ID:", mediaId);
+        } else {
+          result.mediaUploadError = "No media ID in response";
+          console.log("[DEBUG] ✗ No media ID in response:", uploadResponse.data);
+        }
+        
+      } catch (error: any) {
+        result.mediaUploadError = error.message;
+        console.error("[DEBUG] Error during test:", error);
+        
+        if (error.response) {
+          result.mediaUploadError = `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
+        }
+      }
+      
+      console.log("[DEBUG] Test complete. Result:", result);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("[DEBUG] Fatal error in debug endpoint:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Metrics middleware - track all requests
   app.use((req, res, next) => {
     metrics.requests.total++;

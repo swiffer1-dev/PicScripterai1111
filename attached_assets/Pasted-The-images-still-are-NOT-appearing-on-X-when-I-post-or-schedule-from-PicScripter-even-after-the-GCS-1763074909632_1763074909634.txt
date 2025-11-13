@@ -1,0 +1,89 @@
+The images still are NOT appearing on X when I post or schedule from PicScripter, even after the GCS URL normalization fix.
+
+Right now it keeps saying it's fixed, but there is still no media on the tweet.
+
+I need you to stop guessing and instead add proper logging + a small debug endpoint so we can see where the pipeline is failing.
+
+Please do the following:
+
+1) Add detailed logging around the X media upload flow
+
+Wherever the X media upload logic lives (the helper that should:
+  - take an image URL or object key,
+  - sign it,
+  - download it,
+  - upload to X,
+  - return media_id),
+
+add logs for each step:
+
+- Log the original image reference (URL or object key) and the normalized path.
+- Log the final signed URL you are using to download the image (DO NOT log secrets).
+- After you fetch the signed URL:
+  - Log the HTTP status and content-length (or buffer length).
+  - If the download fails, log that clearly and do NOT pretend to have worked.
+- Before calling X’s media upload API:
+  - Log that you're starting media upload for that post and user.
+- After the X media upload call:
+  - If success: log "X media upload success" and the media_id.
+  - If error: log the status code + response body (sanitized) so we can see WHY X refused it.
+
+2) Confirm you're actually sending BYTES to X, not just a URL
+
+In the code that calls the X media upload API, verify:
+- You are sending the binary data (Buffer/Uint8Array) of the image as required by X.
+- You are NOT just passing the GCS URL to X and expecting them to fetch it.
+
+If we are still passing a URL instead of bytes anywhere, fix that so we always upload the actual file content.
+
+3) Confirm the tweet creation actually uses media_id
+
+In the code that creates the tweet (the same one that currently works for text-only):
+- Add a log of the payload you send to X (without secrets), specifically:
+  - the `text` field
+  - the `media` or `media_ids` field.
+
+We need to prove that:
+- When an image exists, you include media_id(s) in the payload.
+- When no image exists, it's text-only (as today).
+
+4) Add a debug-only endpoint to test ONE post end-to-end
+
+Create a temporary backend route like:
+
+  POST /api/debug/x-media-test
+  body: { postId: string }
+
+Flow:
+- For this postId:
+  - Resolve its image reference.
+  - Go through the EXACT same logic as the worker:
+    - Normalize URL
+    - Sign it
+    - Download it
+    - Upload to X media endpoint
+  - Return JSON:
+    {
+      normalizedUrl,
+      signedUrl,
+      downloadOk,
+      downloadStatus,
+      downloadSize,
+      mediaUploadOk,
+      mediaId,
+      mediaUploadError
+    }
+
+This endpoint should NOT actually create a tweet, only upload media and return the result.
+
+5) Acceptance criteria (please verify these explicitly)
+
+- When I call /api/debug/x-media-test for a post with an image:
+  - I see downloadOk = true and a non-zero downloadSize.
+  - I see mediaUploadOk = true and a real mediaId from X.
+- When I "Post Now" to X from the app with an image:
+  - The logs show a successful media upload with a mediaId.
+  - The logs show the tweet create call includes that mediaId.
+  - The resulting tweet on X includes the image.
+
+If any of these steps fail, tell me which one, with the logged HTTP status and error message, instead of just saying "fixed".

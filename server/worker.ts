@@ -48,12 +48,18 @@ const worker = new Worker<PublishJobData>(
       // Convert object storage paths to signed URLs
       let resolvedMediaUrl = mediaUrl;
       if (mediaUrl) {
+        console.log(`[WORKER] Processing media URL for ${platform}`);
+        console.log(`[WORKER] Original media URL (first 100 chars):`, mediaUrl.substring(0, 100));
+        
         // Normalize storage.googleapis.com URLs to /objects/ paths first
         const objectStorageService = new ObjectStorageService();
         const normalizedPath = objectStorageService.normalizeObjectEntityPath(mediaUrl);
         
+        console.log(`[WORKER] Normalized path:`, normalizedPath);
+        
         if (normalizedPath.startsWith("/objects/")) {
           try {
+            console.log(`[WORKER] Getting object entity file...`);
             const file = await objectStorageService.getObjectEntityFile(normalizedPath);
             
             // Get bucket and object names from the file
@@ -61,7 +67,10 @@ const worker = new Worker<PublishJobData>(
             const bucketName = file.bucket.name;
             const objectName = file.name;
             
+            console.log(`[WORKER] Bucket:`, bucketName, `Object:`, objectName);
+            
             // Generate signed URL using Replit sidecar (valid for 15 minutes)
+            console.log(`[WORKER] Generating signed URL...`);
             const signedUrl = await signObjectURL({
               bucketName,
               objectName,
@@ -70,12 +79,17 @@ const worker = new Worker<PublishJobData>(
             });
             
             resolvedMediaUrl = signedUrl;
-            console.log(`Converted object storage path to signed URL for ${platform}`);
+            console.log(`[WORKER] ✓ Generated signed URL (first 100 chars):`, signedUrl.substring(0, 100));
           } catch (error: any) {
-            console.error(`Failed to generate signed URL for media: ${error.message}`);
+            console.error(`[WORKER] ✗ Failed to generate signed URL:`, error.message);
+            console.error(`[WORKER] Error stack:`, error.stack);
             throw new Error(`Failed to access media file: ${error.message}`);
           }
+        } else {
+          console.log(`[WORKER] Path does not start with /objects/, using as-is`);
         }
+      } else {
+        console.log(`[WORKER] No media URL provided for ${platform} post`);
       }
       
       // Publish to platform
