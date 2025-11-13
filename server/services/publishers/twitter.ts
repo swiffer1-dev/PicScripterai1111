@@ -21,8 +21,8 @@ async function uploadMediaToTwitter(
     const ext = contentType.split("/")[1] || "jpg";
     const filename = `image.${ext}`;
 
-    // Step 2: Upload to Twitter v1.1 media/upload endpoint
-    const uploadEndpoint = "https://upload.twitter.com/1.1/media/upload.json";
+    // Step 2: Upload to Twitter v2 media/upload endpoint (OAuth 2.0 compatible)
+    const uploadEndpoint = "https://api.twitter.com/2/media/upload";
     
     const formData = new FormData();
     formData.append("media", imageBuffer, {
@@ -37,7 +37,13 @@ async function uploadMediaToTwitter(
       },
     });
 
-    return uploadResponse.data.media_id_string;
+    // Twitter v2 API returns: { data: { id: "media_id" } }
+    const mediaId = uploadResponse.data.data?.id || uploadResponse.data.media_id_string;
+    if (!mediaId) {
+      throw new Error("No media ID returned from Twitter");
+    }
+    
+    return mediaId;
   } catch (error: any) {
     console.error("Twitter media upload error:", error.response?.data || error.message);
     throw new Error(`Failed to upload media to Twitter: ${error.response?.data?.errors?.[0]?.message || error.message}`);

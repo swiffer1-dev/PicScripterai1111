@@ -67,7 +67,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
         clientId: process.env.TWITTER_CLIENT_ID || "",
         clientSecret: process.env.TWITTER_CLIENT_SECRET || "",
         redirectUri,
-        scopes: ["tweet.read", "tweet.write", "users.read"],
+        scopes: ["tweet.read", "tweet.write", "users.read", "media.write"],
         authUrl: "https://twitter.com/i/oauth2/authorize",
         tokenUrl: "https://api.twitter.com/2/oauth2/token",
       });
