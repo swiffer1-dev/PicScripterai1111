@@ -47,29 +47,34 @@ const worker = new Worker<PublishJobData>(
       
       // Convert object storage paths to signed URLs
       let resolvedMediaUrl = mediaUrl;
-      if (mediaUrl && mediaUrl.startsWith("/objects/")) {
-        try {
-          const objectStorageService = new ObjectStorageService();
-          const file = await objectStorageService.getObjectEntityFile(mediaUrl);
-          
-          // Get bucket and object names from the file
-          const metadata = await file.getMetadata();
-          const bucketName = file.bucket.name;
-          const objectName = file.name;
-          
-          // Generate signed URL using Replit sidecar (valid for 15 minutes)
-          const signedUrl = await signObjectURL({
-            bucketName,
-            objectName,
-            method: "GET",
-            ttlSec: 900, // 15 minutes
-          });
-          
-          resolvedMediaUrl = signedUrl;
-          console.log(`Converted object storage path to signed URL for ${platform}`);
-        } catch (error: any) {
-          console.error(`Failed to generate signed URL for media: ${error.message}`);
-          throw new Error(`Failed to access media file: ${error.message}`);
+      if (mediaUrl) {
+        // Normalize storage.googleapis.com URLs to /objects/ paths first
+        const objectStorageService = new ObjectStorageService();
+        const normalizedPath = objectStorageService.normalizeObjectEntityPath(mediaUrl);
+        
+        if (normalizedPath.startsWith("/objects/")) {
+          try {
+            const file = await objectStorageService.getObjectEntityFile(normalizedPath);
+            
+            // Get bucket and object names from the file
+            const metadata = await file.getMetadata();
+            const bucketName = file.bucket.name;
+            const objectName = file.name;
+            
+            // Generate signed URL using Replit sidecar (valid for 15 minutes)
+            const signedUrl = await signObjectURL({
+              bucketName,
+              objectName,
+              method: "GET",
+              ttlSec: 900, // 15 minutes
+            });
+            
+            resolvedMediaUrl = signedUrl;
+            console.log(`Converted object storage path to signed URL for ${platform}`);
+          } catch (error: any) {
+            console.error(`Failed to generate signed URL for media: ${error.message}`);
+            throw new Error(`Failed to access media file: ${error.message}`);
+          }
         }
       }
       

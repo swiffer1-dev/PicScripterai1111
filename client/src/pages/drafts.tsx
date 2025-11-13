@@ -289,19 +289,18 @@ export default function Drafts() {
                           </div>
                         </div>
                         
-                        <div 
-                          className="text-sm text-foreground whitespace-pre-wrap"
-                          contentEditable={editingDraftId === draft.id}
-                          suppressContentEditableWarning
-                          onInput={(e) => {
-                            if (editingDraftId === draft.id) {
-                              setEditedCaption(e.currentTarget.textContent || "");
-                            }
-                          }}
-                          data-testid={editingDraftId === draft.id ? `textarea-edit-caption-${draft.id}` : undefined}
-                        >
-                          {editingDraftId === draft.id ? editedCaption : draft.caption}
-                        </div>
+                        {editingDraftId === draft.id ? (
+                          <Textarea
+                            value={editedCaption}
+                            onChange={(e) => setEditedCaption(e.target.value)}
+                            className="text-sm min-h-[100px] resize-none"
+                            data-testid={`textarea-edit-caption-${draft.id}`}
+                          />
+                        ) : (
+                          <div className="text-sm text-foreground whitespace-pre-wrap">
+                            {draft.caption}
+                          </div>
+                        )}
                       </div>
                       
                       {/* Right side: Action buttons */}
