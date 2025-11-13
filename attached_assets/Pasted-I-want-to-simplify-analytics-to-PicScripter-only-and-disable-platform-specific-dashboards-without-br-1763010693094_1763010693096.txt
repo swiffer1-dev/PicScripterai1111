@@ -1,0 +1,81 @@
+I want to simplify analytics to PicScripter-only and disable platform-specific dashboards without breaking anything.
+
+Goals
+- Keep minimal analytics that prove PicScripter’s value:
+  KPIs, Engagement over time, Tone performance, Best time to post, Top posts table.
+- Hide/disable Instagram/Pinterest/Shopify/Etsy/Squarespace/Twitter analytics pages and their adapter routes via feature flags (do NOT delete code).
+- Add a single page: /analytics/insights that reads existing PicScripter post data.
+
+Flags
+- In .env (server):
+  FEATURE_PER_PLATFORM_ANALYTICS=false
+- In client .env:
+  VITE_METRICS_ENGAGEMENT=0
+  VITE_ANALYTICS_INSTAGRAM=0
+  VITE_ANALYTICS_PINTEREST=0
+  VITE_ANALYTICS_SHOPIFY=0
+  VITE_ANALYTICS_ETSY=0
+  VITE_ANALYTICS_SQUARESPACE=0
+(Do not remove any code; just gate via flags. Update .env.example accordingly.)
+
+1) Server (read-only endpoints; SELECT only)
+- Create server/routes/analytics-insights.ts that exposes:
+  GET /api/insights/summary?days=7|30|90
+  GET /api/insights/engagement?days=7|30|90
+  GET /api/insights/tones?days=7|30|90
+  GET /api/insights/best-times?days=30   // heatmap buckets by weekday/hour
+
+Implementation details:
+- Only include posts created/scheduled/published by PicScripter (e.g., posts.source='picscripter' or existing flag in your schema; if not available, filter by post.owner = current user and job origin = scheduler).
+- summary returns:
+  {
+    kpis: {
+      postsCreated, published, failed,
+      avgEngagementPerPost, topTone
+    }
+  }
+- engagement returns array of { date, likes, replies, reposts, quotes }
+- tones returns array of { tone, count, avgEngagement }
+- best-times returns:
+  {
+    tz: <user tz string>,
+    buckets: [ { weekday: 0-6, hour: 0-23, posts: n, avgEngagement: m } ]
+  }
+- Guard with requireAuth and rate limit. No writes.
+
+- Register only this new router in server/index.ts:
+  import insightsRouter from "./routes/analytics-insights";
+  app.use("/api/insights", insightsRouter);
+
+- Ensure any previous “/api/analytics/<platform>” routers remain wrapped with FEATURE_PER_PLATFORM_ANALYTICS and thus 404 when false.
+
+2) Client (new page, wouter route)
+- Add client/src/services/insights.ts with functions:
+  getSummary(days), getEngagement(days), getTones(days), getBestTimes(days)
+- Create client/src/pages/analytics/Insights.tsx that shows:
+  • KPI row (Posts Created, Published, Failed, Avg Engagement, Top Tone)
+  • Engagement over time (AreaChart or LineChart)
+  • Tone performance (Pie/Bar)
+  • Best time to post heatmap (weekday × hour; color by avgEngagement; fallback message if empty)
+  • Top posts table: fetch from existing posts endpoint filtered to PicScripter-origin posts (or skip table if not available yet)
+
+- Add wouter route (always on):
+  <Route path="/analytics/insights">{() => <ProtectedRoute component={Insights} />}</Route>
+
+- In the nav/sidebar:
+  • Replace “Analytics → Twitter/Instagram/…” links with a single link:
+    <a href="/analytics/insights">Insights</a>
+  • Keep old links guarded by their VITE_ flags (but default them to 0 as above).
+
+3) Safety
+- Do not delete or edit existing per-platform files; just hide them via flags.
+- No schema changes. SELECT-only endpoints.
+- If some fields are missing, return zeros/empty arrays to keep UI stable.
+
+4) Acceptance
+- With flags off, /analytics/insights works and all per-platform pages are hidden.
+- KPIs and charts reflect only PicScripter-created posts.
+- Best-times heatmap renders when there’s enough data; otherwise shows a helpful empty-state.
+- No impact to posting/scheduling flows.
+
+Commit: feat(insights): lean PicScripter-only analytics + disable per-platform via flags

@@ -43,6 +43,7 @@ import pinterestAnalyticsRouter from "./routes/analytics-pinterest";
 import shopifyAnalyticsRouter from "./routes/analytics-shopify";
 import etsyAnalyticsRouter from "./routes/analytics-etsy";
 import squarespaceAnalyticsRouter from "./routes/analytics-squarespace";
+import insightsRouter from "./routes/analytics-insights";
 
 // Metrics tracking
 const metrics = {
@@ -2327,6 +2328,9 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       res.status(500).json({ error: error.message });
     }
   });
+
+  // PicScripter Insights analytics (always available)
+  app.use("/api/insights", insightsRouter);
 
   // Twitter-specific analytics (feature-flagged)
   if (process.env.METRICS_ENGAGEMENT === "1") {
