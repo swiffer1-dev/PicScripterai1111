@@ -20,19 +20,23 @@ import insightsService, {
   type InsightsSummary,
   type EngagementDataPoint,
   type TonePerformance,
+  type BestTimesData,
 } from "@/services/insights";
 import { cn } from "@/lib/utils";
+import type { Post } from "@shared/schema";
 
 const ranges = [7, 30, 90] as const;
 type Range = typeof ranges[number];
 
-interface Post {
-  id: number;
-  caption: string;
-  imageUrls?: string[];
-  createdAt: string;
-  status: string;
-}
+const platformLabels: Record<string, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  twitter: "Twitter",
+  linkedin: "LinkedIn",
+  pinterest: "Pinterest",
+  youtube: "YouTube",
+  facebook: "Facebook",
+};
 
 export default function InsightsPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -52,6 +56,11 @@ export default function InsightsPage() {
   const { data: tones, isLoading: tonesLoading } = useQuery<TonePerformance[]>({
     queryKey: ["/api/insights/tones", range],
     queryFn: () => insightsService.getTones(range),
+  });
+
+  const { data: bestTimes, isLoading: bestTimesLoading } = useQuery<BestTimesData>({
+    queryKey: ["/api/insights/best-times", 30],
+    queryFn: () => insightsService.getBestTimes(30),
   });
 
   const { data: posts } = useQuery<Post[]>({
@@ -233,7 +242,7 @@ export default function InsightsPage() {
           </Card>
 
           {/* Two-Column Row: Tone Performance + Top Posts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mb-8 lg:mb-10">
             {/* Tone Performance */}
             <Card className="border-border/40 shadow-lg rounded-2xl hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
               <CardHeader className="pb-6">
@@ -294,9 +303,9 @@ export default function InsightsPage() {
                         data-testid={`post-${post.id}`}
                       >
                         {/* Thumbnail */}
-                        {post.imageUrls && post.imageUrls.length > 0 ? (
+                        {post.mediaUrl || ((post as any).imageUrls && (post as any).imageUrls[0]) ? (
                           <img
-                            src={post.imageUrls[0]}
+                            src={post.mediaUrl || (post as any).imageUrls[0]}
                             alt="Post thumbnail"
                             className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-border/40"
                           />
@@ -306,19 +315,14 @@ export default function InsightsPage() {
                           </div>
                         )}
 
-                        {/* Caption & Engagement */}
+                        {/* Caption & Info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium line-clamp-2 mb-1.5">
                             {post.caption || "No caption"}
                           </p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              <span>0</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Repeat2 className="h-3 w-3" />
-                              <span>0</span>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded font-medium">
+                              {platformLabels[post.platform] || post.platform}
                             </span>
                             <span>•</span>
                             <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -338,6 +342,66 @@ export default function InsightsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Best Times to Post - Preserved from original */}
+          <Card className="border-border/40 shadow-lg rounded-2xl hover:shadow-xl transition-shadow duration-300">
+            <CardHeader className="pb-6">
+              <CardTitle className="text-xl font-semibold">Best Times to Post</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Optimal posting times based on engagement patterns
+              </p>
+            </CardHeader>
+            <CardContent>
+              {bestTimesLoading ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <div className="text-sm text-muted-foreground">Loading...</div>
+                </div>
+              ) : bestTimes && bestTimes.buckets.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="section-best-times">
+                  {bestTimes.buckets
+                    .sort((a, b) => b.avgEngagement - a.avgEngagement)
+                    .slice(0, 8)
+                    .map((bucket, idx) => {
+                      const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                      return (
+                        <div
+                          key={`${bucket.weekday}-${bucket.hour}`}
+                          className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 hover:border-primary/30 transition-colors"
+                          data-testid={`best-time-${idx}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">
+                                {weekdays[bucket.weekday]}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {bucket.hour}:00 • {bucket.posts} post{bucket.posts !== 1 ? "s" : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-lg text-primary">
+                              {bucket.avgEngagement.toFixed(1)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">engagement</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="h-[300px] flex flex-col items-center justify-center text-center px-4">
+                  <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <div className="text-sm text-muted-foreground">
+                    Not enough data yet. Publish more posts to see optimal posting times.
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
