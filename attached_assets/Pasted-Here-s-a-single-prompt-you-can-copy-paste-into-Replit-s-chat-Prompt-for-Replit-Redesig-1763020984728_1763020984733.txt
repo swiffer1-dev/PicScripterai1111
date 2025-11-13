@@ -1,0 +1,199 @@
+Here’s a single prompt you can copy-paste into Replit’s chat:
+
+---
+
+**Prompt for Replit: Redesign Insights Page UI (keep existing data & logic)**
+
+I want to redesign my **PicScripter Insights** page to look much more modern and focused, without changing how the data is loaded or how analytics are calculated.
+
+Please work in `client/src/pages/analytics/insights.tsx` (and small helper components if needed) and keep all existing data wiring/hooks intact. This is mostly a **layout & UI refactor**.
+
+### Overall goals
+
+* Keep it **PicScripter-only analytics** (no per-platform pages).
+* Make the page feel **clean, modern, and mobile-friendly**.
+* Use my existing design system: React + TypeScript + Tailwind + dark theme.
+* Do **not** break any current functionality, queries, or API calls.
+
+---
+
+### Layout I want
+
+Think of the page as three stacked bands:
+
+#### 1) Header + Time Range
+
+Top area:
+
+* Title: `PicScripter Insights`
+* Subtitle: `Track your content performance and optimize your posting strategy`
+* On the right, a segmented control for date range:
+
+  * `7 Days | 30 Days | 90 Days`
+  * Use the existing date-range state you already have; just wire it into this control.
+  * Styling:
+
+    * Active: `bg-purple-500 text-white`
+    * Inactive: `bg-slate-800 text-slate-300 border border-slate-700`
+    * Rounded pills (`rounded-full`, `px-3 py-1`, `text-sm`)
+
+Make this a small component like `<InsightsHeader />`.
+
+---
+
+#### 2) KPI Overview Row
+
+Below the header, show **5 compact cards** in a responsive grid:
+
+1. **Posts Created**
+2. **Published**
+3. **Failed**
+4. **Avg Engagement**
+5. **Top Tone**
+
+Each card:
+
+* Uses existing metrics you already compute.
+* Card style:
+
+  * `rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg p-4`
+  * On hover: subtle lift & glow
+    `hover:shadow-xl hover:border-purple-500/60 hover:-translate-y-[1px] transition`
+* Inside each card:
+
+  * Small label: `text-xs uppercase tracking-wide text-slate-400`
+  * Big value: `text-3xl font-semibold`
+  * Optional small helper text under the value (e.g. for future use like “vs last period”). You can leave the helper text empty for now or show something simple like `Last {rangeLabel}`.
+* Special case:
+
+  * For “Failed”, make the value red if > 0 (`text-red-400`) and neutral if 0.
+  * For “Top Tone”, show `None` if there’s no tone data.
+
+Use a responsive layout:
+
+* `grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4`
+* On mobile they stack; on desktop they show in one or two rows.
+
+Put these in a component like `<InsightsKpiRow />`.
+
+---
+
+#### 3) Engagement Over Time Chart (Hero)
+
+This is the main chart card.
+
+* Title: `Engagement Over Time`
+
+* Small helper subtitle under title:
+  `Shows likes, replies, reposts, and quotes for posts created in PicScripter.` (muted text)
+
+* Use the existing time-series data you already have; just update the visualization.
+
+* Use Recharts (or whatever you already use) for a **line or area chart** with:
+
+  * X-axis: dates
+  * Y-axis: count
+  * Series:
+
+    * Likes – blue
+    * Replies – green
+    * Reposts – purple
+    * Quotes – amber
+
+* Add:
+
+  * Legend with series names and colors.
+  * Tooltip: on hover, show date and each metric’s value.
+
+* Card styling: similar to KPI cards but larger:
+
+  ```ts
+  <div className="mt-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg p-6">
+    ...
+  </div>
+  ```
+
+Component name: `<InsightsEngagementChart />`.
+
+---
+
+#### 4) Bottom Row: Tone Performance & Top Posts
+
+Bottom area is a two-column layout on desktop, stacked on mobile:
+
+`grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6`
+
+##### 4a) Tone Performance Card (left)
+
+Card title: `Tone Performance`
+Subtitle: `Average engagement per post by tone`
+
+Use the tone analytics you already have. Display either:
+
+* A simple **horizontal bar chart** of average engagement by tone, or
+* A small list:
+
+  ```text
+  Playful        3.1 avg engagement
+  Professional   2.4
+  Bold           1.2
+  ```
+
+Choose whichever fits easiest with your current data. Key requirements:
+
+* Show tone name
+* Show a numeric metric (avg engagement or total engagement)
+* Sort best to worst (descending)
+
+Empty state: if no tone data, show:
+`No tone data yet. Create posts with different tones to see what performs best.`
+
+##### 4b) Top Posts Card (right)
+
+Card title: `Top Posts (Last 30 Days)`
+
+Use existing post analytics data to show a small **list of the top 3–5 posts** created in PicScripter:
+
+Each row:
+
+* Small thumbnail image (the post’s main image) on the left.
+* Caption snippet (first line or truncated text) next to it.
+* Under the snippet, show metrics in a muted row, for example:
+  `❤️ 5 · 💬 2 · 🔁 1 · 💬 Quotes 0`
+  (use only metrics you actually track; don’t invent new ones)
+* Optionally add a tiny “View” or “Open” button that navigates to the existing Posts page / detail view for that post.
+
+Empty state:
+`No top posts yet. Create and publish posts to see what performs best!`
+
+Component names: `<TonePerformanceCard />` and `<TopPostsCard />` used inside an `<InsightsBottomRow />`.
+
+---
+
+### Responsive behavior
+
+* Mobile: everything stacks vertically, full-width.
+* Desktop:
+
+  * Header & KPIs at top.
+  * Engagement chart full width.
+  * Bottom row: tone + top posts side-by-side on `xl` screens.
+
+Use Tailwind grid/flex for this and keep padding consistent (`px-4 md:px-6 lg:px-8` etc.)
+
+---
+
+### Constraints / Non-goals
+
+* **Do NOT** remove existing hooks, API calls, or data logic for insights.
+* **Do NOT** introduce platform-specific analytics pages here (Twitter/Etsy/etc). This page is **PicScripter-wide** only.
+* If any previous feature flags for insights exist, keep them working, but the UI inside the page should be updated to this new layout.
+* Keep type safety in TypeScript – reuse existing types where possible.
+
+---
+
+### Summary
+
+**Task:** Refactor `client/src/pages/analytics/insights.tsx` into a modular, modern, responsive page that matches the structure described above, using Tailwind + existing analytics data, without breaking existing functionality.
+
+Please show me the diff and explain any new components you create (names and file locations).
