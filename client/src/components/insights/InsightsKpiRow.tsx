@@ -48,7 +48,7 @@ export function InsightsKpiRow({ metrics, rangeLabel }: InsightsKpiRowProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6" data-testid="section-kpi-row">
       {kpis.map((kpi) => (
         <div
           key={kpi.label}

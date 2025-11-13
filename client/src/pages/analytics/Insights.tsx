@@ -44,12 +44,12 @@ export default function InsightsPage() {
     queryKey: ["/api/posts"],
   });
 
-  // Prepare data for components
+  // Map API response to KPI metrics view-model
   const kpiMetrics: KpiMetrics = {
-    totalPosts: summary?.kpis.totalPosts ?? 0,
-    publishedPosts: summary?.kpis.publishedPosts ?? 0,
-    failedPosts: summary?.kpis.failedPosts ?? 0,
-    avgEngagement: summary?.kpis.avgEngagement ?? 0,
+    totalPosts: summary?.kpis.postsCreated ?? 0,
+    publishedPosts: summary?.kpis.published ?? 0,
+    failedPosts: summary?.kpis.failed ?? 0,
+    avgEngagement: summary?.kpis.avgEngagementPerPost ?? 0,
     topTone: summary?.kpis.topTone ?? "",
   };
 
@@ -58,20 +58,30 @@ export default function InsightsPage() {
   const engagementData: EngagementDataPoint[] = engagement ?? [];
   const toneData = tones ?? [];
 
-  // Prepare top posts - filter, sort, and format
+  // Map posts to top posts view-model - filter, sort, and normalize
   const topPosts: TopPost[] = (posts ?? [])
     .filter((p) => p.status === "published")
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
-    .map((p) => ({
-      id: p.id,
-      caption: p.caption,
-      platform: p.platform,
-      mediaUrl: p.mediaUrl,
-      imageUrls: (p as any).imageUrls,
-      createdAt: p.createdAt,
-      metrics: (p as any).metrics,
-    }));
+    .map((p) => {
+      const postWithExtras = p as Post & { imageUrls?: string[] | null; metrics?: { likes: number; replies: number; reposts: number; quotes: number } };
+      return {
+        id: p.id,
+        caption: p.caption,
+        platform: p.platform,
+        mediaUrl: p.mediaUrl,
+        imageUrls: postWithExtras.imageUrls ?? null,
+        createdAt: new Date(p.createdAt).toISOString(),
+        metrics: postWithExtras.metrics 
+          ? {
+              likes: postWithExtras.metrics.likes ?? 0,
+              replies: postWithExtras.metrics.replies ?? 0,
+              reposts: postWithExtras.metrics.reposts ?? 0,
+              quotes: postWithExtras.metrics.quotes ?? 0,
+            }
+          : undefined,
+      };
+    });
 
   return (
     <div className="flex h-screen bg-background">
@@ -109,7 +119,7 @@ export default function InsightsPage() {
           />
 
           {/* Bottom Row: Tone Performance + Top Posts */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6" data-testid="section-bottom-row">
             <TonePerformanceCard tones={toneData} isLoading={tonesLoading} />
             <TopPostsCard posts={topPosts} />
           </div>

@@ -17,20 +17,20 @@ interface InsightsEngagementChartProps {
 
 export function InsightsEngagementChart({ data, isLoading }: InsightsEngagementChartProps) {
   return (
-    <div className="mt-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg p-6">
+    <div className="mt-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg p-6" data-testid="card-engagement-chart">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white">Engagement Over Time</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-xl font-semibold text-white" data-testid="heading-engagement-title">Engagement Over Time</h2>
+        <p className="text-sm text-slate-400 mt-1" data-testid="text-engagement-subtitle">
           Shows likes, replies, reposts, and quotes for posts created in PicScripter.
         </p>
       </div>
 
       {isLoading ? (
-        <div className="h-[400px] flex items-center justify-center">
+        <div className="h-[400px] flex items-center justify-center" data-testid="loading-engagement-chart">
           <div className="text-sm text-slate-400">Loading...</div>
         </div>
       ) : data.length > 0 ? (
-        <div className="h-[400px]" data-testid="chart-engagement">
+        <div className="h-[400px]" data-testid="chart-engagement-container">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
@@ -115,7 +115,7 @@ export function InsightsEngagementChart({ data, isLoading }: InsightsEngagementC
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="h-[400px] flex flex-col items-center justify-center text-center px-4">
+        <div className="h-[400px] flex flex-col items-center justify-center text-center px-4" data-testid="empty-engagement-state">
           <div className="text-slate-400 mb-2">No engagement data available yet</div>
           <div className="text-sm text-slate-500">
             Publish posts to Twitter/X to start tracking engagement metrics
