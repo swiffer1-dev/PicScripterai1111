@@ -60,6 +60,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { href: "/calendar", icon: CalendarIcon, label: "Calendar" },
     { href: "/connections", icon: Link2, label: "Connections" },
     { href: "/posts", icon: FileText, label: "Posts" },
+    { href: "/analytics/insights", icon: BarChart3, label: "Insights" },
     ...(import.meta.env.VITE_METRICS_ENGAGEMENT === "1" 
       ? [{ href: "/analytics/twitter", icon: BarChart3, label: "Twitter Analytics" }] 
       : []),
