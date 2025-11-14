@@ -995,6 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: post.id,
         status: post.status,
         scheduledAt: post.scheduledAt,
+        platform: post.platform,
         platforms: post.platforms || [post.platform],
         caption: post.caption.substring(0, 80) + (post.caption.length > 80 ? "..." : ""),
         mediaUrl: post.mediaUrl,
