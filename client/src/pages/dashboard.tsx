@@ -65,65 +65,6 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1.5">Manage your social media posts</p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-            <Card className="border-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Share2 className="h-4 w-4" />
-                  Connected Platforms
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold" data-testid="stat-connected-platforms">
-                  {connectionsLoading ? "-" : connectedPlatforms}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Scheduled Posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold" data-testid="stat-scheduled-posts">
-                  {postsLoading ? "-" : scheduledPosts}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Published Posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold" data-testid="stat-published-posts">
-                  {postsLoading ? "-" : publishedPosts}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Failed Posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-destructive" data-testid="stat-failed-posts">
-                  {postsLoading ? "-" : failedPosts}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Analytics Section */}
           <section className="space-y-6 mb-8">
             <PerformanceOverview />
