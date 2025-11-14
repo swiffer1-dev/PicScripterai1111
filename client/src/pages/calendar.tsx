@@ -1093,6 +1093,7 @@ export default function Calendar() {
                             // For multi-platform posts, show the first platform icon
                             const displayPlatform = (isMultiPlatform ? platforms[0]?.provider : post.platform) || 'instagram';
                             const platformKey = displayPlatform.toLowerCase();
+                            console.log('🔍 PLATFORM DEBUG:', { postId: post.id, displayPlatform, platformKey, hasIcon: !!platformIcons[platformKey] });
                             const Icon = platformIcons[platformKey] || SiInstagram;
                             const platformColor = platformColors[platformKey] || platformColors.instagram;
                             
