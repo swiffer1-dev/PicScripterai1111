@@ -1,0 +1,83 @@
+Here’s a clear prompt you can paste into Replit’s Agent to fix the wrong icons on the calendar:
+
+---
+
+**Prompt for Replit Agent**
+
+I have a bug on my **Calendar** page:
+Posts that come from **X (Twitter)** are being rendered with the **Instagram icon**. I need you to fix the platform icon logic so each scheduled post shows the **correct platform logo**.
+
+### What’s happening now
+
+* The posts visible on `/calendar` for **Nov 13** (and others) are X posts (published from my app to X).
+* On the calendar, they are shown with the **Instagram logo** instead of the X logo.
+* This means the component that renders the event tiles is either:
+
+  * hard-coding the Instagram icon, or
+  * using the wrong field to choose the platform, or
+  * mapping the platform string incorrectly (e.g., treating `"x"`/`"twitter"` as `"instagram"`).
+
+### What I want you to do
+
+1. **Find the calendar event component**
+
+   * Locate the React component that renders the individual day cells and the posts inside them on `/calendar`.
+   * This is likely in something like:
+
+     * `client/src/pages/calendar/*.tsx`
+     * or `client/src/components/calendar/*`
+   * Identify where the **platform icon** is chosen/rendered for each post/event.
+
+2. **Inspect the data for each event**
+
+   * Determine what field indicates the platform for each scheduled/published post (e.g. `platform`, `job.platform`, `connection.platform`, etc.).
+   * Confirm what values are used for:
+
+     * Instagram (e.g. `"instagram"`)
+     * X / Twitter (e.g. `"x"` or `"twitter"`)
+     * TikTok, LinkedIn, Pinterest, etc., if they are already supported.
+
+3. **Fix the icon mapping**
+
+   * Replace any hard-coded Instagram icon with a **platform-based mapping**.
+
+   * Implement a clean mapping function or object, for example:
+
+     ```ts
+     const PLATFORM_ICON_MAP: Record<string, JSX.Element> = {
+       instagram: <InstagramIcon />,
+       twitter: <XIcon />,   // or twitter
+       x: <XIcon />,
+       tiktok: <TiktokIcon />,
+       linkedin: <LinkedinIcon />,
+       pinterest: <PinterestIcon />,
+       youtube: <YoutubeIcon />,
+     };
+     ```
+
+   * Use the event’s platform value (normalized to lower case) to select the correct icon.
+
+   * Provide a simple, neutral fallback icon if the platform is unknown.
+
+4. **Do NOT change anything else**
+
+   * Do **not** modify scheduling logic, worker code, Redis, or backend endpoints.
+   * Do **not** change how events are loaded or saved.
+   * Only update the **UI logic** responsible for selecting and rendering the platform icon in the calendar tiles.
+
+5. **Show me the diff**
+
+   * After you implement the fix, show:
+
+     * The file(s) you changed
+     * The **before/after diff** of the icon-selection code
+   * Briefly explain:
+
+     * What field you used for the platform
+     * How you’re mapping it to icons now.
+
+The goal:
+
+* X posts show the **X/Twitter icon**
+* Instagram posts show the **Instagram icon**
+* Other platforms (TikTok, LinkedIn, Pinterest, YouTube, etc.) show their correct icons wherever supported.

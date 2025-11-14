@@ -36,23 +36,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScheduleDrawer } from "@/components/ScheduleDrawer";
 import { useCalendarData } from "@/hooks/useCalendarData";
 
-const platformIcons: Record<Platform, any> = {
+const platformIcons: Record<string, any> = {
   instagram: SiInstagram,
   facebook: SiFacebook,
   linkedin: SiLinkedin,
   pinterest: SiPinterest,
   tiktok: SiTiktok,
   twitter: SiX,
+  x: SiX,
   youtube: SiYoutube,
 };
 
-const platformColors: Record<Platform, string> = {
+const platformColors: Record<string, string> = {
   instagram: "bg-gradient-to-r from-purple-500 to-pink-500",
   facebook: "bg-blue-600",
   linkedin: "bg-blue-700",
   pinterest: "bg-red-600",
   tiktok: "bg-black",
   twitter: "bg-blue-400",
+  x: "bg-blue-400",
   youtube: "bg-red-600",
 };
 
@@ -1089,9 +1091,9 @@ export default function Calendar() {
                             const isMultiPlatform = Array.isArray(platforms) && platforms.length > 1;
                             
                             // For multi-platform posts, show the first platform icon
-                            const displayPlatform = (isMultiPlatform ? platforms[0].provider : post.platform) as Platform;
-                            const Icon = platformIcons[displayPlatform] || platformIcons.instagram;
-                            const platformColor = platformColors[displayPlatform] || platformColors.instagram;
+                            const displayPlatform = (isMultiPlatform ? platforms[0].provider : post.platform) as string;
+                            const Icon = platformIcons[displayPlatform.toLowerCase()];
+                            const platformColor = platformColors[displayPlatform.toLowerCase()];
                             
                             // Format time and date
                             const scheduledTime = post.scheduledAt ? format(new Date(post.scheduledAt), "h:mm a") : "";
