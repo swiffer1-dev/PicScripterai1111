@@ -1091,9 +1091,10 @@ export default function Calendar() {
                             const isMultiPlatform = Array.isArray(platforms) && platforms.length > 1;
                             
                             // For multi-platform posts, show the first platform icon
-                            const displayPlatform = (isMultiPlatform ? platforms[0].provider : post.platform) as string;
-                            const Icon = platformIcons[displayPlatform.toLowerCase()];
-                            const platformColor = platformColors[displayPlatform.toLowerCase()];
+                            const displayPlatform = (isMultiPlatform ? platforms[0]?.provider : post.platform) || 'instagram';
+                            const platformKey = displayPlatform.toLowerCase();
+                            const Icon = platformIcons[platformKey] || SiInstagram;
+                            const platformColor = platformColors[platformKey] || platformColors.instagram;
                             
                             // Format time and date
                             const scheduledTime = post.scheduledAt ? format(new Date(post.scheduledAt), "h:mm a") : "";
