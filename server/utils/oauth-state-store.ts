@@ -47,14 +47,16 @@ class OAuthStateStore {
   async set(key: string, state: OAuthState | EcommerceOAuthState, ttlSeconds = 600): Promise<void> {
     const value = JSON.stringify(state);
     
-    if (this.redis && this.isRedisAvailable) {
-      try {
-        await this.redis.setex(`oauth:state:${key}`, ttlSeconds, value);
-        return;
-      } catch (error) {
-        console.warn("Redis set failed, using fallback:", error);
-      }
-    }
+    // TEMPORARY: Skip Redis due to rate limit - use in-memory only
+    // TODO: Re-enable Redis after midnight UTC when limit resets
+    // if (this.redis && this.isRedisAvailable) {
+    //   try {
+    //     await this.redis.setex(`oauth:state:${key}`, ttlSeconds, value);
+    //     return;
+    //   } catch (error) {
+    //     console.warn("Redis set failed, using fallback:", error);
+    //   }
+    // }
     
     // Fallback to in-memory
     this.fallbackStore.set(key, value);
@@ -62,14 +64,16 @@ class OAuthStateStore {
   }
 
   async get(key: string): Promise<OAuthState | EcommerceOAuthState | null> {
-    if (this.redis && this.isRedisAvailable) {
-      try {
-        const value = await this.redis.get(`oauth:state:${key}`);
-        return value ? JSON.parse(value) : null;
-      } catch (error) {
-        console.warn("Redis get failed, using fallback:", error);
-      }
-    }
+    // TEMPORARY: Skip Redis due to rate limit - use in-memory only
+    // TODO: Re-enable Redis after midnight UTC when limit resets
+    // if (this.redis && this.isRedisAvailable) {
+    //   try {
+    //     const value = await this.redis.get(`oauth:state:${key}`);
+    //     return value ? JSON.parse(value) : null;
+    //   } catch (error) {
+    //     console.warn("Redis get failed, using fallback:", error);
+    //   }
+    // }
     
     // Fallback to in-memory
     const value = this.fallbackStore.get(key);
@@ -77,14 +81,16 @@ class OAuthStateStore {
   }
 
   async delete(key: string): Promise<void> {
-    if (this.redis && this.isRedisAvailable) {
-      try {
-        await this.redis.del(`oauth:state:${key}`);
-        return;
-      } catch (error) {
-        console.warn("Redis delete failed, using fallback:", error);
-      }
-    }
+    // TEMPORARY: Skip Redis due to rate limit - use in-memory only
+    // TODO: Re-enable Redis after midnight UTC when limit resets
+    // if (this.redis && this.isRedisAvailable) {
+    //   try {
+    //     await this.redis.del(`oauth:state:${key}`);
+    //     return;
+    //   } catch (error) {
+    //     console.warn("Redis delete failed, using fallback:", error);
+    //   }
+    // }
     
     // Fallback to in-memory
     this.fallbackStore.delete(key);
