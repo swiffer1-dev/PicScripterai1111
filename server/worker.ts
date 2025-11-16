@@ -9,6 +9,12 @@ import type { PublishJobData, EngagementJobData } from "./worker-queue";
 import { engagementQueue } from "./worker-queue";
 import { ObjectStorageService, parseObjectPath, signObjectURL } from "./objectStorage";
 
+// Check if worker should be disabled (e.g., during Redis quota exhaustion)
+if (process.env.DISABLE_WORKER === '1') {
+  console.log('[WORKER] Worker disabled via DISABLE_WORKER=1. Scheduled posts and engagement metrics will not process.');
+  process.exit(0);
+}
+
 // Redis connection
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const connection = new Redis(redisUrl, {
