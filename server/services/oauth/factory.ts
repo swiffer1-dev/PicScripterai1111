@@ -34,8 +34,8 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
   switch (platform) {
     case "instagram":
       return new InstagramOAuthProvider({
-        clientId: process.env.INSTAGRAM_CLIENT_ID || "",
-        clientSecret: process.env.INSTAGRAM_CLIENT_SECRET || "",
+        clientId: process.env.FACEBOOK_APP_ID || "",
+        clientSecret: process.env.FACEBOOK_APP_SECRET || "",
         redirectUri,
         scopes: ["instagram_basic", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement"],
         authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
