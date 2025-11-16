@@ -444,6 +444,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const platform = req.params.platform as Platform;
       
+      // Log every connect request to debug mobile issues
+      console.log(`[OAUTH-CONNECT] Platform: ${platform}, User-Agent: ${req.headers['user-agent']?.substring(0, 50)}...`);
+      
       // Check if platform is configured
       if (!isPlatformConfigured(platform)) {
         const error = getConfigurationError(platform);
@@ -471,17 +474,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate auth URL
       const authUrl = provider.generateAuthUrl(stateToken, code_challenge);
       
-      console.log(`[OAUTH] Platform: ${platform}, Generated URL: ${authUrl}`);
+      console.log(`[OAUTH-CONNECT] Redirecting to: ${authUrl.substring(0, 100)}...`);
       
       // Prevent mobile browser caching - critical for OAuth flow
       res.set({
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
         'Pragma': 'no-cache',
-        'Expires': '0'
+        'Expires': '0',
+        'Location': authUrl
       });
       
-      res.json({ redirectUrl: authUrl });
+      // Use 302 redirect instead of JSON to force mobile browsers to hit server first
+      res.redirect(302, authUrl);
     } catch (error: any) {
+      console.error(`[OAUTH-CONNECT] Error:`, error);
       res.status(400).json({ error: error.message });
     }
   });

@@ -73,26 +73,13 @@ export default function Connections() {
     queryKey: ["/api/ecommerce/connections"],
   });
 
-  const connectMutation = useMutation({
-    mutationFn: async (platform: Platform) => {
-      // Add cache-busting timestamp to prevent mobile browser from using cached redirect
-      const cacheBust = Date.now();
-      const response = await apiRequest("GET", `/api/connect/${platform}?_=${cacheBust}`);
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Connection failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const handleConnect = (platform: Platform) => {
+    // Use direct navigation instead of fetch to force mobile browsers to hit server
+    // This prevents mobile caching issues where browser uses old redirect URL
+    const cacheBust = Date.now();
+    console.log(`[OAUTH] Direct navigation to /api/connect/${platform}?_=${cacheBust}`);
+    window.location.assign(`/api/connect/${platform}?_=${cacheBust}`);
+  };
 
   const disconnectMutation = useMutation({
     mutationFn: async (platform: Platform) => {
@@ -323,21 +310,11 @@ export default function Connections() {
                       ) : (
                         <Button
                           className="w-full"
-                          onClick={() => connectMutation.mutate(platform)}
-                          disabled={connectMutation.isPending}
+                          onClick={() => handleConnect(platform)}
                           data-testid={`button-connect-${platform}`}
                         >
-                          {connectMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Connect
-                            </>
-                          )}
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Connect
                         </Button>
                       )}
                     </CardContent>
