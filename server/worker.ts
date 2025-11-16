@@ -1,3 +1,4 @@
+import "./config/env";
 import { Worker, Job } from "bullmq";
 import Redis from "ioredis";
 import axios from "axios";
