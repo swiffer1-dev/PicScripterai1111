@@ -45,6 +45,13 @@ const worker = new Worker<PublishJobData>(
       // Ensure token is valid (refresh if needed)
       const accessToken = await ensureValidToken(connectionRecord);
       
+      // Build platform-specific options with account ID
+      const platformOptions = {
+        ...options,
+        igUserId: platform === 'instagram' ? connectionRecord.accountId : undefined,
+        pageId: platform === 'facebook' ? connectionRecord.accountId : undefined,
+      };
+      
       // Convert object storage paths to signed URLs
       let resolvedMediaUrl = mediaUrl;
       if (mediaUrl) {
@@ -99,7 +106,7 @@ const worker = new Worker<PublishJobData>(
         caption,
         resolvedMediaUrl,
         mediaType,
-        options
+        platformOptions
       );
       
       // Update post with success

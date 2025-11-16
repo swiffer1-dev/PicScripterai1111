@@ -1,5 +1,5 @@
 import axios from "axios";
-import { OAuthProvider, OAuthTokenResponse } from "./base";
+import { OAuthProvider, OAuthTokenResponse, OAuthAccountInfo } from "./base";
 
 export class InstagramOAuthProvider extends OAuthProvider {
   async exchangeCodeForTokens(code: string, codeVerifier?: string): Promise<OAuthTokenResponse> {
@@ -48,5 +48,34 @@ export class InstagramOAuthProvider extends OAuthProvider {
   async revokeToken(accessToken: string): Promise<void> {
     // Instagram doesn't have a direct revoke endpoint
     // User must manually disconnect from Facebook settings
+  }
+  
+  async getAccountInfo(accessToken: string): Promise<OAuthAccountInfo | null> {
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account`
+      );
+      
+      if (response.data.data && response.data.data.length > 0) {
+        const page = response.data.data[0];
+        if (page.instagram_business_account) {
+          const igAccountId = page.instagram_business_account.id;
+          
+          const igResponse = await axios.get(
+            `https://graph.facebook.com/v18.0/${igAccountId}?access_token=${accessToken}&fields=username`
+          );
+          
+          return {
+            accountId: igAccountId,
+            accountHandle: igResponse.data.username,
+          };
+        }
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error("Instagram account info error:", error.response?.data || error.message);
+      return null;
+    }
   }
 }

@@ -12,7 +12,11 @@ export async function publishToInstagram(
   options?: InstagramPublishOptions
 ): Promise<{ id: string; url: string }> {
   try {
-    const igUserId = options?.igUserId || "me";
+    if (!options?.igUserId) {
+      throw new Error("Instagram Business Account ID is required. Please reconnect your Instagram account.");
+    }
+    
+    const igUserId = options.igUserId;
     
     if (!mediaUrl) {
       throw new Error("Instagram requires media (image or video)");

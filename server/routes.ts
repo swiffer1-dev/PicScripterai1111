@@ -518,6 +518,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? new Date(Date.now() + tokens.expiresIn * 1000)
         : undefined;
       
+      // Fetch account information if available
+      const accountInfo = await provider.getAccountInfo(tokens.accessToken);
+      
       // Check if connection already exists
       const existing = await storage.getConnection(state.userId, platform);
       
@@ -529,6 +532,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tokenType: tokens.tokenType,
           expiresAt,
           scopes: tokens.scope?.split(" ") || existing.scopes,
+          accountId: accountInfo?.accountId,
+          accountHandle: accountInfo?.accountHandle,
         });
       } else {
         // Create new connection
@@ -540,6 +545,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           refreshTokenEnc,
           tokenType: tokens.tokenType,
           expiresAt,
+          accountId: accountInfo?.accountId,
+          accountHandle: accountInfo?.accountHandle,
         });
         
         metrics.connections.total++;
@@ -670,13 +677,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Publish immediately to all platforms
       try {
         const accessToken = decryptToken(connection!.accessTokenEnc);
+        
+        // Build platform-specific options with account ID
+        const platformOptions = {
+          ...data.options,
+          igUserId: data.platform === 'instagram' ? connection!.accountId : undefined,
+          pageId: data.platform === 'facebook' ? connection!.accountId : undefined,
+        };
+        
         const result = await publishToPlatform(
           data.platform,
           accessToken,
           data.caption,
           normalizedMediaUrl,
           data.media?.type,
-          data.options
+          platformOptions
         );
         
         await storage.updatePost(post.id, {

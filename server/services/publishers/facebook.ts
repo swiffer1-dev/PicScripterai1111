@@ -10,7 +10,11 @@ export async function publishToFacebook(
   mediaUrl?: string,
   options?: FacebookPublishOptions
 ): Promise<{ id: string; url: string }> {
-  const pageId = options?.pageId || "me";
+  if (!options?.pageId) {
+    throw new Error("Facebook Page ID is required. Please reconnect your Facebook account.");
+  }
+  
+  const pageId = options.pageId;
   
   try {
     let endpoint = `https://graph.facebook.com/v18.0/${pageId}/feed`;

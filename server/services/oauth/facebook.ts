@@ -1,5 +1,5 @@
 import axios from "axios";
-import { OAuthProvider, OAuthTokenResponse } from "./base";
+import { OAuthProvider, OAuthTokenResponse, OAuthAccountInfo } from "./base";
 
 export class FacebookOAuthProvider extends OAuthProvider {
   async exchangeCodeForTokens(code: string, codeVerifier?: string): Promise<OAuthTokenResponse> {
@@ -54,5 +54,26 @@ export class FacebookOAuthProvider extends OAuthProvider {
   
   async revokeToken(accessToken: string): Promise<void> {
     await axios.delete(`https://graph.facebook.com/v18.0/me/permissions?access_token=${accessToken}`);
+  }
+  
+  async getAccountInfo(accessToken: string): Promise<OAuthAccountInfo | null> {
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name`
+      );
+      
+      if (response.data.data && response.data.data.length > 0) {
+        const page = response.data.data[0];
+        return {
+          accountId: page.id,
+          accountHandle: page.name,
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error("Facebook account info error:", error.response?.data || error.message);
+      return null;
+    }
   }
 }

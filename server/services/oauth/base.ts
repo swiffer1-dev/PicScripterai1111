@@ -18,6 +18,11 @@ export interface OAuthTokenResponse {
   scope?: string;
 }
 
+export interface OAuthAccountInfo {
+  accountId: string;
+  accountHandle?: string;
+}
+
 export interface OAuthState {
   userId: string;
   platform: Platform;
@@ -54,6 +59,10 @@ export abstract class OAuthProvider {
   abstract refreshTokens(refreshToken: string): Promise<OAuthTokenResponse>;
   
   abstract revokeToken(accessToken: string): Promise<void>;
+  
+  async getAccountInfo(accessToken: string): Promise<OAuthAccountInfo | null> {
+    return null;
+  }
 }
 
 export function generatePKCE() {
