@@ -520,10 +520,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? new Date(Date.now() + tokens.expiresIn * 1000)
         : undefined;
       
-      // Fetch account information if available
-      console.log(`[OAuth Callback] Fetching account info for ${platform}...`);
-      const accountInfo = await provider.getAccountInfo(tokens.accessToken);
-      console.log(`[OAuth Callback] Account info for ${platform}:`, accountInfo);
+      // Fetch account information if available (non-blocking, fails gracefully)
+      let accountInfo = null;
+      try {
+        console.log(`[OAuth Callback] Fetching account info for ${platform}...`);
+        accountInfo = await provider.getAccountInfo(tokens.accessToken);
+        console.log(`[OAuth Callback] Account info for ${platform}:`, accountInfo);
+      } catch (accountError: any) {
+        // Don't fail the entire OAuth flow if account info fetch fails
+        // This is especially important for Instagram/Facebook which need long-lived page tokens
+        console.warn(`[OAuth Callback] Failed to fetch account info for ${platform}:`, accountError.message);
+      }
       
       // Check if connection already exists
       const existing = await storage.getConnection(state.userId, platform);
