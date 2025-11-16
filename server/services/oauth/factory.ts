@@ -37,9 +37,9 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
         clientId: process.env.INSTAGRAM_CLIENT_ID || "",
         clientSecret: process.env.INSTAGRAM_CLIENT_SECRET || "",
         redirectUri,
-        scopes: ["instagram_basic", "instagram_content_publish"],
-        authUrl: "https://api.instagram.com/oauth/authorize",
-        tokenUrl: "https://api.instagram.com/oauth/access_token",
+        scopes: ["instagram_basic", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement"],
+        authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
+        tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
       });
       
     case "facebook":
