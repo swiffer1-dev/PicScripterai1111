@@ -37,6 +37,10 @@ export abstract class OAuthProvider {
     this.config = config;
   }
   
+  getRedirectUri(): string {
+    return this.config.redirectUri;
+  }
+  
   generateAuthUrl(state: string, codeChallenge?: string): string {
     const params = new URLSearchParams({
       client_id: this.config.clientId,

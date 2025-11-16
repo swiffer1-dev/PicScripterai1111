@@ -440,6 +440,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to show configured redirect URLs
+  app.get("/api/oauth/debug", requireAuth, (req, res) => {
+    const platforms: Platform[] = ["instagram", "facebook", "twitter", "linkedin", "pinterest", "youtube", "tiktok"];
+    const redirectUris: Record<string, string> = {};
+    
+    platforms.forEach(platform => {
+      try {
+        const provider = getOAuthProvider(platform);
+        redirectUris[platform] = provider.getRedirectUri();
+      } catch (e) {
+        // Skip platforms that aren't configured
+      }
+    });
+    
+    res.json({
+      baseUrl: process.env.OAUTH_CALLBACK_BASE_URL || process.env.CORS_ORIGIN || "http://localhost:5000",
+      redirectUris
+    });
+  });
+
   app.get("/api/connect/:platform", requireAuth, oauthRateLimiter, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
