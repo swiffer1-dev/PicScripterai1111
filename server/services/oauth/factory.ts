@@ -38,7 +38,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
         clientSecret: process.env.FACEBOOK_APP_SECRET || "",
         redirectUri,
         scopes: ["instagram_basic", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement"],
-        authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
+        authUrl: "https://facebook.com/v18.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
       });
       
@@ -48,7 +48,7 @@ export function getOAuthProvider(platform: Platform): OAuthProvider {
         clientSecret: process.env.FACEBOOK_APP_SECRET || "",
         redirectUri,
         scopes: ["pages_manage_posts", "pages_read_engagement"],
-        authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
+        authUrl: "https://facebook.com/v18.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
       });
       
