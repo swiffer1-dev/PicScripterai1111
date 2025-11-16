@@ -471,6 +471,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate auth URL
       const authUrl = provider.generateAuthUrl(stateToken, code_challenge);
       
+      console.log(`[OAUTH] Platform: ${platform}, Generated URL: ${authUrl}`);
+      
       res.json({ redirectUrl: authUrl });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
