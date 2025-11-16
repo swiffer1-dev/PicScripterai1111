@@ -3,13 +3,14 @@ import { OAuthProvider, OAuthTokenResponse } from "./base";
 
 export class InstagramOAuthProvider extends OAuthProvider {
   async exchangeCodeForTokens(code: string): Promise<OAuthTokenResponse> {
-    const response = await axios.post(this.config.tokenUrl, {
+    const params = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
-      code: code,
       redirect_uri: this.config.redirectUri,
-      grant_type: "authorization_code",
+      code: code,
     });
+    
+    const response = await axios.get(`${this.config.tokenUrl}?${params.toString()}`);
     
     return {
       accessToken: response.data.access_token,
