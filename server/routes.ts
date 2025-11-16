@@ -519,7 +519,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : undefined;
       
       // Fetch account information if available
+      console.log(`[OAuth Callback] Fetching account info for ${platform}...`);
       const accountInfo = await provider.getAccountInfo(tokens.accessToken);
+      console.log(`[OAuth Callback] Account info for ${platform}:`, accountInfo);
       
       // Check if connection already exists
       const existing = await storage.getConnection(state.userId, platform);
