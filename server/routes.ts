@@ -473,6 +473,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[OAUTH] Platform: ${platform}, Generated URL: ${authUrl}`);
       
+      // Prevent mobile browser caching - critical for OAuth flow
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
       res.json({ redirectUrl: authUrl });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1905,6 +1912,13 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
       
       // Generate auth URL
       const authUrl = provider.generateAuthUrl(stateToken, code_challenge);
+      
+      // Prevent mobile browser caching - critical for OAuth flow
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       
       res.json({ redirectUrl: authUrl });
     } catch (error: any) {

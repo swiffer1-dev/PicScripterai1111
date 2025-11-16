@@ -75,7 +75,9 @@ export default function Connections() {
 
   const connectMutation = useMutation({
     mutationFn: async (platform: Platform) => {
-      const response = await apiRequest("GET", `/api/connect/${platform}`);
+      // Add cache-busting timestamp to prevent mobile browser from using cached redirect
+      const cacheBust = Date.now();
+      const response = await apiRequest("GET", `/api/connect/${platform}?_=${cacheBust}`);
       return await response.json();
     },
     onSuccess: (data) => {
@@ -125,7 +127,12 @@ export default function Connections() {
         }
       }
       
-      const params = normalizedDomain ? `?shopDomain=${encodeURIComponent(normalizedDomain)}` : "";
+      // Add cache-busting timestamp to prevent mobile browser from using cached redirect
+      const cacheBust = Date.now();
+      const separator = normalizedDomain ? "&" : "?";
+      const params = normalizedDomain 
+        ? `?shopDomain=${encodeURIComponent(normalizedDomain)}${separator}_=${cacheBust}`
+        : `?_=${cacheBust}`;
       const response = await apiRequest("GET", `/api/ecommerce/connect/${platform}${params}`);
       return await response.json();
     },
