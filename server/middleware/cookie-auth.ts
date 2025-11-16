@@ -44,11 +44,13 @@ export function setAuthCookies(
 
   const isProduction = process.env.NODE_ENV === "production";
   
-  // Access token cookie (short-lived, SameSite=Lax for API calls)
+  // Access token cookie (short-lived, SameSite=None for mobile OAuth)
+  // Using SameSite=None to ensure cookie is sent on mobile OAuth redirects
+  // Mobile browsers treat OAuth navigation as cross-site, dropping Lax cookies
   const accessTokenOptions: CookieOptions = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
+    secure: true, // Required for SameSite=None
+    sameSite: "none",
     maxAge: ttlToMs(ACCESS_TOKEN_TTL),
     path: "/",
   };
@@ -79,8 +81,8 @@ export function clearAuthCookies(res: Response) {
   // Set access token to expire immediately
   res.cookie("access_token", "", {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: 0, // Expire immediately
   });
