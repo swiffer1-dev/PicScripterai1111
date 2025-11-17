@@ -4,10 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/sidebar";
 import { Share2, Clock, CheckCircle2, AlertCircle, Menu } from "lucide-react";
+import { SiInstagram, SiTiktok, SiX, SiLinkedin, SiPinterest, SiYoutube, SiFacebook } from "react-icons/si";
 import type { Connection, Post } from "@shared/schema";
 import { useState } from "react";
 import logoImage from "@assets/54001569-a0f4-4317-b11e-f801dff83e13_1762315521648.png";
 import PerformanceOverview from "@/components/PerformanceOverview";
+
+const platformIcons = {
+  instagram: SiInstagram,
+  tiktok: SiTiktok,
+  twitter: SiX,
+  linkedin: SiLinkedin,
+  pinterest: SiPinterest,
+  youtube: SiYoutube,
+  facebook: SiFacebook,
+};
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -104,33 +115,54 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {recentPosts.map((post) => (
-                    <div
-                      key={post.id}
-                      className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-                      data-testid={`post-item-${post.id}`}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium capitalize">{post.platform}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            post.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
-                            post.status === "queued" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
-                            post.status === "publishing" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
-                            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`} data-testid={`post-status-${post.id}`}>
-                            {post.status}
-                          </span>
+                  {recentPosts.map((post) => {
+                    const Icon = platformIcons[post.platform];
+                    
+                    return (
+                      <div
+                        key={post.id}
+                        className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                        data-testid={`post-item-${post.id}`}
+                      >
+                        {post.mediaUrl ? (
+                          <div className="relative flex-shrink-0">
+                            <img
+                              src={post.mediaUrl}
+                              alt="Post media"
+                              className="h-16 w-16 rounded-lg object-cover"
+                              data-testid={`post-media-${post.id}`}
+                            />
+                            <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-background border-2 border-background flex items-center justify-center shadow-sm">
+                              <Icon className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Icon className="h-6 w-6 text-primary" />
+                          </div>
+                        )}
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              post.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                              post.status === "queued" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                              post.status === "publishing" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
+                              "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }`} data-testid={`post-status-${post.id}`}>
+                              {post.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {post.scheduledAt
+                              ? `Scheduled for ${new Date(post.scheduledAt).toLocaleString()}`
+                              : `Created ${new Date(post.createdAt).toLocaleString()}`}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {post.scheduledAt
-                            ? `Scheduled for ${new Date(post.scheduledAt).toLocaleString()}`
-                            : `Created ${new Date(post.createdAt).toLocaleString()}`}
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
