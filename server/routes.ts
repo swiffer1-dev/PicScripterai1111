@@ -1415,15 +1415,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Delete the post
-      await storage.deletePost(id);
-      
+      // Log before deletion
       await storage.createJobLog({
         postId: id,
         level: "info",
         message: `Post deleted by user`,
         raw: {},
       });
+      
+      // Delete the post
+      await storage.deletePost(id);
       
       res.json({ success: true });
     } catch (error: any) {
