@@ -52,29 +52,44 @@ export class InstagramOAuthProvider extends OAuthProvider {
   
   async getAccountInfo(accessToken: string): Promise<OAuthAccountInfo | null> {
     try {
+      console.log('[Instagram OAuth] Fetching pages with IG business accounts...');
+      
+      // Request page access token AND instagram_business_account
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account`
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account,access_token`
       );
       
+      console.log(`[Instagram OAuth] Found ${response.data.data?.length || 0} pages`);
+      
       if (response.data.data && response.data.data.length > 0) {
-        const page = response.data.data[0];
-        if (page.instagram_business_account) {
-          const igAccountId = page.instagram_business_account.id;
-          
-          const igResponse = await axios.get(
-            `https://graph.facebook.com/v18.0/${igAccountId}?access_token=${accessToken}&fields=username`
-          );
-          
-          return {
-            accountId: igAccountId,
-            accountHandle: igResponse.data.username,
-          };
+        // Iterate through all pages to find one with an Instagram Business Account
+        for (const page of response.data.data) {
+          if (page.instagram_business_account && page.access_token) {
+            const igAccountId = page.instagram_business_account.id;
+            const pageAccessToken = page.access_token;
+            
+            console.log(`[Instagram OAuth] Found IG business account: ${igAccountId}`);
+            
+            // Use PAGE access token (not user token) to fetch IG account details
+            const igResponse = await axios.get(
+              `https://graph.facebook.com/v18.0/${igAccountId}?access_token=${pageAccessToken}&fields=username`
+            );
+            
+            console.log(`[Instagram OAuth] Successfully fetched IG username: ${igResponse.data.username}`);
+            
+            return {
+              accountId: igAccountId,
+              accountHandle: igResponse.data.username,
+            };
+          }
         }
+        
+        console.warn('[Instagram OAuth] No pages with Instagram Business Account found');
       }
       
       return null;
     } catch (error: any) {
-      console.error("Instagram account info error:", error.response?.data || error.message);
+      console.error("[Instagram OAuth] Account info error:", error.response?.data || error.message);
       return null;
     }
   }
