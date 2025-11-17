@@ -1188,9 +1188,7 @@ export default function Calendar() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm('Delete this scheduled post?')) {
-                                          deletePostMutation.mutate(post.id);
-                                        }
+                                        deletePostMutation.mutate(post.id);
                                       }}
                                       className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 rounded p-0.5 transition-all"
                                       title="Delete post"

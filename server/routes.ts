@@ -1376,6 +1376,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete scheduled post
+  app.delete("/api/schedule/:id", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get existing post
+      const existingPost = await storage.getPost(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      if (existingPost.userId !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Cancel job if it exists
+      if (existingPost.jobId) {
+        try {
+          const queueStatus = getQueueStatus();
+          if (queueStatus.available && publishQueue) {
+            const existingJob = await publishQueue.getJob(existingPost.jobId);
+            if (existingJob) {
+              const state = await existingJob.getState();
+              if (state === 'waiting' || state === 'delayed') {
+                await existingJob.remove();
+                await storage.createJobLog({
+                  postId: id,
+                  level: "info",
+                  message: `Cancelled job due to post deletion`,
+                  raw: { jobId: existingJob.id },
+                });
+              }
+            }
+          }
+        } catch (jobError: any) {
+          console.warn("Error cancelling job on delete:", jobError.message);
+        }
+      }
+      
+      // Delete the post
+      await storage.deletePost(id);
+      
+      await storage.createJobLog({
+        postId: id,
+        level: "info",
+        message: `Post deleted by user`,
+        raw: {},
+      });
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Duplicate scheduled post
   app.post("/api/schedule/:id/duplicate", requireAuth, async (req: AuthRequest, res) => {
     try {
