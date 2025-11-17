@@ -464,8 +464,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const platform = req.params.platform as Platform;
       
-      // Log every connect request to debug mobile issues
-      console.log(`[OAUTH-CONNECT] Platform: ${platform}, User-Agent: ${req.headers['user-agent']?.substring(0, 50)}...`);
+      // Debug logging - top of handler
+      console.log(`[CONNECT ${platform.toUpperCase()} HIT]`);
+      console.log(`  Path: ${req.path}`);
+      console.log(`  Cookie header: ${req.headers.cookie || 'NONE'}`);
+      console.log(`  User-Agent: ${req.headers['user-agent'] || 'NONE'}`);
       
       // Check if platform is configured
       if (!isPlatformConfigured(platform)) {
