@@ -308,6 +308,33 @@ export default function Calendar() {
     },
   });
 
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      return await apiRequest("DELETE", `/api/schedule/${postId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      // Invalidate all calendar queries (will match any month)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/calendar";
+        }
+      });
+      toast({
+        title: "Post deleted",
+        description: "Your scheduled post has been deleted",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -1103,7 +1130,7 @@ export default function Calendar() {
                             return (
                               <div
                                 key={post.id}
-                                className={`text-xs p-1 sm:p-2 rounded cursor-pointer transition-all hover:shadow-md border ${
+                                className={`group text-xs p-1 sm:p-2 rounded cursor-pointer transition-all hover:shadow-md border ${
                                   isPending 
                                     ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-600'
                                     : `bg-card border-border`
@@ -1154,9 +1181,24 @@ export default function Calendar() {
                                       <span className="font-medium text-foreground">{scheduledTime}</span>
                                     )}
                                   </div>
-                                  {isMultiPlatform && (
-                                    <span className="text-xs text-muted-foreground">+{platforms.length - 1}</span>
-                                  )}
+                                  <div className="flex items-center gap-1">
+                                    {isMultiPlatform && (
+                                      <span className="text-xs text-muted-foreground">+{platforms.length - 1}</span>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm('Delete this scheduled post?')) {
+                                          deletePostMutation.mutate(post.id);
+                                        }
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 rounded p-0.5 transition-all"
+                                      title="Delete post"
+                                      data-testid={`button-delete-post-${post.id}`}
+                                    >
+                                      <X className="h-3 w-3 text-destructive" />
+                                    </button>
+                                  </div>
                                 </div>
                                 
                                 {/* Tone badge if available */}
