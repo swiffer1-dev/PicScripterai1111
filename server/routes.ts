@@ -610,6 +610,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/refresh-connection/:platform", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const platform = req.params.platform as Platform;
+      
+      const connection = await storage.getConnection(req.userId!, platform);
+      if (!connection) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      
+      console.log(`[Refresh Connection] Refreshing ${platform} account info...`);
+      
+      // Decrypt access token
+      const accessToken = decryptToken(connection.accessTokenEnc);
+      
+      // Get OAuth provider
+      const provider = getOAuthProvider(platform);
+      
+      // Fetch account information
+      const accountInfo = await provider.getAccountInfo(accessToken);
+      
+      if (!accountInfo || !accountInfo.accountId) {
+        return res.status(400).json({ 
+          error: `No ${platform} Business Account found. Make sure you have a ${platform === 'instagram' ? 'Facebook Page linked to an Instagram Business/Creator account' : 'business account'}.` 
+        });
+      }
+      
+      console.log(`[Refresh Connection] Found account:`, accountInfo);
+      
+      // Update connection with account info
+      await storage.updateConnection(connection.id, {
+        accountId: accountInfo.accountId,
+        accountHandle: accountInfo.accountHandle,
+      });
+      
+      res.json({ 
+        message: "Connection refreshed successfully",
+        accountId: accountInfo.accountId,
+        accountHandle: accountInfo.accountHandle,
+      });
+    } catch (error: any) {
+      console.error(`[Refresh Connection] Error:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/disconnect/:platform", requireAuth, async (req: AuthRequest, res) => {
     try {
       const platform = req.params.platform as Platform;
