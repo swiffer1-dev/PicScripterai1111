@@ -53,17 +53,22 @@ export class InstagramOAuthProvider extends OAuthProvider {
   async getAccountInfo(accessToken: string): Promise<OAuthAccountInfo | null> {
     try {
       console.log('[Instagram OAuth] Fetching pages with IG business accounts...');
+      console.log('[Instagram OAuth] Access token (first 20 chars):', accessToken.substring(0, 20));
       
       // Request page access token AND instagram_business_account
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account,access_token`
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account,access_token,name`
       );
       
       console.log(`[Instagram OAuth] Found ${response.data.data?.length || 0} pages`);
+      console.log('[Instagram OAuth] Pages data:', JSON.stringify(response.data.data, null, 2));
       
       if (response.data.data && response.data.data.length > 0) {
         // Iterate through all pages to find one with an Instagram Business Account
         for (const page of response.data.data) {
+          console.log(`[Instagram OAuth] Checking page: ${page.name || 'Unnamed'}`);
+          console.log(`[Instagram OAuth] Page has IG account: ${!!page.instagram_business_account}`);
+          
           if (page.instagram_business_account && page.access_token) {
             const igAccountId = page.instagram_business_account.id;
             const pageAccessToken = page.access_token;
@@ -85,11 +90,20 @@ export class InstagramOAuthProvider extends OAuthProvider {
         }
         
         console.warn('[Instagram OAuth] No pages with Instagram Business Account found');
+        console.warn('[Instagram OAuth] This usually means:');
+        console.warn('[Instagram OAuth] 1. The Instagram account is not a Business/Creator account');
+        console.warn('[Instagram OAuth] 2. The Instagram account is not linked to the Facebook Page');
+        console.warn('[Instagram OAuth] 3. Permissions were not granted during authorization');
+      } else {
+        console.warn('[Instagram OAuth] No pages found at all - check if user manages any Facebook Pages');
       }
       
       return null;
     } catch (error: any) {
       console.error("[Instagram OAuth] Account info error:", error.response?.data || error.message);
+      if (error.response?.data) {
+        console.error("[Instagram OAuth] Full error response:", JSON.stringify(error.response.data, null, 2));
+      }
       return null;
     }
   }
