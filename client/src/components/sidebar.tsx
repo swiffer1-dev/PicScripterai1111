@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3, Instagram, PinIcon as Pinterest, ShoppingBag, ShoppingCart, Square } from "lucide-react";
+import { Home, Link2, FileText, Sparkles, LogOut, Sun, Moon, X, Calendar as CalendarIcon, Save, BarChart3, Instagram, PinIcon as Pinterest, ShoppingBag, ShoppingCart, Square, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -57,6 +57,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { href: "/", icon: Home, label: "Dashboard" },
     { href: "/ai-studio", icon: Sparkles, label: "Create" },
     { href: "/drafts", icon: Save, label: "Drafts" },
+    { href: "/batch-mode", icon: Layers, label: "Batch Mode" },
     { href: "/calendar", icon: CalendarIcon, label: "Calendar" },
     { href: "/connections", icon: Link2, label: "Connections" },
     { href: "/posts", icon: FileText, label: "Posts" },

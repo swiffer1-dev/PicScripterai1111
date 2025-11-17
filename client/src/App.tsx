@@ -10,6 +10,7 @@ import Posts from "@/pages/posts";
 import AIStudio from "@/pages/ai-studio";
 import Calendar from "@/pages/calendar";
 import Drafts from "@/pages/drafts";
+import BatchMode from "@/pages/batch-mode";
 import TwitterAnalytics from "@/pages/analytics/Twitter";
 import InstagramAnalytics from "@/pages/analytics/Instagram";
 import PinterestAnalytics from "@/pages/analytics/Pinterest";
@@ -51,6 +52,9 @@ function Router() {
       </Route>
       <Route path="/drafts">
         {() => <ProtectedRoute component={Drafts} />}
+      </Route>
+      <Route path="/batch-mode">
+        {() => <ProtectedRoute component={BatchMode} />}
       </Route>
       <Route path="/analytics/insights">
         {() => <ProtectedRoute component={InsightsPage} />}

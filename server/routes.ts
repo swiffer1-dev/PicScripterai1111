@@ -2967,6 +2967,272 @@ Return as JSON with: "primaryCategory" (string), "detectedObjects" (array of str
     }
   });
 
+  // Batch Mode endpoint
+  app.post("/api/batch", requireAuth, aiGenerationRateLimiter, async (req: AuthRequest, res) => {
+    try {
+      const schema = z.object({
+        category: z.enum(["real_estate", "food", "travel", "ecommerce", "fashion", "custom"]),
+        tone: z.string(),
+        items: z.array(z.object({
+          id: z.string(),
+          title: z.string().min(1),
+          details: z.string().min(1),
+          price: z.string().optional(),
+          location: z.string().optional(),
+          mediaUrls: z.array(z.string()),
+          platforms: z.array(z.enum(["instagram", "facebook", "pinterest", "twitter", "tiktok", "linkedin", "youtube"])),
+          action: z.enum(["description_only", "post_now", "schedule"]),
+          scheduledAt: z.string().optional(),
+        })).max(20),
+      });
+
+      const data = schema.parse(req.body);
+      
+      if (data.items.length === 0) {
+        return res.status(400).json({ error: "At least one item is required" });
+      }
+
+      if (data.items.length > 20) {
+        return res.status(400).json({ error: "Maximum 20 items per batch" });
+      }
+
+      // Process each item in the batch
+      const results = await Promise.allSettled(
+        data.items.map(async (item) => {
+          try {
+            // Build category-specific prompt
+            let categoryPrompt = '';
+            
+            switch (data.category) {
+              case 'real_estate':
+                categoryPrompt = `Create a compelling real estate listing description in ${data.tone} tone.
+                  Property: ${item.title}
+                  Details: ${item.details}
+                  ${item.location ? `Location: ${item.location}` : ''}
+                  ${item.price ? `Price: ${item.price}` : ''}
+                  
+                  Focus on:
+                  - Property features and amenities
+                  - Location benefits and lifestyle
+                  - Nearby schools, shopping, parks
+                  - Target audience: renters or buyers
+                  - Include a clear call-to-action (e.g., "DM for a private tour" or "Schedule a viewing today")
+                  
+                  Make it persuasive and professional.`;
+                break;
+                
+              case 'food':
+                categoryPrompt = `Create an appetizing food description in ${data.tone} tone.
+                  Dish: ${item.title}
+                  Details: ${item.details}
+                  ${item.price ? `Price: ${item.price}` : ''}
+                  
+                  Focus on:
+                  - Flavor profile and unique taste
+                  - Texture and visual appeal
+                  - Key ingredients
+                  - Make it mouth-watering and engaging
+                  
+                  Perfect for social media posting.`;
+                break;
+                
+              case 'travel':
+                categoryPrompt = `Create an inspiring travel destination description in ${data.tone} tone.
+                  Destination: ${item.title}
+                  Details: ${item.details}
+                  ${item.location ? `Location: ${item.location}` : ''}
+                  
+                  Focus on:
+                  - Scenery and visual beauty
+                  - Unique experiences and atmosphere
+                  - Reasons to visit
+                  - Create a sense of wanderlust
+                  - Optional: Include a call-to-action`;
+                break;
+                
+              case 'ecommerce':
+                categoryPrompt = `Create a sales-focused product description in ${data.tone} tone.
+                  Product: ${item.title}
+                  Details: ${item.details}
+                  ${item.price ? `Price: ${item.price}` : ''}
+                  
+                  Format:
+                  - 2-3 engaging paragraphs highlighting benefits
+                  - 3-5 bullet points with key features/benefits
+                  - Include one clear call-to-action
+                  
+                  Focus on benefits over features. Be persuasive.`;
+                break;
+                
+              case 'fashion':
+                categoryPrompt = `Create a stylish fashion product description in ${data.tone} tone.
+                  Item: ${item.title}
+                  Details: ${item.details}
+                  ${item.price ? `Price: ${item.price}` : ''}
+                  
+                  Focus on:
+                  - Style and aesthetic appeal
+                  - Fit, fabric, and comfort
+                  - Occasions to wear it
+                  - How to style it
+                  - Optional: Include a call-to-action`;
+                break;
+                
+              case 'custom':
+                categoryPrompt = `Create a marketing description in ${data.tone} tone.
+                  Product/Item: ${item.title}
+                  Details: ${item.details}
+                  ${item.price ? `Price: ${item.price}` : ''}
+                  ${item.location ? `Location: ${item.location}` : ''}
+                  
+                  Use the provided details as-is. Do not invent false information.`;
+                break;
+            }
+            
+            // Generate description using Gemini (without images for batch mode)
+            const { GoogleGenAI } = await import("@google/genai");
+            const apiKey = process.env.VITE_GEMINI_API_KEY;
+            
+            if (!apiKey) {
+              throw new Error("Gemini API key not configured");
+            }
+            
+            const ai = new GoogleGenAI({ apiKey });
+            const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: categoryPrompt,
+            });
+            
+            const description = response.text?.trim() || '';
+            
+            // Handle actions
+            if (item.action === 'description_only') {
+              // Store as draft
+              await storage.createPost({
+                userId: req.userId!,
+                platform: 'instagram', // Default platform for drafts
+                caption: description,
+                mediaType: undefined,
+                mediaUrl: undefined,
+                scheduledAt: undefined,
+                options: null,
+                status: 'draft',
+              });
+              
+              return {
+                id: item.id,
+                description,
+                status: 'success',
+              };
+            } else if (item.action === 'post_now') {
+              // Post immediately to selected platforms
+              for (const platform of item.platforms) {
+                const connection = await storage.getConnection(req.userId!, platform as Platform);
+                if (!connection) {
+                  console.warn(`No ${platform} connection for batch item ${item.id}`);
+                  continue;
+                }
+                
+                const post = await storage.createPost({
+                  userId: req.userId!,
+                  platform: platform as Platform,
+                  caption: description,
+                  mediaType: item.mediaUrls.length > 0 ? 'image' : undefined,
+                  mediaUrl: item.mediaUrls[0],
+                  scheduledAt: undefined,
+                  options: null,
+                  status: 'queued',
+                });
+                
+                // Add to publishing queue
+                if (publishQueue) {
+                  await publishQueue.add(`publish-${platform}`, {
+                    postId: post.id,
+                    platform: platform as Platform,
+                    userId: req.userId!,
+                    caption: description,
+                    mediaUrl: item.mediaUrls.length > 0 ? item.mediaUrls[0] : undefined,
+                    mediaType: item.mediaUrls.length > 0 ? 'image' : undefined,
+                    options: {},
+                  });
+                }
+              }
+              
+              return {
+                id: item.id,
+                description,
+                status: 'success',
+              };
+            } else if (item.action === 'schedule') {
+              // Schedule post
+              if (!item.scheduledAt) {
+                throw new Error('Scheduled date is required for schedule action');
+              }
+              
+              for (const platform of item.platforms) {
+                const connection = await storage.getConnection(req.userId!, platform as Platform);
+                if (!connection) {
+                  console.warn(`No ${platform} connection for batch item ${item.id}`);
+                  continue;
+                }
+                
+                await storage.createPost({
+                  userId: req.userId!,
+                  platform: platform as Platform,
+                  caption: description,
+                  mediaType: item.mediaUrls.length > 0 ? 'image' : undefined,
+                  mediaUrl: item.mediaUrls[0],
+                  scheduledAt: new Date(item.scheduledAt),
+                  options: null,
+                  status: 'scheduled_pending',
+                });
+              }
+              
+              return {
+                id: item.id,
+                description,
+                status: 'success',
+              };
+            }
+            
+            return {
+              id: item.id,
+              description,
+              status: 'success',
+            };
+          } catch (error: any) {
+            console.error(`Batch item ${item.id} generation error:`, error);
+            return {
+              id: item.id,
+              description: '',
+              status: 'error',
+              errorMessage: error.message || 'Generation failed',
+            };
+          }
+        })
+      );
+      
+      // Map results
+      const processedResults = results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          return {
+            id: data.items[index].id,
+            description: '',
+            status: 'error',
+            errorMessage: result.reason?.message || 'Unknown error',
+          };
+        }
+      });
+      
+      res.json({ results: processedResults });
+    } catch (error: any) {
+      console.error("Batch generation error:", error);
+      res.status(500).json({ error: error.message || 'Batch generation failed' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

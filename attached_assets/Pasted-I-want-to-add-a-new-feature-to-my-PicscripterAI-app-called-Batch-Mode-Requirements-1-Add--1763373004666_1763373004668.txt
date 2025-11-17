@@ -1,0 +1,82 @@
+I want to add a new feature to my PicscripterAI app called "Batch Mode."
+
+Requirements:
+
+1. Add a new page: client/src/pages/batch-mode.tsx
+2. UI Features:
+   - Category selector with these exact options:
+     ["real_estate", "food", "travel", "ecommerce", "fashion", "custom"]
+   - Tone selector (reuse existing tones system).
+   - A table where each row represents one product/post with these fields:
+        title (text)
+        details (textarea)
+        price (text, optional)
+        location (text, optional)
+        mediaUrls (comma-separated image URLs)
+        platforms (checkboxes: instagram, facebook, pinterest, twitter)
+        action (dropdown: description_only, post_now, schedule)
+        scheduledAt (datetime input, only visible when action = schedule)
+   - Button to add/remove product rows
+   - Button: "Generate Batch"
+   - Display generated descriptions inside the table once finished.
+
+3. Create a backend endpoint:
+   POST /api/batch
+   Input:
+      category: string
+      tone: string
+      items: array of:
+        id, title, details, price, location, mediaUrls[], platforms[], action, scheduledAt
+   Output:
+      results: array of { id, description, status, errorMessage? }
+
+4. Generation logic:
+   Use the same Gemini model already used for caption generation ("gemini-2.5-flash")
+   Use category-based prompting with these rules:
+
+   real_estate:
+      - Tone: use selected tone
+      - Audience: renters or buyers
+      - Emphasize property features, location benefits, lifestyle
+      - Must include a short CTA (DM for tour, schedule viewing, etc.)
+
+   food:
+      - Tone: use selected tone, appetizing language
+      - Emphasize flavor, texture, ingredients, unique taste
+      - Works as caption for social posting
+
+   travel:
+      - Tone: inspiring and descriptive
+      - Emphasize scenery, experience, atmosphere, reasons to visit
+      - CTA allowed but optional
+
+   ecommerce:
+      - Tone: sales-friendly, benefit-driven
+      - 2-3 paragraphs + 3-5 bullet benefits
+      - Include 1 short CTA
+
+   fashion:
+      - Tone: style-forward, confident
+      - Fit, look, occasion, how to style it
+      - CTA optional
+
+   custom:
+      - Tone: generic marketing tone
+      - Use details as provided, do not invent false info
+
+5. Action behavior:
+   - If action = "description_only": return description in response only
+   - If action = "post_now": call the same posting service used for immediate posting
+   - If action = "schedule": insert scheduled post using the existing scheduling / Redis worker
+
+6. Limits:
+   - Max rows per batch: 20
+   - If more than 20, return an error.
+
+7. Add navigation link:
+   - Label: "Batch Mode"
+   - Add to sidebar / menu
+
+8. The final output should store user-generated descriptions so they appear in Drafts.
+
+Do NOT break existing single-post generation. Add this feature alongside current functionality.
