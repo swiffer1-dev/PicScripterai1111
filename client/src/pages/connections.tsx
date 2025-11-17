@@ -81,27 +81,6 @@ export default function Connections() {
     window.location.assign(`/api/connect/${platform}?_=${cacheBust}`);
   };
 
-  const refreshConnectionMutation = useMutation({
-    mutationFn: async (platform: Platform) => {
-      const response = await apiRequest("POST", `/api/refresh-connection/${platform}`, {});
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
-      toast({
-        title: "Connection Refreshed",
-        description: `Successfully linked @${data.accountHandle}`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Refresh Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const disconnectMutation = useMutation({
     mutationFn: async (platform: Platform) => {
       return await apiRequest("POST", `/api/disconnect/${platform}`, {});
@@ -307,41 +286,6 @@ export default function Connections() {
                               @{connection.accountHandle}
                             </p>
                           )}
-                          
-                          {/* Warning for connections missing account details */}
-                          {!connection.accountId && (
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                              <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium mb-2">
-                                ⚠️ Connection incomplete
-                              </p>
-                              <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-3">
-                                {platform === 'instagram' 
-                                  ? "Missing Instagram Business Account. Make sure you have a Facebook Page linked to your Instagram Business/Creator account."
-                                  : "Account details not found. Click refresh to retry."}
-                              </p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-yellow-300 dark:border-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
-                                onClick={() => refreshConnectionMutation.mutate(platform)}
-                                disabled={refreshConnectionMutation.isPending}
-                                data-testid={`button-refresh-${platform}`}
-                              >
-                                {refreshConnectionMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                    Refreshing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <RefreshCw className="mr-2 h-3 w-3" />
-                                    Refresh Connection
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                          
                           <p className="text-xs text-muted-foreground">
                             Connected {new Date(connection.createdAt).toLocaleDateString()}
                           </p>

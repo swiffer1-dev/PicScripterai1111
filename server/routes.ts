@@ -556,16 +556,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? new Date(Date.now() + tokens.expiresIn * 1000)
         : undefined;
       
-      // Fetch account information if available (non-blocking, fails gracefully)
+      // Fetch account information - REQUIRED for Instagram
       let accountInfo = null;
       try {
         console.log(`[OAuth Callback] Fetching account info for ${platform}...`);
         accountInfo = await provider.getAccountInfo(tokens.accessToken);
         console.log(`[OAuth Callback] Account info for ${platform}:`, accountInfo);
       } catch (accountError: any) {
-        // Don't fail the entire OAuth flow if account info fetch fails
-        // This is especially important for Instagram/Facebook which need long-lived page tokens
-        console.warn(`[OAuth Callback] Failed to fetch account info for ${platform}:`, accountError.message);
+        console.error(`[OAuth Callback] Failed to fetch account info for ${platform}:`, accountError.message);
+      }
+      
+      // For Instagram, require account info to be present
+      if (platform === 'instagram' && (!accountInfo || !accountInfo.accountId)) {
+        const errorMsg = "Instagram Business Account not found. Make sure you have a Facebook Page linked to an Instagram Business or Creator account, and you've granted access to both during authorization.";
+        console.error(`[OAuth Callback] ${errorMsg}`);
+        const errorRedirect = getSafeRedirectUri(undefined, `/connections?error=${encodeURIComponent(errorMsg)}`);
+        return res.redirect(errorRedirect);
       }
       
       // Check if connection already exists
