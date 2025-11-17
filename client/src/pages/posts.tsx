@@ -170,13 +170,26 @@ export default function Posts() {
                       </Button>
                       
                       <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
-                          <Icon className="h-6 w-6 text-primary" />
-                        </div>
+                        {post.mediaUrl ? (
+                          <div className="relative flex-shrink-0">
+                            <img
+                              src={post.mediaUrl}
+                              alt="Post media"
+                              className="h-24 w-24 rounded-lg object-cover"
+                              data-testid={`post-media-${post.id}`}
+                            />
+                            <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background border-2 border-background flex items-center justify-center shadow-sm">
+                              <Icon className="h-4 w-4 text-primary" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-24 w-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Icon className="h-8 w-8 text-primary" />
+                          </div>
+                        )}
                         
                         <div className="flex-1 min-w-0 pr-8">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="text-sm font-medium capitalize">{post.platform}</span>
                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
                               post.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
                               post.status === "queued" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
@@ -202,12 +215,6 @@ export default function Posts() {
                           <p className="text-sm mb-2 line-clamp-3" data-testid={`post-caption-${post.id}`}>
                             {post.caption}
                           </p>
-                          
-                          {post.mediaUrl && (
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Media: {post.mediaType || "Unknown"}
-                            </p>
-                          )}
                           
                           <p className="text-xs text-muted-foreground">
                             {post.scheduledAt
