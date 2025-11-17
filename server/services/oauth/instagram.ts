@@ -55,47 +55,59 @@ export class InstagramOAuthProvider extends OAuthProvider {
       console.log('[Instagram OAuth] Fetching pages with IG business accounts...');
       console.log('[Instagram OAuth] Access token (first 20 chars):', accessToken.substring(0, 20));
       
-      // Request page access token AND instagram_business_account
-      const response = await axios.get(
-        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account,access_token,name`
+      // Request pages with both old and new Instagram field names
+      const pagesResponse = await axios.get(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=instagram_business_account,connected_instagram_account,access_token,name,id`
       );
       
-      console.log(`[Instagram OAuth] Found ${response.data.data?.length || 0} pages`);
-      console.log('[Instagram OAuth] Pages data:', JSON.stringify(response.data.data, null, 2));
+      console.log(`[Instagram OAuth] Found ${pagesResponse.data.data?.length || 0} pages`);
       
-      if (response.data.data && response.data.data.length > 0) {
-        // Iterate through all pages to find one with an Instagram Business Account
-        for (const page of response.data.data) {
-          console.log(`[Instagram OAuth] Checking page: ${page.name || 'Unnamed'}`);
-          console.log(`[Instagram OAuth] Page has IG account: ${!!page.instagram_business_account}`);
+      if (pagesResponse.data.data && pagesResponse.data.data.length > 0) {
+        // Iterate through all pages to find one with an Instagram account
+        for (const page of pagesResponse.data.data) {
+          console.log(`[Instagram OAuth] Checking page: ${page.name || 'Unnamed'} (ID: ${page.id})`);
           
-          if (page.instagram_business_account && page.access_token) {
-            const igAccountId = page.instagram_business_account.id;
-            const pageAccessToken = page.access_token;
-            
-            console.log(`[Instagram OAuth] Found IG business account: ${igAccountId}`);
-            
-            // Use PAGE access token (not user token) to fetch IG account details
-            const igResponse = await axios.get(
-              `https://graph.facebook.com/v18.0/${igAccountId}?access_token=${pageAccessToken}&fields=username`
+          if (!page.access_token) {
+            console.log(`[Instagram OAuth] Page ${page.name} has no access_token, skipping`);
+            continue;
+          }
+          
+          // Re-query the page with its own token to get detailed IG account info
+          // This is necessary because Meta now returns IG accounts under different fields
+          try {
+            const pageDetailResponse = await axios.get(
+              `https://graph.facebook.com/v18.0/${page.id}?access_token=${page.access_token}&fields=instagram_business_account{id,username},connected_instagram_account{id,username}`
             );
             
-            console.log(`[Instagram OAuth] Successfully fetched IG username: ${igResponse.data.username}`);
+            console.log(`[Instagram OAuth] Page ${page.name} detail:`, JSON.stringify(pageDetailResponse.data, null, 2));
             
-            return {
-              accountId: igAccountId,
-              accountHandle: igResponse.data.username,
-            };
+            // Check both field variants (instagram_business_account is older, connected_instagram_account is newer)
+            const igAccount = pageDetailResponse.data.instagram_business_account || pageDetailResponse.data.connected_instagram_account;
+            
+            if (igAccount && igAccount.id && igAccount.username) {
+              console.log(`[Instagram OAuth] ✓ Found Instagram account: @${igAccount.username} (ID: ${igAccount.id})`);
+              
+              return {
+                accountId: igAccount.id,
+                accountHandle: igAccount.username,
+              };
+            } else {
+              console.log(`[Instagram OAuth] Page ${page.name} has no Instagram account linked`);
+            }
+          } catch (pageError: any) {
+            console.error(`[Instagram OAuth] Error fetching details for page ${page.name}:`, pageError.response?.data || pageError.message);
           }
         }
         
-        console.warn('[Instagram OAuth] No pages with Instagram Business Account found');
-        console.warn('[Instagram OAuth] This usually means:');
-        console.warn('[Instagram OAuth] 1. The Instagram account is not a Business/Creator account');
-        console.warn('[Instagram OAuth] 2. The Instagram account is not linked to the Facebook Page');
-        console.warn('[Instagram OAuth] 3. Permissions were not granted during authorization');
+        console.error('[Instagram OAuth] ✗ No Instagram Business Account found across all pages');
+        console.error('[Instagram OAuth] Possible reasons:');
+        console.error('[Instagram OAuth] 1. Instagram account is not a Business/Creator account');
+        console.error('[Instagram OAuth] 2. Instagram account is not linked to any Facebook Page');
+        console.error('[Instagram OAuth] 3. Required permissions were not granted during authorization');
+        console.error('[Instagram OAuth] 4. The linked Instagram account is not accessible via the Graph API');
       } else {
-        console.warn('[Instagram OAuth] No pages found at all - check if user manages any Facebook Pages');
+        console.error('[Instagram OAuth] ✗ No Facebook Pages found');
+        console.error('[Instagram OAuth] User must manage at least one Facebook Page to connect Instagram');
       }
       
       return null;
