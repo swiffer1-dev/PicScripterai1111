@@ -1288,88 +1288,132 @@ export default function AIStudio() {
                 />
               </div>
 
-              <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-                <h2 className="text-lg font-semibold">Settings</h2>
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h2 className="text-lg font-semibold mb-4">Settings</h2>
                 
-                <CategorySelector
-                  selectedCategory={category}
-                  onCategoryChange={setCategory}
-                  isDisabled={isGenerating}
-                />
+                <div className="space-y-4">
+                  <CategorySelector
+                    selectedCategory={category}
+                    onCategoryChange={setCategory}
+                    isDisabled={isGenerating}
+                  />
 
-                {/* Real Estate Address Input */}
-                {category === Category.RealEstate && (
+                  {/* Real Estate Address Input */}
+                  {category === Category.RealEstate && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                        Property Address
+                      </label>
+                      <input
+                        type="text"
+                        value={propertyAddress}
+                        onChange={e => setPropertyAddress(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm"
+                        placeholder="Enter property address (e.g., 123 Main St, New York, NY 10001)"
+                        data-testid="input-property-address"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        AI will include nearby schools, shopping, parks, and amenities in the description
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <LanguageSelector
+                      selectedLanguage={language}
+                      onLanguageChange={setLanguage}
+                      isDisabled={isGenerating}
+                    />
+
+                    <div>
+                      <label htmlFor="tone-select" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                        Tone
+                      </label>
+                      <select
+                        id="tone-select"
+                        value={tone}
+                        onChange={e => setTone(e.target.value as Tone)}
+                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm"
+                        data-testid="select-tone"
+                      >
+                        <optgroup label="🤖 AI-Proof Tones">
+                          <option value="Authentic">Authentic</option>
+                          <option value="Conversational">Conversational</option>
+                          <option value="SEO Boosted">SEO Boosted</option>
+                        </optgroup>
+                        <optgroup label="Classic Tones">
+                          <option value="Professional">Professional</option>
+                          <option value="Casual">Casual</option>
+                          <option value="Luxury">Luxury</option>
+                          <option value="Playful">Playful</option>
+                          <option value="Motivational">Motivational</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6 pt-2">
+                    <label className="flex items-center cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={addHashtags}
+                        onChange={e => setAddHashtags(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary transition-transform group-hover:scale-110"
+                        data-testid="checkbox-hashtags"
+                      />
+                      <span className="ml-2 text-sm">Add Hashtags</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={addEmojis}
+                        onChange={e => setAddEmojis(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary transition-transform group-hover:scale-110"
+                        data-testid="checkbox-emojis"
+                      />
+                      <span className="ml-2 text-sm">Add Emojis</span>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
-                      Property Address
+                      Custom Instructions (Optional)
                     </label>
-                    <input
-                      type="text"
-                      value={propertyAddress}
-                      onChange={e => setPropertyAddress(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm"
-                      placeholder="Enter property address (e.g., 123 Main St, New York, NY 10001)"
-                      data-testid="input-property-address"
+                    <textarea
+                      value={customPrompt}
+                      onChange={e => setCustomPrompt(e.target.value)}
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm min-h-[80px]"
+                      placeholder="Add any custom instructions for the AI..."
+                      data-testid="textarea-custom-prompt"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      AI will include nearby schools, shopping, parks, and amenities in the description
-                    </p>
                   </div>
-                )}
 
-                <LanguageSelector
-                  selectedLanguage={language}
-                  onLanguageChange={setLanguage}
-                  isDisabled={isGenerating}
-                />
-
-                <StyleSettings
-                  tone={tone}
-                  onToneChange={setTone}
-                  addHashtags={addHashtags}
-                  onHashtagsChange={setAddHashtags}
-                  addEmojis={addEmojis}
-                  onEmojisChange={setAddEmojis}
-                />
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
-                    Custom Instructions (Optional)
-                  </label>
-                  <textarea
-                    value={customPrompt}
-                    onChange={e => setCustomPrompt(e.target.value)}
-                    className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm min-h-[80px]"
-                    placeholder="Add any custom instructions for the AI..."
-                    data-testid="textarea-custom-prompt"
-                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleGenerate}
+                        disabled={isGenerating || imageFiles.length === 0}
+                        className="w-full transition-all hover:scale-[1.02]"
+                        data-testid="button-generate"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span className="animate-pulse">Analyzing images & generating content...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="mr-2 h-4 w-4" />
+                            Generate Caption
+                          </>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>AI-powered caption generation with Human Authenticity Engine</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={handleGenerate}
-                      disabled={isGenerating || imageFiles.length === 0}
-                      className="w-full transition-all hover:scale-[1.02]"
-                      data-testid="button-generate"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          <span className="animate-pulse">Analyzing images & generating content...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="mr-2 h-4 w-4" />
-                          Generate Caption
-                        </>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>AI-powered caption generation with Human Authenticity Engine</p>
-                  </TooltipContent>
-                </Tooltip>
               </div>
 
               {/* Connected Platforms Status */}
