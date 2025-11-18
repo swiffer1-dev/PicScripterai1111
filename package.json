@@ -1,3 +1,8 @@
+{
+  "name": "rest-express",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "concurrently -n web,worker -c cyan,magenta \"npm:dev:web\" \"npm:dev:worker\"",
     "build": "vite build && esbuild server/index.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
@@ -10,10 +15,8 @@
     "dev:worker": "NODE_ENV=development tsx watch server/worker.ts",
     "start:web": "NODE_ENV=production node dist/index.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
-    "start:web-only": "NODE_ENV=production node dist/index.js",
-    "start:prod": "pm2-runtime ecosystem.config.js"
+    "start:web-only": "NODE_ENV=production node dist/index.js"
   },
-
   "dependencies": {
     "@google-cloud/storage": "^7.17.2",
     "@google/genai": "^1.28.0",
@@ -106,9 +109,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
-    "@replit/vite-plugin-cartographer": "^0.4.0",
-    "@replit/vite-plugin-dev-banner": "^0.1.1",
-    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
     "@types/connect-pg-simple": "^7.0.3",
@@ -135,3 +135,4 @@
     "bufferutil": "^4.0.8"
   }
 }
+
