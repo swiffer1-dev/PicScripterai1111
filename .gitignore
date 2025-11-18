@@ -1,7 +1,40 @@
+# ============================
+# Core dependencies and builds
+# ============================
 node_modules
 dist
+
+# ============================
+# OS and editor files
+# ============================
 .DS_Store
+
+# ============================
+# Public uploads / storage
+# (User-generated files, safe NOT to track)
+# ============================
 server/public
+
+# ============================
+# Config variations for Vite
+# ============================
 vite.config.ts.*
-*.tar.gz
+
+# ============================
+# Logs
+# ============================
 logs
+*.log
+
+# ============================
+# Archives
+# ============================
+*.tar.gz
+
+# ============================
+# Environment Variables (CRITICAL)
+# NEVER commit real .env files
+# ============================
+.env
+.env.*
+!.env.example
