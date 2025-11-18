@@ -8,7 +8,7 @@ import { Sidebar } from '@/components/sidebar';
 import CategorySelector from '../components/CategorySelector';
 import { Category, Tone } from '../types/ai-studio';
 import { Platform } from '@shared/schema';
-import logoImage from '@assets/logo.png';
+
 import { apiRequest } from '@/lib/queryClient';
 
 interface BatchItem {
