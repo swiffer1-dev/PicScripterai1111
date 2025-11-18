@@ -1,4 +1,4 @@
-# Picscripterai - Social Media Management Platform
+# Picscripterai - Social Media Management Platform.
 
 ## Overview
 Picscripterai is a full-stack social media management application designed to connect multiple social media and e-commerce platforms. It enables users to schedule and publish AI-powered promotional content across 7 major social platforms (Instagram, TikTok, Twitter/X, LinkedIn, Pinterest, YouTube, Facebook) and synchronize product data from 3 e-commerce platforms (Shopify, Etsy, Squarespace). The platform aims to be a productivity tool focused on efficient, reliable multi-platform content distribution and seamless integration between e-commerce catalogs and social media marketing.
