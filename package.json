@@ -16,6 +16,8 @@
     "start:web": "NODE_ENV=production node dist/index.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
     "start:web-only": "NODE_ENV=production node dist/index.js"
+    "start:prod": "pm2-runtime ecosystem.config.js",
+
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.2",
