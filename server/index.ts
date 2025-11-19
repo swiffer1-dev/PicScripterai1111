@@ -135,7 +135,19 @@ app.post("/post_to_fb", (req, res) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  console.log("🚀 Starting server initialization...");
+  console.log("📊 Environment:", process.env.NODE_ENV);
+  console.log("🔗 DATABASE_URL exists:", !!process.env.DATABASE_URL);
+  
+  let server;
+  try {
+    console.log("📝 Registering routes...");
+    server = await registerRoutes(app);
+    console.log("✅ Routes registered successfully");
+  } catch (error) {
+    console.error("❌ Failed to register routes:", error);
+    process.exit(1);
+  }
 
   // Centralized error handler
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
