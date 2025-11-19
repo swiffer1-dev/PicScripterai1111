@@ -5,7 +5,7 @@
     "buildCommand": "npm install && npm run build:railway"
   },
   "deploy": {
-    "startCommand": "npm run db:push --force && NODE_ENV=production node dist/index.js",
+    "startCommand": "NODE_ENV=production node dist/index.js",
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
