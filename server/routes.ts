@@ -78,6 +78,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok" });
   });
 
+  // Debug endpoint to check build files
+  app.get("/debug/build", (req, res) => {
+    const fs = require("fs");
+    const path = require("path");
+    
+    const checks = {
+      nodeEnv: process.env.NODE_ENV,
+      cwd: process.cwd(),
+      dirname: __dirname,
+      distPublic: path.resolve(__dirname, "public"),
+      distPublicExists: fs.existsSync(path.resolve(__dirname, "public")),
+      distPublicFromCwd: path.resolve(process.cwd(), "dist", "public"),
+      distPublicFromCwdExists: fs.existsSync(path.resolve(process.cwd(), "dist", "public")),
+      files: {} as any,
+    };
+    
+    // Check what files exist
+    const checkPath = checks.distPublicExists ? checks.distPublic : checks.distPublicFromCwd;
+    if (fs.existsSync(checkPath)) {
+      try {
+        checks.files.root = fs.readdirSync(checkPath);
+        const assetsPath = path.join(checkPath, "assets");
+        if (fs.existsSync(assetsPath)) {
+          checks.files.assets = fs.readdirSync(assetsPath).slice(0, 10); // First 10 files
+        }
+      } catch (err: any) {
+        checks.files.error = err.message;
+      }
+    }
+    
+    res.json(checks);
+  });
+
   app.get("/readyz", async (req, res) => {
     try {
       // Check database connection - let errors propagate so we can detect real failures

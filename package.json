@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "concurrently -n web,worker -c cyan,magenta \"npm:dev:web\" \"npm:dev:worker\"",
     "build": "vite build && esbuild server/index.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:railway": "npm run build && npm run verify-build && npm run db:push",
+    "verify-build": "node verify-build.js",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",

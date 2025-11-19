@@ -76,17 +76,59 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // IMPORTANT: use our own __dirname here, NOT import.meta.dirname
-  const distPath = path.resolve(__dirname, "public");
+  // In production, compiled code is in dist/
+  // Static files are in dist/public/
+  // Try multiple possible paths
+  let distPath = path.resolve(__dirname, "public");
+  
+  // If primary path doesn't exist, try from process.cwd()
+  if (!fs.existsSync(distPath)) {
+    console.log(`⚠️  Primary path not found: ${distPath}`);
+    distPath = path.resolve(process.cwd(), "dist", "public");
+    console.log(`   Trying alternative: ${distPath}`);
+  }
 
   if (!fs.existsSync(distPath)) {
+    // Log the attempted paths for debugging
+    console.error(`❌ Build directory not found!`);
+    console.error(`   Tried: ${path.resolve(__dirname, "public")}`);
+    console.error(`   Tried: ${path.resolve(process.cwd(), "dist", "public")}`);
+    console.error(`   Current __dirname: ${__dirname}`);
+    console.error(`   Current cwd: ${process.cwd()}`);
+    
+    // List what's actually in the directories
+    try {
+      console.error(`   Contents of __dirname:`, fs.readdirSync(__dirname));
+      console.error(`   Contents of cwd:`, fs.readdirSync(process.cwd()));
+    } catch (err) {
+      console.error(`   Could not list directories:`, err);
+    }
+    
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory, make sure to build the client first`,
     );
   }
 
+  console.log(`✅ Serving static files from: ${distPath}`);
+  
+  // Log what files are available
+  try {
+    const files = fs.readdirSync(distPath);
+    console.log(`   Files in dist: ${files.join(", ")}`);
+    if (files.includes("assets")) {
+      const assets = fs.readdirSync(path.join(distPath, "assets"));
+      console.log(`   Assets count: ${assets.length}`);
+    }
+  } catch (err) {
+    console.error(`   Could not list files:`, err);
+  }
+
   // Serve static assets from the Vite build
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    maxAge: "1d",
+    etag: true,
+    lastModified: true,
+  }));
 
   // Fallback: always send index.html for any unmatched route
   app.use("*", (_req, res) => {
